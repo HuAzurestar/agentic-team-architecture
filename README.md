@@ -51,6 +51,7 @@ BG（事业群，Squad 形态；BG 成员 = AS、HR、CPO、CTO、COO；不设 C
 | [docs/03-intelligence.md](docs/03-intelligence.md) | 大小智能管理：任务 ↔ 模型/Agent 规格匹配 |
 | [docs/04-collaboration.md](docs/04-collaboration.md) | 协作模式：价值流与跨线协同 |
 | [docs/05-iteration.md](docs/05-iteration.md) | 可自我迭代：节奏、反馈闭环、版本演进 |
+| [docs/06-multica-landing.md](docs/06-multica-landing.md) | Multica 落地映射：Squad / Agent / Autopilot / Issue / Project 管理（其它 agentic system 留空） |
 
 ## 云端 ↔ 本地同步与迭代规则
 

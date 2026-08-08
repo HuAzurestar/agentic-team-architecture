@@ -49,7 +49,7 @@
 
 | 版本 | 日期 | 变更内容 | 说明 |
 | --- | --- | --- | --- |
-| v1 | 2026-08-08 | 初始版本 | 单一 BG（POC 笔误，已统一为 OPC）组织架构、全角色规格、协作流与迭代机制 |
+| v1 | 2026-08-08 | 初始版本 | 单一 BG（POC 笔误，已统一为 BG）组织架构、全角色规格、协作流与迭代机制；**OPC 是模式名，BG 是单位名词** |
 | v2 | 2026-08-08 | 架构重构 | 覆盖 5 大能力（架构划分/边界管理/大小智能管理/协作模式/可自我迭代）；新增基础概念层（00）；组织单元为 **BG**（不设 CEO，成员：CPO/CTO/COO/HR/AS） |
 | v2.1 | 2026-08-08 | 命名规则 | 新增外企职级体系命名规则：CEO → EVP → VP/SVP → Director/高级总监 → Manager/高级经理 → 职员；级别 Senior / - / Assist 三级 |
 | v2.2 | 2026-08-08 | 智能分级统一 | 大小智能管理与三级分级结合（Assist / 普通 / Senior = 模型成本档位）；智能管理归属 = HR（成本/配置台账）+ 部门管理者（能力/模型适配） |
@@ -60,3 +60,4 @@
 | v2.7 | 2026-08-08 | TC 职责收敛 | 运维（Operation Engineer）与安全审批（安全员）从 TC 技术中心移出——不属于技术职能，分属运营线（OC），产品上线相关交由运营 |
 | v2.8 | 2026-08-08 | AS 分设 Assistant AS | AS 下设 Assistant AS（二级能力，Assist 档）：高频简单推动、阻塞 push 不动上报 AS；AS 做思考型工作、周期/汇报长、重大事故才紧急通知 |
 | v2.9 | 2026-08-08 | 专家命名 | 职员可以是专家；专家角色命名为 **Specialist / Senior**（Architect、前端/后端 Specialist、质量审查 Specialist），替换"专家"称谓 |
+| v2.10 | 2026-08-08 | 停摆处理 + Multica 落地 | ① CEO 未决策视为项目停摆，由 AS 记录并在定期汇报统一通知（C..O 职责内裁量权先行）；② 新增 [docs/06-multica-landing.md](06-multica-landing.md)——Multica 落地映射（Squad/Agent/Autopilot/Issue/Project 管理），其它 agentic system 留空 |
