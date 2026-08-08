@@ -5,7 +5,7 @@
 ## 1. 分层模型
 
 ```
-OPC（One Person Company）= 一位 CEO + 一个 AI 团队运营一家公司
+OPC（One Person Company）= 一位 CEO + 一个 AI 团队运营一家公司（可拓展到多人多 OPC，各 BG 有各自的 CEO）
 └── BG（Business Group，事业群）= OPC 的组织单元
     ├── BG 成员：AS、HR、CPO、CTO、COO、CKO
     └── 中心：PC / TC / OC —— 分别由 CPO / CTO / COO 所属

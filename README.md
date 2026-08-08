@@ -2,13 +2,13 @@
 
 > 一套足够详细、可复用的 **OPC（One Person Company）架构**，用于一人公司。
 >
-> **一个自然人用一个 AI 团队运营一家公司**；以 **Multica** 为执行基准，其它平台可参考本架构。
+> **一位 CEO（自然人）+ 一个 AI 团队，运营一家公司（OPC）**；以 **Multica** 为执行基准，其它平台可参考本架构。可拓展到**多人多 OPC**——各 BG 有各自的 CEO。
 
 本项目产出的是可复用的 **agentic team 组织架构**，覆盖五大能力：**架构划分、边界管理、大小智能管理、协作模式、可自我迭代**，不产出具体的 skill 或 agent。本仓库以 **Multica 的基本结构**为执行基准（本项目实际运行于 Multica），其它平台可将本架构作为**参考**，不能当作可迁移的直接模板。
 
 ## 项目定位
 
-- **形态**：OPC（One Person Company，一人公司）。公司由自然人 + 一组 agent 组成。
+- **形态**：OPC（One Person Company，一人公司）= 一位 **CEO（自然人）** + 一个 AI 团队；可拓展到多人协作（多人多 OPC，各 BG 有各自的 CEO）。
 - **基准单元**：BG（Business Group，事业群）。
 - **运行前提**：一组基础概念（CEO / LLM / Agent Program / Agent / Squad / Skill / MCP / Hook），见 [docs/00-prerequisites.md](docs/00-prerequisites.md)。
 - **内容边界**：只定义"架构"（组织、边界、智能分配、协作、迭代），不绑定除 Multica 之外的 agent 实现或平台。
