@@ -8,16 +8,18 @@
 
 | 架构概念 | Multica 载体 | 说明 |
 | --- | --- | --- |
-| BG（事业群） | **Squad** | BG 是一个 Squad，head 由个人/CEO 指定（当前架构不设 CEO 角色，最终决策归自然人） |
-| 二级小队（中心） | **Squad** | PC / TC / OC 各自为 Squad，head = 对应 C..O（或 C..O 指定负责人，如 TC 技术总监/技术主管） |
-| 角色（C..O / HR / AS / 细分角色） | **Agent** | 每个角色落地为一个或多个 Agent（可挂 Skill / MCP / Hook） |
+| BG（事业群） | **Squad** | BG 是一个 Squad，head = **AS**（BG 名义 lead，代行 CEO；CEO 是自然人 = 实际掌舵人） |
+| 中心（PC / TC / OC） | **Squad** | PC / TC / OC 各自为 Squad，head = 对应 C..O（或 C..O 指定负责人，如 TC 技术总监/技术主管） |
+| 角色（C..O / HR / AS / CKO / 细分角色） | **Agent** | 每个角色落地为一个或多个 Agent（可挂 Skill / MCP / Hook） |
 | 例行/自动化推进 | **Autopilot** | 节奏性、可重复的触发（定时/手动/webhook）→ 派发给对应 Agent 或 Squad |
 | 具体任务 | **Issue** | 每个待办/缺陷/需求以 Issue 承载 |
 | 上下文容器 | **Project** | 将仓库/目录资源与任务分组，注入任务上下文 |
 
+> **架构与实现分离**：架构层只定义 **BG / 中心**。"小队（squad）"是实现层概念——在 Multica 中为 issue 分派服务的 @ 工具，**按需创建**（只有分配到 squad 才有必要创建）；squad 的 lead 主要起 @ 的作用。
+
 ## 2. Squad 落地
 
-- **BG → Squad**：创建 BG 对应 Squad；成员 = 角色 Agent（AS、HR、CPO、CTO、COO）。
+- **BG → Squad**：创建 BG 对应 Squad；成员 = 角色 Agent（AS、HR、CPO、CTO、COO、CKO）；head = **AS**（BG 名义 lead，@ 目标）。
 - **PC / TC / OC → Squad**：各中心为 Squad；CPO / CTO / COO 兼其 head；TC 由技术总监/技术主管实际负责（向 CTO）。
 - **Squad 负责人路由**：派发给 Squad 的任务由 leader（head）接收并分派成员；Squad 成员接收各自职责内任务。
 
@@ -31,8 +33,9 @@
 - **状态持久化**：Agent 的上下文与产物落在 Issue 评论、工作区文件与仓库提交中；不依赖常驻内存。
 - **谁来唤醒谁**：
   - AS（含 Assistant AS）负责推动与唤醒——Assist 档高频扫描阻塞并上报；
-  - 升级链：相关 C..O 协商 → AS 推动 → CEO（个人/自然人）最终确认；
+  - 升级链：相关 C..O 协商 → AS 推动 → CEO（自然人）最终确认；
   - CEO 未决策 = 停摆，由 AS 记录并在定期汇报时统一通知（见 [docs/02-boundaries.md](02-boundaries.md) §3）。
+- **跨 BG 共享**：Assistant AS 与普通职员为**跨 BG 共享角色**（agent 可复用）；跨 BG 协同调动人事时 HR 需注意协调。
 
 ## 4. Autopilot 管理
 
@@ -45,7 +48,7 @@ Autopilot 只是**触发器**（不是 Agent 本身）：trigger 触发 → 派�
 **规则**：
 - Autopilot 本身有**任务描述**；创建 Issue 模式可指定 Project，静默运行模式因无 Issue 不能指定 Project。
 - **不用于测试性触发**（trigger 是真实副作用）；创建、更新、查看、触发均通过 `multica autopilot` 命令。
-- 例：红线扫描（P0/P1/P2）由 Autopilot 按节奏触发 Assistant AS / 安全小队——10min~1h 到点统一触发，属"创建 Issue（留痕）"或"静默运行"视需要而定。
+- 例：红线扫描（S0/S1/S2）由 Autopilot 按节奏触发 Assistant AS / 安全小队——10min~1h 到点统一触发，属"创建 Issue（留痕）"或"静默运行"视需要而定。
 
 ## 5. Issue 管理
 
@@ -54,6 +57,7 @@ Autopilot 只是**触发器**（不是 Agent 本身）：trigger 触发 → 派�
 - **父子 Issue**：子 Issue 与父 Issue **不共享上下文**；Project 共享上下文——所以 Issue 与 Project 的**描述字段用于收敛条件说明**，需注意管理。
 - **分派**：Issue 分派到对应角色 Agent 或 Squad；子任务用子 Issue（stage/backlog 编排）。
 - **状态流转**：todo → in_progress → in_review → done（blocked / cancelled 用于异常）。
+- **关闭权限**：issue 的**关闭由 CKO 执行**，不在其他人。
 - **升级记录**：跨线冲突/CEO 未决策的停摆，由 AS 在 Issue 评论中记录并汇报。
 
 ## 6. Project 管理

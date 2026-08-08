@@ -61,5 +61,6 @@
 | v2.8 | 2026-08-08 | AS 分设 Assistant AS | AS 下设 Assistant AS（二级能力，Assist 档）：高频简单推动、阻塞 push 不动上报 AS；AS 做思考型工作、周期/汇报长、重大事故才紧急通知 |
 | v2.9 | 2026-08-08 | 专家命名 | 职员可以是专家；专家角色命名为 **Specialist / Senior**（Architect、前端/后端 Specialist、质量审查 Specialist），替换"专家"称谓 |
 | v2.10 | 2026-08-08 | 停摆处理 + Multica 落地 | ① CEO 未决策视为项目停摆，由 AS 记录并在定期汇报统一通知（C..O 职责内裁量权先行）；② 新增 [docs/06-multica-landing.md](06-multica-landing.md)——Multica 落地映射（Squad/Agent/Autopilot/Issue/Project 管理），其它 agentic system 留空 |
-| v2.11 | 2026-08-08 | 红线检测机制 | 为"可以蠢，不能越权"定义检测信号：红线手册 + P0/P1/P2 分级；Assistant AS 按节奏扫描（P0 10min~1h / P1 1h~2h / P2 2day~1week，AS 低频复核）；处置（P0 紧急叫停+通知、P1 通知、P2 汇报）；AS 日报 P0 / 周报 P0-P2 |
-| v2.12 | 2026-08-08 | 文档收敛 | 术语表（职级=岗位层、级别=模型成本档、Senior=高级、P0/P1/P2=红线严重级）；专家/Specialist 统一改 **Senior**；CEO 口径收敛为"BG 内不设 CEO 岗位，最终决策者=个人（自然人=CEO）"；红线文档以 issue 形式存在（链接或 issue 即文档）；Autopilot 仅触发器、两种模式（创建 issue / 静默运行）；Assistant AS 频率统一 10min~1h；Issue/Project 上下文与删除约束；角色规格改模板+差异 |
+| v2.11 | 2026-08-08 | 红线检测机制 | 为"可以蠢，不能越权"定义检测信号：红线手册 + S0/S1/S2 分级；Assistant AS 按节奏扫描（S0 10min~1h / S1 1h~2h / S2 2day~1week，AS 低频复核）；处置（S0 紧急叫停+通知、S1 通知、S2 汇报）；AS 日报 S0 / 周报 S0-S2 |
+| v2.12 | 2026-08-08 | 文档收敛 | 术语表（职级=岗位层、级别=模型成本档、Senior=高级、S0/S1/S2=红线严重级）；专家/Specialist 统一改 **Senior**；CEO 口径收敛为"BG 内不设 CEO 岗位，最终决策者=个人（自然人=CEO）"；红线文档以 issue 形式存在（链接或 issue 即文档）；Autopilot 仅触发器、两种模式（创建 issue / 静默运行）；Assistant AS 频率统一 10min~1h；Issue/Project 上下文与删除约束；角色规格改模板+差异 |
+| v2.13 | 2026-08-08 | 架构/实现分离 + 角色调整 | ① 架构层去掉"小队/squad"概念（仅 BG / 中心），squad 为实现层 @ 工具；② CEO = 自然人属于 BG，BG 名义 lead = AS；AS 是 CEO 代理人（非特定个人的）；③ 新增 **CKO**（首席知识官，管 skills / 文档 / issue 关闭）；④ HR 不派发任务、人事变动须 CEO 批准；⑤ 红线严重级 **P0/P1/P2 → S0/S1/S2**（避免与 Multica 优先级冲突）；⑥ PC / OC 细分标注待定 |

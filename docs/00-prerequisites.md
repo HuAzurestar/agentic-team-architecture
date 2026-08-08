@@ -27,7 +27,7 @@ Agent（智能体）
 
 - 一个 **Agent Program** 上可运行多个 **Agent**（不同角色/用途）。
 - 一个 **Skill** 可被多个 Agent 复用，决定"这个 Agent 会做什么、怎么做"。
-- **Squad** 是组织单位：一个 head 领导 N 个 member；在本架构中，**BG 即一个 Squad**。
+- **Squad** 是 Multica 的实现层单位：一个 head 领导 N 个 member，作为 issue 分派服务的 @ 工具。**架构层不定义小队**——架构层的 BG / 中心在 Multica 中以 Squad 落地（见 [docs/06-multica-landing.md](06-multica-landing.md)）。
 
 ## 3. 这套概念的作用
 
@@ -41,6 +41,5 @@ Agent（智能体）
 | --- | --- | --- |
 | 职级 | **岗位层**：CEO/EVP/VP · Director/Manager · 职员（上下级语义） | 模型成本 |
 | 级别 | **模型成本档**：Assist / 普通 / Senior（贵与便宜） | 岗位层 |
-| Senior | **高级岗 / 高级档**：作专家角色名或高级成本档（按上下文） | "专家" |
-| 专家 | **统一用 Senior（高级）**，不再用"专家"称谓 | Specialist |
-| P0/P1/P2 | **红线严重级**：重大事故 / 事故 / 风险（见 [docs/02-boundaries.md](02-boundaries.md) §5） | 任务优先级 |
+| Senior | **高级岗 / 高级档**：作专家角色名或高级成本档（按上下文） | "专家" / Specialist |
+| S0/S1/S2 | **红线严重级**：重大事故 / 事故 / 风险（见 [docs/02-boundaries.md](02-boundaries.md) §5） | 任务优先级 |
