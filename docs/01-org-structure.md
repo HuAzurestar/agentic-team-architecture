@@ -43,21 +43,24 @@ BG（Squad，不设 CEO；BG 成员 5 = AS、HR、CPO、CTO、COO）
 
 ### 2.2 TC 技术中心（CTO 下属）细分角色
 
-CTO 下属为各层执行单位，并区分**专家角色**与**普通角色**。技术研发覆盖：技术规划、研发（前后端等）、测试、运维、安全审批。
+CTO 下属为各层执行单位，并区分**专家角色**与**普通角色**。技术研发覆盖：技术规划、研发（前后端）、质量审查、运维、安全审批。TC 技术中心是一个 **Squad**，负责人为**技术总监 / 技术主管**（总监/主管类角色，即 squad 负责人，向 CTO 汇报）。
 
 ```
-TC 技术中心（head = CTO）
+TC 技术中心（Squad；负责人 = 技术总监 / 技术主管，总监/主管类 = squad 负责人）
 ├── 技术规划　Architect 架构师（专家）—— 为技术实现划分界限
-├── 研发执行　FSE 全栈 / FE 前端 / BE 后端（普通执行）
-├── 质量安全　Code Reviewer / Plan Reviewer / Testing Engineer（专家审查）
-│              （界面要求高时补：UI Reviewer / UX Reviewer）
+├── 研发（统一执行角色，普通）—— 前端 / 后端通用实现
+│   ├── 前端专家（专家）—— 负责前端 / UI / 页面展示域
+│   └── 后端专家（专家）—— 负责后端 / 数据处理 / API 域
+├── 质量审查（专家）—— Code / Plan / Testing 三视角经不同 skill 配置拆分
+│              （界面要求高时补：UI / UX 审查视角）
 ├── 运维　　　Operation Engineer（普通执行）
 └── 安全审批　安全员（专家，主要负责审批）
 ```
 
-- **专家 vs 普通角色**：Architect、各类 Reviewer、安全员为**专家角色**（规划 / 审查 / 审批）；FSE / FE / BE、Operation Engineer 为**普通执行角色**（按方案实现）。
-- **研发分工**：FSE 全栈前后端都能做，但复杂任务易出错；FE 专职前端 / UI / 页面展示；BE 专职后端 / 数据处理 / API。三者权责不同。
-- **质量审查三视角**：Code Reviewer 看代码写得好不好；Plan Reviewer 看计划写得好不好；Testing Engineer 找极端情况、看响应好不好。
+- **Squad 负责人**：TC 技术中心由**技术总监 / 技术主管**（总监/主管类角色）担任 squad 负责人，向 CTO 汇报，统筹技术线执行与交付。
+- **专家 vs 普通角色**：Architect、前端专家、后端专家、质量审查、安全员为**专家角色**（规划 / 领域负责 / 审查 / 审批）；研发、Operation Engineer 为**普通执行角色**（按方案实现）。
+- **研发统一**：FSE / FE / BE 三拆合并为**一个研发角色**（普通执行，前后端通用实现）；前端、后端分别由**前端专家 / 后端专家**负责（领域专家，负责各自域的方案与质量）。
+- **质量审查三视角（skill 拆分）**：Code（代码质量）、Plan（计划质量）、Testing（极端情况/响应）三视角**不设独立岗位**，由同一质量审查职能经**不同的 skill 配置**拆分实现；界面要求高时补 UI / UX 审查视角。
 - **算法（AE）**：算法问题更难，与前后端协作过多容易造成**上下文危险**——原则上**单独设一个中心**（如 AC 算法中心），不与前后端混编。v2 先记录此原则，具体结构后续定义。
 - **PC / OC 细分**：产品、运营当前由 CPO / COO **全权负责**，细分角色待讨论。
 
@@ -116,5 +119,5 @@ TC 技术中心（head = CTO）
 ### 5.4 在本架构中的应用
 
 - **BG 成员（CPO / CTO / COO / HR / AS）**：位于**最高一级（EVP）**。CPO / CTO / COO 分别对应 PC / TC / OC 中心的 EVP；HR 对应 CHO（首席人事官）定位；AS 为个人 / CEO 的代行（类似 Chief of Staff 定位）。
-- **TC 技术中心细分角色**：位于**最低一级（职员）**。Architect、FSE、FE、BE、Code Reviewer、Plan Reviewer、Testing Engineer、Operation Engineer、安全员 均为执行 / 专家岗，不使用专用头衔词；可按 Senior / - / Assist 三级细分（如 Senior BE、Assist FE）。
+- **TC 技术中心**：**技术总监 / 技术主管**（squad 负责人）位于**中间一级（总监 / 主管）**，使用 Head / Director / Lead / Manager 类头衔；细分角色（Architect、研发、前端专家、后端专家、质量审查、Operation Engineer、安全员）位于**最低一级（职员）**，不使用专用头衔词；可按 Senior / - / Assist 三级细分（如 Senior BE、Assist FE）。
 - **新增角色**：按职责所在层级选用头衔——最高级用 C..O / EVP 系列；管理层用 VP / Director / Manager 系列；执行层用普通岗名。
