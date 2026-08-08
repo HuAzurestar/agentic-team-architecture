@@ -41,6 +41,26 @@ BG Nexus One（Squad，不设 CEO；BG 成员 5 = AS、HR、CPO、CTO、COO）
 
 > 各角色完整规格（权限、产出、红线）见 [docs/02-boundaries.md](02-boundaries.md)。
 
+### 2.2 TC 技术中心（CTO Nexus 下属）细分角色
+
+CTO 下属为各层执行单位，并区分**专家角色**与**普通角色**。技术研发覆盖：技术规划、研发（前后端等）、测试、运维、安全审批。
+
+```
+TC 技术中心（head = CTO Nexus）
+├── 技术规划　Architect 架构师（专家）—— 为技术实现划分界限
+├── 研发执行　FSE 全栈 / FE 前端 / BE 后端（普通执行）
+├── 质量安全　Code Reviewer / Plan Reviewer / Testing Engineer（专家审查）
+│              （界面要求高时补：UI Reviewer / UX Reviewer）
+├── 运维　　　Operation Engineer（普通执行）
+└── 安全审批　安全员（专家，主要负责审批）
+```
+
+- **专家 vs 普通角色**：Architect、各类 Reviewer、安全员为**专家角色**（规划 / 审查 / 审批）；FSE / FE / BE、Operation Engineer 为**普通执行角色**（按方案实现）。
+- **研发分工**：FSE 全栈前后端都能做，但复杂任务易出错；FE 专职前端 / UI / 页面展示；BE 专职后端 / 数据处理 / API。三者权责不同。
+- **质量审查三视角**：Code Reviewer 看代码写得好不好；Plan Reviewer 看计划写得好不好；Testing Engineer 找极端情况、看响应好不好。
+- **算法（AE）**：算法问题更难，与前后端协作过多容易造成**上下文危险**——原则上**单独设一个中心**（如 AC 算法中心），不与前后端混编。v2 先记录此原则，具体结构后续定义。
+- **PC / OC 细分**：产品、运营当前由 CPO / COO **全权负责**，细分角色待讨论。
+
 ## 3. 汇报线与决策
 
 - **不设 CEO**：BG Nexus One 无 CEO 角色；重大决策直接归于个人（自然人）。
