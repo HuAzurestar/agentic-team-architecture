@@ -35,7 +35,7 @@ BG（事业群，Squad 形态；BG 成员 = AS、HR、CPO、CTO、COO；不设 C
 ```
 
 - **BG 是一个 Squad**，成员 = **AS、HR、CPO、CTO、COO**；不设 CEO，最终决策权归于自然人（个人）。CPO/CTO/COO 同时是二级小队 **PC / TC / OC（产品/技术/运营中心）** 的所属。
-- **二级小队细分**：TC 技术中心（Squad，负责人 = 技术总监/技术主管）下设细分角色（技术规划 / 研发与前后端专家 / 质量审查 / 运维 / 安全审批），详见 [docs/01-org-structure.md](docs/01-org-structure.md) 与 [docs/02-boundaries.md](docs/02-boundaries.md)；PC / OC 细分待讨论，算法建议单独成中心。
+- **二级小队细分**：TC 技术中心（Squad，负责人 = 技术总监/技术主管）下设细分角色（技术规划 / 研发与前后端专家 / 质量审查），详见 [docs/01-org-structure.md](docs/01-org-structure.md) 与 [docs/02-boundaries.md](docs/02-boundaries.md)；PC / OC 细分待讨论（**运维与安全审批归运营线**），算法建议单独成中心。
 - **命名规则**：角色命名采用**三级版本**（最高 CEO/EVP/VP · 中间 Director/Manager · 职员；级别 Assist / 普通 / Senior = 模型成本档位），详见 [docs/01-org-structure.md](docs/01-org-structure.md)。
 - BG 下若要加成员，除 **HR / AS** 外，就是其它 **C..O**。
 - 扩展：多 BG 时以 BG 为模板复制，并可为每个 BG 命名（如 BG A、BG B）。
