@@ -26,15 +26,15 @@
 ## 组织架构总览（BG Nexus One）
 
 ```
-BG Nexus One（事业群，Squad 形态；不设 CEO，最终决策权归于个人/自然人）
-├── CPO Nexus — 产品线：负责产品的成色设计
-├── CTO Nexus — 技术线：负责如何实现产品
-├── COO Nexus — 运营线：负责产品的长期执行
-├── HR Nexus  — 人事与架构调整（agent 归属、skill 配置），有管理权不可越权
-└── AS Nexus  — 个人/CEO 代行：推动工作、调动组织行动（杂务），可蠢不可越权
+BG Nexus One（事业群，Squad 形态；BG 成员 = AS、HR、CPO、CTO、COO；不设 CEO）
+├── CPO Nexus — BG 成员；兼 PC 产品中心（二级小队）：产品的成色设计
+├── CTO Nexus — BG 成员；兼 TC 技术中心（二级小队）：如何实现产品
+├── COO Nexus — BG 成员；兼 OC 运营中心（二级小队）：产品的长期执行
+├── HR Nexus  — BG 成员：人事与架构调整（agent 归属、skill 配置），有管理权不可越权
+└── AS Nexus  — BG 成员：个人代行，推动工作、调动组织行动（杂务），可蠢不可越权
 ```
 
-- **BG 是一个 Squad**（1 head + N members 的形态）；BG Nexus One 采用扁平成员制，不设 CEO，最终决策权归于自然人（个人）。
+- **BG 是一个 Squad**，成员 = **AS、HR、CPO、CTO、COO**；不设 CEO，最终决策权归于自然人（个人）。CPO/CTO/COO 同时是二级小队 **PC / TC / OC（产品/技术/运营中心）** 的所属。
 - BG 下若要加成员，除 **HR / AS** 外，就是其它 **C..O**。
 - 扩展：多 BG 时以 BG Nexus One 为模板复制，并可为每个 BG 命名（如 BG Nexus Two）。
 
