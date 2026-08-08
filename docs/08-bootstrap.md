@@ -19,7 +19,7 @@
 
 ## 4. 建立红线手册
 
-- 由 **CKO** 起草首版红线手册（[docs/07-redline-manual.md](07-redline-manual.md)），落地为 issue（承载于本项目）。
+- 由 **CKO** 起草首版红线手册（[docs/07-redline-manual.md](07-redline-manual.md)），落地为 issue（挂在本项目下）。
 
 ## 5. 配置 Autopilot（触发事件由 CEO 确认创建，AS 跟进）
 

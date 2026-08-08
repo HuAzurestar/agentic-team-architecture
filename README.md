@@ -52,7 +52,7 @@ BG（组织单元；BG 成员 = AS、HR、CPO、CTO、COO、CKO）
 | [docs/02-boundaries.md](docs/02-boundaries.md) | 边界管理：角色规格、权限红线、升级机制 |
 | [docs/03-intelligence.md](docs/03-intelligence.md) | 大小智能管理：任务 ↔ 模型/Agent 规格匹配 |
 | [docs/04-collaboration.md](docs/04-collaboration.md) | 协作模式：价值流与跨中心协同 |
-| [docs/05-iteration.md](docs/05-iteration.md) | 可自我迭代：节奏、反馈闭环、版本演进 |
+| [docs/05-iteration.md](docs/05-iteration.md) | 可自我迭代：节奏、反馈循环、版本演进 |
 | [docs/06-multica-landing.md](docs/06-multica-landing.md) | Multica 落地映射：Squad / Agent / Autopilot / Issue / Project 管理（其它 agentic system 留空） |
 | [docs/07-redline-manual.md](docs/07-redline-manual.md) | 红线手册（v1）：S0/S1/S2 判定基准（CKO 维护） |
 | [docs/08-bootstrap.md](docs/08-bootstrap.md) | 启动引导：从零把架构落到 Multica 的最小启动清单 |
