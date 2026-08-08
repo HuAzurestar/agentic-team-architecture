@@ -1,0 +1,16 @@
+# 本地工作材料（不纳入主仓提交）
+Skill 下载与审查/
+新建文件夹/
+
+# Multica 运行时 / 工作区文件（不属于架构仓库）
+.claude/
+.multica/
+.agent_context/
+CLAUDE.md
+
+# multica repo checkout 的工作副本（运行时产物，与仓库主源保持独立）
+agentic-team-architecture/
+
+# 系统文件
+Thumbs.db
+.DS_Store
