@@ -1,8 +1,8 @@
 # 06 Multica 落地映射（v2）
 
-> 将本架构落地到 **Multica** 的机制说明：角色 → Squad / Agent 如何实例化，以及 **Autopilot / Issue / Project** 如何管理。其它 agentic system 的落地方式**留空待补**。
+> 本架构在 **Multica** 上的落地机制：角色 → Squad / Agent 如何实例化，**Autopilot / Issue / Project** 如何管理。其它 agentic system 的落地方式**留空待补**。
 
-> 本架构以 Multica 为执行基准（本项目实际运行于 Multica）；本文件是「角色→运行实例」的落地映射，解决评审 #3 提出的「角色如何实例化为 run（触发方式、状态持久化、谁来唤醒谁）」缺口。
+> 本架构以 Multica 为执行基准（本项目实际运行于 Multica）。本文件回答「角色如何实例化为 run」：触发方式、状态持久化、谁来唤醒谁。
 
 ## 1. 落地总览
 

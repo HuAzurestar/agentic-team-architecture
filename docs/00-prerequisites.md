@@ -1,6 +1,6 @@
 # 00 基础概念与运行必备条件（v2）
 
-> 运行 agentic team 需要先对齐的一组基础概念。以 **Multica 的基本结构**为执行基准（本项目实际运行于 Multica）；其它平台可将本表作为**参考**。
+> 运行 agentic team 之前，先约定一组基础概念。以 **Multica 的基本结构**为执行基准（本项目实际运行于 Multica）；其它平台可将本表作为**参考**。
 
 ## 1. 概念总览
 
@@ -29,11 +29,11 @@ Agent（智能体）
 - 一个 **Skill** 可被多个 Agent 复用，决定"这个 Agent 会做什么、怎么做"。
 - **Squad** 是组织单位：一个 head 领导 N 个 member；在本架构中，**BG 即一个 Squad**。
 
-## 3. 为什么需要这套概念
+## 3. 这套概念的作用
 
-- 让"角色"（CPO/CTO/COO/HR/AS）与"实现载体"（Agent + Agent Program + LLM + Skill/MCP/Hook）解耦：**架构定义角色，运行前提定义载体**。
+- 把"角色"（CPO/CTO/COO/HR/AS）和"实现载体"（Agent + Agent Program + LLM + Skill/MCP/Hook）分开：**架构定义角色，运行前提定义载体**。
 - 每个角色落地为一个或多个 Agent；Agent 由具体的 Agent Program + LLM 驱动，通过 Skill/MCP/Hook 获得能力。
-- 这套概念决定了"大小智能管理"（[docs/03-intelligence.md](03-intelligence.md)）如何落地：不同规格的 LLM 与 Skill 组合，承担不同复杂度的任务。
+- "大小智能管理"（[docs/03-intelligence.md](03-intelligence.md)）靠这套概念落地：不同规格的 LLM 与 Skill 组合，承担不同复杂度的任务。
 
 ## 4. 术语表（锁定用法）
 
