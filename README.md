@@ -19,7 +19,7 @@
 | --- | --- | --- | --- |
 | 1 | 架构划分 | 组织与角色分层（OPC → BG → C..O） | [docs/01-org-structure.md](docs/01-org-structure.md) |
 | 2 | 边界管理 | 权限红线、越权规则、决策权与升级 | [docs/02-boundaries.md](docs/02-boundaries.md) |
-| 3 | 大小智能管理 | 任务复杂度 ↔ 模型/Agent 规格匹配 | [docs/03-intelligence.md](docs/03-intelligence.md) |
+| 3 | 大小智能管理 | 任务复杂度 ↔ 模型成本档位匹配（Assist / 普通 / Senior） | [docs/03-intelligence.md](docs/03-intelligence.md) |
 | 4 | 协作模式 | 产品/技术/运营/人事/行政之间的协作流 | [docs/04-collaboration.md](docs/04-collaboration.md) |
 | 5 | 可自我迭代 | 架构自身持续演进 | [docs/05-iteration.md](docs/05-iteration.md) |
 
