@@ -6,7 +6,7 @@
 
 | 概念 | 定位 | 说明 |
 | --- | --- | --- |
-| 个人 | 运营者 | OPC 的最终拥有者与决策者；公司的"一人" |
+| CEO | 一人运营者 | OPC 的最终拥有者与决策者；公司的"一人" |
 | LLM | 大模型 | deepseek、GLM、grok、kimi、GPT、claude 等 |
 | Agent Program | 智能体程序 | 基于 LLM 制作的、可对话的、具有特定流程使用方式的程序应用：claude code、opencode、codex、gemini CLI 等 |
 | Agent | 智能体 | 依托 Agent Program 运行的可运行进程；可挂载 Skill、MCP、Hook |

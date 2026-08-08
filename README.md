@@ -10,7 +10,7 @@
 
 - **形态**：OPC（One Person Company，一人公司）。公司由自然人 + 一组 agent 组成。
 - **基准单元**：BG（Business Group，事业群）。
-- **运行前提**：一组基础概念（个人 / LLM / Agent Program / Agent / Squad / Skill / MCP / Hook），见 [docs/00-prerequisites.md](docs/00-prerequisites.md)。
+- **运行前提**：一组基础概念（CEO / LLM / Agent Program / Agent / Squad / Skill / MCP / Hook），见 [docs/00-prerequisites.md](docs/00-prerequisites.md)。
 - **内容边界**：只定义"架构"（组织、边界、智能分配、协作、迭代），不绑定除 Multica 之外的 agent 实现或平台。
 
 ## 架构的 5 大能力
@@ -47,7 +47,7 @@ BG（组织单元；BG 成员 = AS、HR、CPO、CTO、COO、CKO）
 
 | 文档 | 内容 |
 | --- | --- |
-| [docs/00-prerequisites.md](docs/00-prerequisites.md) | 基础概念与运行必备条件（个人/LLM/Agent Program/Agent/Squad/Skill/MCP/Hook） |
+| [docs/00-prerequisites.md](docs/00-prerequisites.md) | 基础概念与运行必备条件（CEO/LLM/Agent Program/Agent/Squad/Skill/MCP/Hook） |
 | [docs/01-org-structure.md](docs/01-org-structure.md) | 架构划分：组织树（OPC → BG → C..O） |
 | [docs/02-boundaries.md](docs/02-boundaries.md) | 边界管理：角色规格、权限红线、升级机制 |
 | [docs/03-intelligence.md](docs/03-intelligence.md) | 大小智能管理：任务 ↔ 模型/Agent 规格匹配 |

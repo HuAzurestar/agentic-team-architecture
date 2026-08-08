@@ -33,7 +33,7 @@
 ### 演进流程
 
 1. 复盘/评审中提出变更建议（含动机与影响范围）。
-2. 个人裁决 + 相关线负责人评估。
+2. CEO 裁决 + 相关中心负责人评估。
 3. 同步更新 README 与 docs/00-05 相关文档。
 4. 记录到本文档"变更记录"。
 5. 按云↔本地同步规则（见 README）提交并推送。
@@ -62,9 +62,10 @@
 | v2.9 | 2026-08-08 | 专家命名 | 职员可以是专家；专家角色命名为 **Specialist / Senior**（Architect、前端/后端 Specialist、质量审查 Specialist），替换"专家"称谓 |
 | v2.10 | 2026-08-08 | 停摆处理 + Multica 落地 | ① CEO 未决策视为项目停摆，由 AS 记录并在定期汇报统一通知（C..O 职责内裁量权先行）；② 新增 [docs/06-multica-landing.md](06-multica-landing.md)——Multica 落地映射（Squad/Agent/Autopilot/Issue/Project 管理），其它 agentic system 留空 |
 | v2.11 | 2026-08-08 | 红线检测机制 | 为"可以蠢，不能越权"定义检测信号：红线手册 + S0/S1/S2 分级；Assistant AS 按节奏扫描（S0 10min~1h / S1 1h~2h / S2 2day~1week，AS 低频复核）；处置（S0 紧急叫停+通知、S1 通知、S2 汇报）；AS 日报 S0 / 周报 S0-S2 |
-| v2.12 | 2026-08-08 | 文档收敛 | 术语表（职级=岗位层、级别=模型成本档、Senior=高级、S0/S1/S2=红线严重级）；专家/Specialist 统一改 **Senior**；CEO 口径收敛为"BG 内不设 CEO 岗位，最终决策者=个人（自然人=CEO）"；红线文档以 issue 形式存在（链接或 issue 即文档）；Autopilot 仅触发器、两种模式（创建 issue / 静默运行）；Assistant AS 频率统一 10min~1h；Issue/Project 上下文与删除约束；角色规格改模板+差异 |
-| v2.13 | 2026-08-08 | 架构/实现分离 + 角色调整 | ① 架构层去掉"小队/squad"概念（仅 BG / 中心），squad 为实现层 @ 工具；② CEO = 自然人属于 BG，BG 名义 lead = AS；AS 是 CEO 代理人（非特定个人的）；③ 新增 **CKO**（首席知识官，管 skills / 文档 / issue 关闭）；④ HR 不派发任务、人事变动须 CEO 批准；⑤ 红线严重级 **P0/P1/P2 → S0/S1/S2**（避免与 Multica 优先级冲突）；⑥ PC / OC 细分标注待定 |
+| v2.12 | 2026-08-08 | 文档收敛 | 术语表（职级=岗位层、级别=模型成本档、Senior=高级、S0/S1/S2=红线严重级）；专家/Specialist 统一改 **Senior**；CEO 口径收敛为"BG 内不设 CEO 岗位，最终决策者=CEO"；红线文档以 issue 形式存在（链接或 issue 即文档）；Autopilot 仅触发器、两种模式（创建 issue / 静默运行）；Assistant AS 频率统一 10min~1h；Issue/Project 上下文与删除约束；角色规格改模板+差异 |
+| v2.13 | 2026-08-08 | 架构/实现分离 + 角色调整 | ① 架构层去掉"小队/squad"概念（仅 BG / 中心），squad 为实现层 @ 工具；② CEO = 自然人属于 BG，BG 名义 lead = AS；AS 是 CEO 代理人（非特定一人的）；③ 新增 **CKO**（首席知识官，管 skills / 文档 / issue 关闭）；④ HR 不派发任务、人事变动须 CEO 批准；⑤ 红线严重级 **P0/P1/P2 → S0/S1/S2**（避免与 Multica 优先级冲突）；⑥ PC / OC 细分标注待定 |
 | v2.14 | 2026-08-08 | 术语统一 + 角色简化 | ① 线→中心统一（产品/技术/运营线→中心，跨线→跨中心）；② TC 细分简化：Architect / 研发 / 质量审查 / UI·UX，仅前端 / 后端 Senior 保留"Senior"头衔；③ "CEO = 自然人"只写 README，其它统一写 CEO；④ 红线判定改为"升级三问"（红线由红线手册 S0-S2 确定，CKO 认定，手册外补充）；⑤ 高层会议：专门 issue、全体一致通过可越过 CEO 裁决、仍向 CEO 汇报；⑥ 红线触发复盘属 CKO；⑦ Autopilot 统一触发（Assistant AS 执行、每周 issue、@ 群体触发，运营自动化另设） |
 | v2.15 | 2026-08-08 | 细节修正 | ① Assistant AS 是 **BG 角色**（非跨 BG 共享；普通职员仍跨 BG 共享）；② HR 人事变动含**参数配置**的增删与变更；③ HR 职能含**评估成本** |
 | v2.16 | 2026-08-08 | Assistant AS 汇报线澄清 | Assistant AS 是**唯一不向 CEO 负责**的角色（向 AS 负责），充当触发器 + 显式红线简单监督；S0 处置改为 Assistant AS 叫停并通知 AS，由 **AS 紧急通知 CEO** |
 | v2.17 | 2026-08-08 | 升级对象扩展 | 升级三问成立时，升级对象不限于 AS / CKO：优先**直属上级 / 小队 lead**（AS / CKO 不一定有该事项裁量权），必要时再逐级到 AS / CKO 认定红线级别 |
+| v2.18 | 2026-08-08 | 术语清理 | 除 README 外全文统一用 CEO：概念表（docs/00）改 CEO；反馈回流参与改为"用户、AS、CEO"；演进流程裁决者等改 CEO |
