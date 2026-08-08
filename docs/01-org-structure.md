@@ -73,3 +73,42 @@ TC 技术中心（head = CTO）
 - **多 BG**：以 BG 为模板复制；每个 BG 命名（如 BG A、BG B），成员结构相同。
 - **BG 内加角色**：除 HR / AS 外，新增成员一律是 C..O 形态（如 CFO、CMO），各对应一个二级小队/中心（如 FC 财务中心）。
 - **BU（事业部）**：跨 BG/产品线的矩阵单元，v2 仍为占位概念，后续版本定义。
+
+## 5. 命名规则与职级体系
+
+架构的角色命名遵循**外企职级规则**，用于给角色定位档位、控制头衔使用。共分三个职级大层，每个大层下可再细分等级。
+
+### 5.1 职级大层
+
+| 层级 | 职级 | 说明 | 专用名词 |
+| --- | --- | --- | --- |
+| 最高一级 | 总裁 / 执行总裁 / 副总裁（CEO / EVP / VP） | 公司 / 部门最高管理 | Chief / Officer / President（属管理人员，有上下，不拆架构） |
+| 中间一级 | 总监 / 经理（Director / Manager） | 部门 / 团队管理 | Head / Director / Lead / Manager（首席 / 总监 / 主管 / 经理） |
+| 最低一级 | 职员 | 执行岗 | 不使用专用词即可 |
+
+### 5.2 职级细分（自高到低）
+
+1. **CEO**（Chief Executive Officer，首席执行官 / 总裁）—— 公司最高行政负责人与管理人，仅一人。
+2. **EVP**（Executive Vice President，执行副总裁）—— 各大部门最高管理人，如 CFO（首席财务）、COO（首席运营官）、CHO（首席人事官）等。
+3. **VP**（Vice President，副总裁）—— 设于各部门 EVP 之下，分两级：
+   - **SVP**（Senior Vice President，高级副总裁）
+   - **VP**（副总裁）
+4. **Director**（总监）—— 分两级：
+   - **Senior Director**（高级总监）
+   - **Director**（总监）
+5. **Manager**（经理）—— 分两级：
+   - **Senior Manager**（高级经理）
+   - **Manager**（经理）
+6. **普通员工**—— 分两级（以财务部为例）：
+   - **Senior Accountant**（高级会计师）
+   - **Accountant**（会计师）
+
+### 5.3 级别三级
+
+每个职级可按 **Senior（高级）/ -（标准）/ Assist（助理）** 三级划分。
+
+### 5.4 在本架构中的应用
+
+- **BG 成员（CPO / CTO / COO / HR / AS）**：位于**最高一级（EVP）**。CPO / CTO / COO 分别对应 PC / TC / OC 中心的 EVP；HR 对应 CHO（首席人事官）定位；AS 为个人 / CEO 的代行（类似 Chief of Staff 定位）。
+- **TC 技术中心细分角色**：位于**最低一级（职员）**。Architect、FSE、FE、BE、Code Reviewer、Plan Reviewer、Testing Engineer、Operation Engineer、安全员 均为执行 / 专家岗，不使用专用头衔词；可按 Senior / - / Assist 三级细分（如 Senior BE、Assist FE）。
+- **新增角色**：按职责所在层级选用头衔——最高级用 C..O / EVP 系列；管理层用 VP / Director / Manager 系列；执行层用普通岗名。

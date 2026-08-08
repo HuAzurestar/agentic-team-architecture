@@ -6,6 +6,8 @@
 
 每个角色字段：定位 / 负责线（二级所属）/ 职责 / 关键产出 / 权限（能做）/ 红线（不能做）/ 协作方 / 衡量指标。
 
+> 角色档位按 [01-org-structure.md](01-org-structure.md) 的命名规则定位：BG 成员（CPO/CTO/COO/HR/AS）为 **EVP 级**；TC 技术中心细分角色为**职员级**（可按 Senior / - / Assist 三级细分）。
+
 ### 1.1 CPO —— 产品负责人（Chief Production Officer）
 
 - **定位**：BG 成员，兼 **PC 产品中心**（二级小队）所属；负责产品的**成色设计**。
