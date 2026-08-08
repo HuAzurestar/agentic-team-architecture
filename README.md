@@ -9,7 +9,7 @@
 ## 项目定位
 
 - **形态**：OPC（One Person Company，一人公司）。公司由自然人 + 一组 agent 组成。
-- **基准单元**：BG（Business Group，事业群）。当前实例为 **BG Nexus One**。
+- **基准单元**：BG（Business Group，事业群）。当前实例为 **BG**。
 - **运行前提**：一组基础概念（个人 / LLM / Agent Program / Agent / Squad / Skill / MCP / Hook），见 [docs/00-prerequisites.md](docs/00-prerequisites.md)。
 - **内容边界**：只定义"架构"（组织、边界、智能分配、协作、迭代），不绑定具体 agent 实现或平台。
 
@@ -23,21 +23,21 @@
 | 4 | 协作模式 | 产品/技术/运营/人事/行政之间的协作流 | [docs/04-collaboration.md](docs/04-collaboration.md) |
 | 5 | 可自我迭代 | 架构自身持续演进 | [docs/05-iteration.md](docs/05-iteration.md) |
 
-## 组织架构总览（BG Nexus One）
+## 组织架构总览
 
 ```
-BG Nexus One（事业群，Squad 形态；BG 成员 = AS、HR、CPO、CTO、COO；不设 CEO）
-├── CPO Nexus — BG 成员；兼 PC 产品中心（二级小队）：产品的成色设计
-├── CTO Nexus — BG 成员；兼 TC 技术中心（二级小队）：如何实现产品
-├── COO Nexus — BG 成员；兼 OC 运营中心（二级小队）：产品的长期执行
-├── HR Nexus  — BG 成员：人事与架构调整（agent 归属、skill 配置），有管理权不可越权
-└── AS Nexus  — BG 成员：个人代行，推动工作、调动组织行动（杂务），可蠢不可越权
+BG（事业群，Squad 形态；BG 成员 = AS、HR、CPO、CTO、COO；不设 CEO）
+├── CPO — BG 成员；兼 PC 产品中心（二级小队）：产品的成色设计
+├── CTO — BG 成员；兼 TC 技术中心（二级小队）：如何实现产品
+├── COO — BG 成员；兼 OC 运营中心（二级小队）：产品的长期执行
+├── HR  — BG 成员：人事与架构调整（agent 归属、skill 配置），有管理权不可越权
+└── AS  — BG 成员：个人代行，推动工作、调动组织行动（杂务），可蠢不可越权
 ```
 
 - **BG 是一个 Squad**，成员 = **AS、HR、CPO、CTO、COO**；不设 CEO，最终决策权归于自然人（个人）。CPO/CTO/COO 同时是二级小队 **PC / TC / OC（产品/技术/运营中心）** 的所属。
 - **二级小队细分**：TC 技术中心下设细分角色（技术规划 / 研发 / 质量审查 / 运维 / 安全审批），详见 [docs/01-org-structure.md](docs/01-org-structure.md) 与 [docs/02-boundaries.md](docs/02-boundaries.md)；PC / OC 细分待讨论，算法建议单独成中心。
 - BG 下若要加成员，除 **HR / AS** 外，就是其它 **C..O**。
-- 扩展：多 BG 时以 BG Nexus One 为模板复制，并可为每个 BG 命名（如 BG Nexus Two）。
+- 扩展：多 BG 时以 BG 为模板复制，并可为每个 BG 命名（如 BG A、BG B）。
 
 ## 文档结构
 
