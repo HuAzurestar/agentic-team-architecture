@@ -34,3 +34,13 @@ Agent（智能体）
 - 让"角色"（CPO/CTO/COO/HR/AS）与"实现载体"（Agent + Agent Program + LLM + Skill/MCP/Hook）解耦：**架构定义角色，运行前提定义载体**。
 - 每个角色落地为一个或多个 Agent；Agent 由具体的 Agent Program + LLM 驱动，通过 Skill/MCP/Hook 获得能力。
 - 这套概念决定了"大小智能管理"（[docs/03-intelligence.md](03-intelligence.md)）如何落地：不同规格的 LLM 与 Skill 组合，承担不同复杂度的任务。
+
+## 4. 术语表（锁定用法）
+
+| 术语 | 锁定含义 | 不要写成 |
+| --- | --- | --- |
+| 职级 | **岗位层**：CEO/EVP/VP · Director/Manager · 职员（上下级语义） | 模型成本 |
+| 级别 | **模型成本档**：Assist / 普通 / Senior（贵与便宜） | 岗位层 |
+| Senior | **高级岗 / 高级档**：作专家角色名或高级成本档（按上下文） | "专家" |
+| 专家 | **统一用 Senior（高级）**，不再用"专家"称谓 | Specialist |
+| P0/P1/P2 | **红线严重级**：重大事故 / 事故 / 风险（见 [docs/02-boundaries.md](02-boundaries.md) §5） | 任务优先级 |

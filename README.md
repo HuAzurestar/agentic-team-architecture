@@ -26,7 +26,7 @@
 ## 组织架构总览
 
 ```
-BG（事业群，Squad 形态；BG 成员 = AS、HR、CPO、CTO、COO；不设 CEO）
+BG（事业群，Squad 形态；BG 成员 = AS、HR、CPO、CTO、COO；不设 CEO 岗位）
 ├── CPO — BG 成员；兼 PC 产品中心（二级小队）：产品的成色设计
 ├── CTO — BG 成员；兼 TC 技术中心（二级小队）：如何实现产品
 ├── COO — BG 成员；兼 OC 运营中心（二级小队）：产品的长期执行
@@ -34,10 +34,11 @@ BG（事业群，Squad 形态；BG 成员 = AS、HR、CPO、CTO、COO；不设 C
 └── AS  — BG 成员：个人代行，推动工作、调动组织行动（杂务），可蠢不可越权
 ```
 
-- **BG 是一个 Squad**，成员 = **AS、HR、CPO、CTO、COO**；不设 CEO，最终决策权归于自然人（个人）。CPO/CTO/COO 同时是二级小队 **PC / TC / OC（产品/技术/运营中心）** 的所属。
-- **二级小队细分**：TC 技术中心（Squad，负责人 = 技术总监/技术主管）下设细分角色（技术规划 / 研发与前后端 Specialist / 质量审查），详见 [docs/01-org-structure.md](docs/01-org-structure.md) 与 [docs/02-boundaries.md](docs/02-boundaries.md)；PC / OC 细分待讨论（**运维与安全审批归运营线**），算法建议单独成中心。
+- **BG 是一个 Squad**，成员 = **AS、HR、CPO、CTO、COO**；**BG 内不设 CEO 岗位，最终决策者是 OPC 的个人（自然人 = CEO）**。CPO/CTO/COO 同时是二级小队 **PC / TC / OC（产品/技术/运营中心）** 的所属。
+- **二级小队细分**：TC 技术中心（Squad，负责人 = 技术总监/技术主管）下设细分角色（技术规划 / 研发与前后端 Senior / 质量审查 Senior），详见 [docs/01-org-structure.md](docs/01-org-structure.md) 与 [docs/02-boundaries.md](docs/02-boundaries.md)；PC / OC 细分待讨论（**运维与安全审批归运营线**），算法建议单独成中心。
 - **命名规则**：角色命名采用**三级版本**（最高 CEO/EVP/VP · 中间 Director/Manager · 职员；级别 Assist / 普通 / Senior = 模型成本档位），详见 [docs/01-org-structure.md](docs/01-org-structure.md)。
-- **AS 下设 Assistant AS**：AS 的二级能力（Assist 档/便宜），执行高频简单推动，并按**红线分级（P0/P1/P2）定期扫描**，遇阻塞 push 不动时上报 AS 并告知严重性（详见 [docs/02-boundaries.md](docs/02-boundaries.md)）。
+- **AS 下设 Assistant AS**：AS 的二级能力（Assist 档/便宜），**例行推动 + 红线 P0 扫描同频，10min ~ 1h 一次**（由触发器统一把控时间），遇阻塞 push 不动时上报 AS 并告知严重性（详见 [docs/02-boundaries.md](docs/02-boundaries.md)）。
+- **术语锁定**：职级=岗位层，级别=模型成本档（Assist/普通/Senior），专家统一称 **Senior（高级）**，P0/P1/P2=红线严重级（详见 [docs/00-prerequisites.md](docs/00-prerequisites.md) §4）。
 - BG 下若要加成员，除 **HR / AS** 外，就是其它 **C..O**。
 - 扩展：多 BG 时以 BG 为模板复制，并可为每个 BG 命名（如 BG A、BG B）。
 
