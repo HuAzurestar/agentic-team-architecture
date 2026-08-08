@@ -9,7 +9,7 @@
 ## 项目定位
 
 - **形态**：OPC（One Person Company，一人公司）。公司由自然人 + 一组 agent 组成。
-- **基准单元**：BG（Business Group，事业群）。当前实例为 **BG**。
+- **基准单元**：BG（Business Group，事业群）。
 - **运行前提**：一组基础概念（个人 / LLM / Agent Program / Agent / Squad / Skill / MCP / Hook），见 [docs/00-prerequisites.md](docs/00-prerequisites.md)。
 - **内容边界**：只定义"架构"（组织、边界、智能分配、协作、迭代），不绑定具体 agent 实现或平台。
 
