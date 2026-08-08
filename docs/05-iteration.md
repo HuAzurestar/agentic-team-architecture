@@ -67,7 +67,7 @@
 | v2.8 | 2026-08-08 | AS 分设 Assistant AS | AS 下设 Assistant AS（二级能力，Assist 档）：高频简单推动、阻塞 push 不动上报 AS；AS 做思考型工作、周期/汇报长、重大事故才紧急通知 |
 | v2.9 | 2026-08-08 | 专家命名 | 职员可以是专家；专家角色命名为 **Specialist / Senior**（Architect、前端/后端 Specialist、质量审查 Specialist），替换"专家"称谓 |
 | v2.10 | 2026-08-08 | 停摆处理 + Multica 落地 | ① CEO 未决策视为项目停摆，由 AS 记录并在定期汇报统一通知（C..O 职责内裁量权先行）；② 新增 [docs/06-multica-landing.md](06-multica-landing.md)——Multica 落地映射（Squad/Agent/Autopilot/Issue/Project 管理），其它 agentic system 留空 |
-| v2.11 | 2026-08-08 | 红线检测机制 | 为"可以蠢，不能越权"定义检测信号：红线手册 + S0/S1/S2 分级；Assistant AS 按节奏扫描（S0 10min~1h / S1 1h~2h / S2 2day~1week，AS 低频复核）；处置（S0 紧急叫停+通知、S1 通知、S2 汇报）；AS 日报 S0 / 周报 S0-S2 |
+| v2.11 | 2026-08-08 | 红线检测机制 | 为"可以蠢，不能越权"定义检测信号：红线手册 + S0/S1/S2 分级；Assistant AS 按节奏扫描（S0 10min~1h / S1 1h~2h / S2 每日·每周，AS 低频复核）；处置（S0 紧急叫停+通知、S1 通知、S2 汇报）；AS 日报 S0 / 周报 S0-S2 |
 | v2.12 | 2026-08-08 | 文档收敛 | 术语表（职级=岗位层、级别=模型成本档、Senior=高级、S0/S1/S2=红线严重级）；专家/Specialist 统一改 **Senior**；CEO 口径收敛为"BG 内不设 CEO 岗位，最终决策者=CEO"；红线文档以 issue 形式存在（链接或 issue 即文档）；Autopilot 仅触发器、两种模式（创建 issue / 静默运行）；Assistant AS 频率统一 10min~1h；Issue/Project 上下文与删除约束；角色规格改模板+差异 |
 | v2.13 | 2026-08-08 | 架构/实现分离 + 角色调整 | ① 架构层去掉"小队/squad"概念（仅 BG / 中心），squad 为实现层 @ 工具；② CEO = 自然人属于 BG，BG 名义 lead = AS；AS 是 CEO 代理人（非特定一人的）；③ 新增 **CKO**（首席知识官，管 skills / 文档 / issue 关闭）；④ HR 不派发任务、人事变动须 CEO 批准；⑤ 红线严重级 **P0/P1/P2 → S0/S1/S2**（避免与 Multica 优先级冲突）；⑥ PC / OC 细分标注待定 |
 | v2.14 | 2026-08-08 | 术语统一 + 角色简化 | ① 线→中心统一（产品/技术/运营线→中心，跨线→跨中心）；② TC 细分简化：Architect / 研发 / 质量审查 / UI·UX，仅前端 / 后端 Senior 保留"Senior"头衔；③ "CEO = 自然人"只写 README，其它统一写 CEO；④ 红线判定改为"升级三问"（红线由红线手册 S0-S2 确定，CKO 认定，手册外补充）；⑤ 高层会议：专门 issue、全体一致通过可越过 CEO 裁决、仍向 CEO 汇报；⑥ 红线触发复盘属 CKO；⑦ Autopilot 统一触发（Assistant AS 执行、每周 issue、@ 群体触发，运营自动化另设） |
@@ -82,3 +82,4 @@
 | v2.23 | 2026-08-08 | 审批修复 | ① BG 加成员规则补齐 **CKO**（docs/01 §1、§4 遗漏）；② 汇报通则补例外：HR 不直接对话 CEO、Assistant AS 向 AS 负责不向 CEO 负责（docs/02 §1.0） |
 | v2.24 | 2026-08-08 | 终审清理 | 清理残留"线"术语（docs/04 §2/§4、docs/05 §1/§3 共 5 处）→ 统一"中心" |
 | v2.25 | 2026-08-08 | 落地用户决策 | ① Autopilot 分**高频**（计数触发 / 高频操作）与**低频**（定期推进 CKO 记录并清理上下文）；② BG = Agent 角色们 + CEO（注明自然人为 CEO、各成员汇报 CEO、Assistant AS 属 BG）；③ 核心流程固定 PC→TC→OC、可驳回、严重升级开会定产品去留、中心内部主管全权；④ PC 细分（PM / 产品助理 / UI·UX）、OC 细分（上线审核 / 产品运营 / 内容运营）；⑤ BG 定制流程（模板→向 CEO 确认职能/角色/强度→CEO 同意后组织）+ 论文/文职/硬件/游戏示例 |
+| v2.26 | 2026-08-08 | 评审跟进 | ① **issue 关闭权统一**：由 CKO 执行（AS 只推动/记录）；状态由当前 assignee 推进；② 新增**红线手册 docs/07**（S0-S2 判定基准，CKO 维护）并接入 docs/02 §5；③ 新增**启动引导 docs/08**（BG 构成→Squad/Agent→Project→红线手册→Autopilot→首任务）；④ **触发事件 / 固定流程产品由 CEO 确认创建、AS 跟进**；⑤ S2 扫描频率口径统一（每日/每周） |

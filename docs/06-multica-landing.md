@@ -53,10 +53,11 @@ Autopilot 只是**触发器**（不是 Agent 本身）：trigger 触发 → 派�
 - **不用于测试性触发**（trigger 是真实副作用）；创建、更新、查看、触发均通过 `multica autopilot` 命令。
 
 **统一触发（服务于整个 BG）——分高低频**：
+- **触发事件确认**：具体触发事件（何时触发什么）由 **CEO 统一确认（创建）**；**AS 跟进**（后续执行推进）。
 - **高频 autopilot**：负责**计数触发**与**高频操作**——如 Assistant AS 的红线 S0/S1/S2 扫描、例行推动（10min ~ 1h 到点统一触发）。
 - **低频 autopilot**：**定期开启**，推进 **CKO 记录**（沉淀工作流 / skill / 红线手册 / 新闻快讯），然后**清理上下文**（收尾归档）。
 - **执行者 = Assistant AS**（成本最低，适合高频例行触发）。
-- **每周开一个 issue**：由 Assistant AS 创建，**关闭由 AS 完成**；触发时用该 issue **@ 相关角色**，实现**群体触发**。
+- **每周开一个 issue**：由 Assistant AS 创建，**关闭由 CKO 执行**（见 §5）；触发时用该 issue **@ 相关角色**，实现**群体触发**。
 - **运营的自动化另行设计**（与上面分开）。
 
 ## 5. Issue 管理
@@ -66,7 +67,8 @@ Autopilot 只是**触发器**（不是 Agent 本身）：trigger 触发 → 派�
 - **父子 Issue**：子 Issue 与父 Issue **不共享上下文**；Project 共享上下文——所以 Issue 与 Project 的**描述字段用于收敛条件说明**，需注意管理。
 - **分派**：Issue 分派到对应角色 Agent 或 Squad；子任务用子 Issue（stage/backlog 编排）。
 - **状态流转**：todo → in_progress → in_review → done（blocked / cancelled 用于异常）。
-- **关闭权限**：issue 的**关闭由 CKO 执行**，不在其他人。
+- **状态推进**：状态由**当前 assignee** 推进（含 blocked / cancelled 的标记）。
+- **关闭权限**：issue 的**关闭由 CKO 执行**，不在其他人（AS 负责推动与记录，不直接关闭）。
 - **升级记录**：跨中心冲突/CEO 未决策的停摆，由 AS 在 Issue 评论中记录并汇报。
 
 ## 6. Project 管理
