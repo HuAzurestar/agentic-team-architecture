@@ -21,7 +21,7 @@
 
 - **BG → Squad**：创建 BG 对应 Squad；成员 = 角色 Agent（AS、HR、CPO、CTO、COO、CKO）+ **CEO（自然人 / 用户，可加入）**；head = **AS**（BG 名义 lead，@ 目标）。
 - **角色描述 / 汇报对象**：除 Squad 外，每个角色还维护**角色描述**与**汇报对象**；由 **HR 统一管理**（人事变动包括角色描述，见 [docs/02-boundaries.md](02-boundaries.md) §1.4）。
-- **PC / TC / OC → Squad**：各中心为 Squad；CPO / CTO / COO 兼其 head；TC 由技术总监/技术主管实际负责（向 CTO）。**中心成员（普通职员）是"按上下文工作"的可复制角色，角色内容不写负责对象**；其迭代由 HR 统一管理。
+- **PC / TC / OC → Squad**：各中心为 Squad；CPO / CTO / COO 兼其 head；TC 由技术总监/技术主管实际负责（向 CTO）。**中心成员（普通职员）是"按上下文工作"的可复制角色，角色内容不写负责对象**；其迭代由 HR 统一完成（通过**人事变动**）。
 - **Squad 负责人路由**：派发给 Squad 的任务由 leader（head）接收并分派成员；Squad 成员接收各自职责内任务。
 - **多 BG 下的 HR**：HR 为**跨 BG 共享**角色；涉及**共同资产统一分配管理**的人事变动，须**最高会议**（HR 主持、各 BG CEO 为成员）**一致通过**方可批准；**单人 OPC 不需要**。
 
