@@ -61,3 +61,4 @@
 | v2.8 | 2026-08-08 | AS 分设 Assistant AS | AS 下设 Assistant AS（二级能力，Assist 档）：高频简单推动、阻塞 push 不动上报 AS；AS 做思考型工作、周期/汇报长、重大事故才紧急通知 |
 | v2.9 | 2026-08-08 | 专家命名 | 职员可以是专家；专家角色命名为 **Specialist / Senior**（Architect、前端/后端 Specialist、质量审查 Specialist），替换"专家"称谓 |
 | v2.10 | 2026-08-08 | 停摆处理 + Multica 落地 | ① CEO 未决策视为项目停摆，由 AS 记录并在定期汇报统一通知（C..O 职责内裁量权先行）；② 新增 [docs/06-multica-landing.md](06-multica-landing.md)——Multica 落地映射（Squad/Agent/Autopilot/Issue/Project 管理），其它 agentic system 留空 |
+| v2.11 | 2026-08-08 | 红线检测机制 | 为"可以蠢，不能越权"定义检测信号：红线手册 + P0/P1/P2 分级；Assistant AS 按节奏扫描（P0 10min~1h / P1 1h~2h / P2 2day~1week，AS 低频复核）；处置（P0 紧急叫停+通知、P1 通知、P2 汇报）；AS 日报 P0 / 周报 P0-P2 |
