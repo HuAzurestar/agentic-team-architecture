@@ -19,8 +19,9 @@
 
 ## 2. Squad 落地
 
-- **BG → Squad**：创建 BG 对应 Squad；成员 = 角色 Agent（AS、HR、CPO、CTO、COO、CKO）+ **CEO（自然人 / 用户，可加入）**；head = **AS**（BG 名义 lead，@ 目标）。
+- **BG → Squad**：创建 BG 对应 Squad；成员 = 角色 Agent（AS、HR、CPO、CTO、COO、CKO、**Assistant AS**）+ **CEO（自然人 / 用户）**；head = **AS**（BG 名义 lead，@ 目标）。**描述中注明哪位自然人是 CEO**；**各成员注明汇报人是 CEO**（Assistant AS 例外——向 AS 负责）。
 - **角色描述 / 汇报对象**：除 Squad 外，每个角色还维护**角色描述**与**汇报对象**；由 **HR 统一管理**（人事变动包括角色描述，见 [docs/02-boundaries.md](02-boundaries.md) §1.4）。
+- **BG 定制流程（模板 → 实例）**：角色为模板；创建前**向 CEO 询问**该 BG 需要的职能 / 角色 / 强度；确定后把**三级架构（BG / 中心 / 角色）**发 CEO，**CEO 同意后开始组织**（见 [docs/01-org-structure.md](01-org-structure.md) §4）。
 - **PC / TC / OC → Squad**：各中心为 Squad；CPO / CTO / COO 兼其 head；TC 由技术总监/技术主管实际负责（向 CTO）。**中心成员（普通职员）是"按上下文工作"的可复制角色，角色内容不写负责对象**；其迭代由 HR 统一完成（通过**人事变动**）。
 - **Squad 负责人路由**：派发给 Squad 的任务由 leader（head）接收并分派成员；Squad 成员接收各自职责内任务。
 - **多 BG 下的 HR**：HR 为**跨 BG 共享**角色；涉及**共同资产统一分配管理**的人事变动，须**最高会议**（HR 主持、各 BG CEO 为成员）**一致通过**方可批准；**单人 OPC 不需要**。
@@ -51,11 +52,11 @@ Autopilot 只是**触发器**（不是 Agent 本身）：trigger 触发 → 派�
 - Autopilot 本身有**任务描述**；创建 Issue 模式可指定 Project，静默运行模式因无 Issue 不能指定 Project。
 - **不用于测试性触发**（trigger 是真实副作用）；创建、更新、查看、触发均通过 `multica autopilot` 命令。
 
-**统一触发（服务于整个 BG）**：
-- **建议只用一个自动化**：一个 autopilot 描述"什么时候触发什么"即可。
-- **执行者 = Assistant AS**（成本最低，适合高频例行触发，如红线 S0/S1/S2 扫描）。
-- **每周开一个 issue**：由 Assistant AS 创建，**关闭由 AS 完成**；触发时用该 issue **@ 相关角色**（各中心负责人 / 各角色），实现**群体触发**。
-- **统一时间点**：Assistant AS 与 AS 负责红线扫描与推动；其它角色按节奏做各自汇报——一切服务于 BG 的事务用同一触发。
+**统一触发（服务于整个 BG）——分高低频**：
+- **高频 autopilot**：负责**计数触发**与**高频操作**——如 Assistant AS 的红线 S0/S1/S2 扫描、例行推动（10min ~ 1h 到点统一触发）。
+- **低频 autopilot**：**定期开启**，推进 **CKO 记录**（沉淀工作流 / skill / 红线手册 / 新闻快讯），然后**清理上下文**（收尾归档）。
+- **执行者 = Assistant AS**（成本最低，适合高频例行触发）。
+- **每周开一个 issue**：由 Assistant AS 创建，**关闭由 AS 完成**；触发时用该 issue **@ 相关角色**，实现**群体触发**。
 - **运营的自动化另行设计**（与上面分开）。
 
 ## 5. Issue 管理
