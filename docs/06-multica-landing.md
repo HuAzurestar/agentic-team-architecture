@@ -35,7 +35,7 @@
   - AS（含 Assistant AS）负责推动与唤醒——Assist 档高频扫描阻塞并上报；
   - 升级链：相关 C..O 协商 → AS 推动 → CEO最终确认；
   - CEO 未决策 = 停摆，由 AS 记录并在定期汇报时统一通知（见 [docs/02-boundaries.md](02-boundaries.md) §3）。
-- **跨 BG 共享**：Assistant AS 与普通职员为**跨 BG 共享角色**（agent 可复用）；跨 BG 协同调动人事时 HR 需注意协调。
+- **跨 BG 共享**：**普通职员为跨 BG 共享角色**（agent 可复用）；**Assistant AS 是 BG 角色**（不属于跨 BG 共享）。跨 BG 协同调动人事时 HR 需注意协调。
 
 ## 4. Autopilot 管理
 
