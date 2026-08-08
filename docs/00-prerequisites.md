@@ -31,7 +31,7 @@ Agent（智能体）
 
 ## 3. 这套概念的作用
 
-- 把"角色"（CPO/CTO/COO/HR/AS）和"实现载体"（Agent + Agent Program + LLM + Skill/MCP/Hook）分开：**架构定义角色，运行前提定义载体**。
+- 把"角色"（CPO/CTO/COO/HR/AS/CKO）和"实现载体"（Agent + Agent Program + LLM + Skill/MCP/Hook）分开：**架构定义角色，运行前提定义载体**。
 - 每个角色落地为一个或多个 Agent；Agent 由具体的 Agent Program + LLM 驱动，通过 Skill/MCP/Hook 获得能力。
 - "大小智能管理"（[docs/03-intelligence.md](03-intelligence.md)）靠这套概念落地：不同规格的 LLM 与 Skill 组合，承担不同复杂度的任务。
 

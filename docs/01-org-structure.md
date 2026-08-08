@@ -7,12 +7,12 @@
 ```
 OPC（One Person Company）= 一位 CEO + 一个 AI 团队运营一家公司（可拓展到多人多 OPC，各 BG 有各自的 CEO）
 └── BG（Business Group，事业群）= OPC 的组织单元
-    ├── BG 成员：AS、HR、CPO、CTO、COO、CKO
+    ├── BG 成员：AS、HR、CPO、CTO、COO、CKO、Assistant AS
     └── 中心：PC / TC / OC —— 分别由 CPO / CTO / COO 所属
 ```
 
 - **OPC**：顶层形态，唯一不变。
-- **BG**：业务组织单元，成员为 **AS、HR、CPO、CTO、COO、CKO**。一个 OPC 可含多个 BG，各自命名。
+- **BG**：业务组织单元，成员为 **AS、HR、CPO、CTO、COO、CKO、Assistant AS**（7 个 Agent 角色；CEO 属 BG 但不计入成员数）。一个 OPC 可含多个 BG，各自命名。
 - **中心**：CPO、CTO、COO 同时作为中心的**所属（head）**，对应 **PC 产品中心 / TC 技术中心 / OC 运营中心**；中心是 BG 之下的第二层组织。
 - **C..O**：BG 的功能负责人。当前定义 CPO（产品）、CTO（技术）、COO（运营）、CKO（知识）；BG 下若要加成员，除 HR/AS/CKO 外就是其它 C..O。
 
@@ -23,13 +23,14 @@ OPC（One Person Company）= 一位 CEO + 一个 AI 团队运营一家公司（�
 BG 采用**扁平成员制**。**CEO 属于 BG，是 BG 的实际掌舵人与最终决策者**；BG 名义 lead 是 **AS**（代行 CEO，CEO 可不在场）。CPO / CTO / COO 同时是中心（PC / TC / OC）的所属；HR、CKO、AS 为 BG 直属。
 
 ```
-BG（组织单元；BG 成员 6 = AS、HR、CPO、CTO、COO、CKO）
+BG（组织单元；BG 成员 7 = AS、HR、CPO、CTO、COO、CKO、Assistant AS；CEO 属 BG 不计入）
 ├── CPO — BG 成员；兼 PC 产品中心所属：负责产品的成色设计
 ├── CTO — BG 成员；兼 TC 技术中心所属：负责如何实现产品
 ├── COO — BG 成员；兼 OC 运营中心所属：负责产品的长期执行
 ├── CKO — BG 成员（直属）：管理 skills / 知识 / 文档 / issue 关闭
 ├── HR  — BG 成员（直属）：人事与架构调整（agent 归属、skill 配置），有管理权不可越权
 └── AS  — BG 成员（直属）：CEO 代理人 / BG 名义 lead，推动工作；可蠢不可越权
+    └── Assistant AS — BG 成员（AS 二级）：触发器 + 显式红线简单监督，向 AS 负责
 ```
 
 ### 2.1 各成员定位速览
@@ -42,6 +43,7 @@ BG（组织单元；BG 成员 6 = AS、HR、CPO、CTO、COO、CKO）
 | CKO | BG 成员（直属） | 管理 skills / 获取资讯 / 文档与 issue 管理（关闭权限在 CKO） |
 | HR | BG 成员（直属） | 人事与架构调整：agent 归属、skill 等配置；管理权但不越权 |
 | AS | BG 成员（直属） | CEO 代理人 / BG 名义 lead：推动工作；杂务；可蠢不可越权 |
+| Assistant AS | BG 成员（AS 二级） | 触发器 + 显式红线简单监督；向 AS 负责（不向 CEO） |
 
 > 各角色完整规格（权限、产出、红线）见 [docs/02-boundaries.md](02-boundaries.md)。
 
