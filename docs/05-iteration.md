@@ -87,3 +87,4 @@
 | v2.28 | 2026-08-08 | 跟进与高层会议细化 | ① **高层会议使用条件**：S0-S2 事件需 CEO 拍板但未回复时，若影响持续扩大 / 生产完全停摆（阻塞核心项目），由 AS 召开；等待时长按影响程度定，CEO 拍板、AS 跟进；② **AS 跟进内容**：核心流程进度、当前状态、负责中心；跟踪记录落于 issue；③ **C..O 部门表现跟进**：通过率（下一流程审核通过率）与满意率（CEO 视角）；④ 跟进在 Multica = 持续自我迭代 agent 描述 + 记录流程时间点于 issue |
 | v2.29 | 2026-08-08 | 去 AI 味 | 清除"闭环"等 AI 高频词（执行/反馈闭环 → 完整落地 / 反馈循环）；"工作流提炼"→"工作流整理"；"沉淀 / 承载 / 以"等改为日常说法（整理 / 用 / 挂） |
 | v2.30 | 2026-08-08 | 收口审核残留 | ① README/docs 同步：PC / OC 细分已定义（docs/01 §2.3 / §2.4），移除"待定"残留；② OC 细分引用 §2.4；③ **BG 成员计数统一 = 7 个 Agent 角色**（含 Assistant AS），CEO 属 BG 不计入（README / 01 / 06 同步）；④ docs/00 角色列表补 **CKO** |
+| v2.31 | 2026-08-08 | 模型成本参考 | 新增 [docs/09-model-cost.md](09-model-cost.md)（HR 用）：档位默认（BG=claude deepseek / Assistant=opencode flash free / 职员=opencode flash Go）、Go 套餐模型配额表、claude code deepseek 官方价格；原则：优先 Go 套餐，deepseek 官方谨慎使用 |
