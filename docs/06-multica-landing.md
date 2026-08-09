@@ -9,7 +9,7 @@
 | 架构概念 | Multica 载体 | 说明 |
 | --- | --- | --- |
 | BG（事业群） | **Squad** | BG 是一个 Squad，head = **AS**（BG 名义 lead，代行 CEO；CEO = 实际掌舵人） |
-| 中心（PC / TC / OC） | **Squad** | PC / TC / OC 各自为 Squad，head = 对应 C..O（或 C..O 指定负责人，如 TC 技术总监/技术主管） |
+| 中心（PC / TC / OC / RC） | **Squad** | PC / TC / OC / RC 各自为 Squad，head = 对应 C..O（或 C..O 指定负责人，如 TC 技术总监/技术主管） |
 | 角色（C..O / HR / AS / CKO / 细分角色） | **Agent** | 每个角色落地为一个或多个 Agent（可挂 Skill / MCP / Hook） |
 | 例行/自动化推进 | **Autopilot** | 节奏性、可重复的触发（定时/手动/webhook）→ 派发给对应 Agent 或 Squad |
 | 具体任务 | **Issue** | 每个待办/缺陷/需求用 Issue 承载 |
@@ -19,10 +19,10 @@
 
 ## 2. Squad 落地
 
-- **BG → Squad**：创建 BG 对应 Squad；成员 = 角色 Agent（AS、HR、CPO、CTO、COO、CKO、**Assistant AS**）+ **CEO（自然人 / 用户）**；head = **AS**（BG 名义 lead，@ 目标）。**BG 成员 = 7 个 Agent 角色**（含 Assistant AS）；**CEO 属 BG 但不计入成员数**。**描述中注明哪位自然人是 CEO**；**各成员注明汇报人是 CEO**（Assistant AS 例外——向 AS 负责）。
+- **BG → Squad**：创建 BG 对应 Squad；成员 = 角色 Agent（AS、HR、CPO、CTO、COO、CKO、CRO、**Assistant AS**）+ **CEO（自然人 / 用户）**；head = **AS**（BG 名义 lead，@ 目标）。**BG 成员 = 8 个 Agent 角色**（含 Assistant AS）；**CEO 属 BG 但不计入成员数**。**描述中注明哪位自然人是 CEO**；**各成员注明汇报人是 CEO**（Assistant AS 例外——向 AS 负责）。
 - **角色描述 / 汇报对象**：除 Squad 外，每个角色还维护**角色描述**与**汇报对象**；由 **HR 统一管理**（人事变动包括角色描述，见 [docs/02-boundaries.md](02-boundaries.md) §1.4）。
 - **BG 定制流程（模板 → 实例）**：角色为模板；创建前**向 CEO 询问**该 BG 需要的职能 / 角色 / 强度；确定后把**三级架构（BG / 中心 / 角色）**发 CEO，**CEO 同意后开始组织**（见 [docs/01-org-structure.md](01-org-structure.md) §4）。
-- **PC / TC / OC → Squad**：各中心为 Squad；CPO / CTO / COO 兼其 head；TC 由技术总监/技术主管实际负责（向 CTO）。**中心成员（普通职员）是"按上下文工作"的可复制角色，角色内容不写负责对象**；其迭代由 HR 统一完成（通过**人事变动**）。
+- **PC / TC / OC / RC → Squad**：各中心为 Squad；CPO / CTO / COO / CRO 兼其 head；TC 由技术总监/技术主管实际负责（向 CTO）。**中心成员（普通职员）是"按上下文工作"的可复制角色，角色内容不写负责对象**；其迭代由 HR 统一完成（通过**人事变动**）。**RC 研究中心**为 CRO 所属，成员 = 研究助理 / 数学家 / 算法研究员；RC 阅读开源论文所需 skill 由 CKO 协助检索、HR 配置挂载。
 - **Squad 负责人路由**：派发给 Squad 的任务由 leader（head）接收并分派成员；Squad 成员接收各自职责内任务。
 - **多 BG 下的 HR**：HR 为**跨 BG 共享**角色；涉及**共同资产统一分配管理**的人事变动，须**最高会议**（HR 主持、各 BG CEO 为成员）**一致通过**方可批准；**单人 OPC 不需要**。
 

@@ -26,17 +26,18 @@
 ## 组织架构总览
 
 ```
-BG（组织单元；BG 成员 = AS、HR、CPO、CTO、COO、CKO、Assistant AS；CEO 属 BG 不计入）
+BG（组织单元；BG 成员 = AS、HR、CPO、CTO、COO、CKO、CRO、Assistant AS；CEO 属 BG 不计入）
 ├── CPO — BG 成员；兼 PC 产品中心：产品的成色设计
 ├── CTO — BG 成员；兼 TC 技术中心：如何实现产品
 ├── COO — BG 成员；兼 OC 运营中心：产品的长期执行
+├── CRO — BG 成员；兼 RC 研究中心：研究与新内容研究
 ├── CKO — BG 成员（直属）：管理 skills / 知识 / 文档 / issue 关闭
 ├── HR  — BG 成员（直属）：人事与架构调整（agent 归属、skill 配置），有管理权不可越权
 └── AS  — BG 成员（直属）：CEO 代理人 / BG 名义 lead，推动工作；可蠢不可越权
 ```
 
-- **BG 是组织单元**，成员 = **AS、HR、CPO、CTO、COO、CKO、Assistant AS**（CEO 属 BG 但不计入成员数）；**CEO 是自然人（属于 BG），是实际掌舵人与最终决策者；BG 名义 lead 是 AS（代行 CEO，CEO 可不在场）**。CPO/CTO/COO 同时是中心 **PC / TC / OC（产品/技术/运营中心）** 的所属。**"小队（squad）"是实现层概念（Multica 中为 issue 分派服务的 @ 工具），架构层只定义 BG / 中心。**
-- **中心细分**：TC 技术中心（负责人 = 技术总监/技术主管）下设细分角色（技术规划 / 研发（前后端统一）/ 质量审查）；PC / OC 细分见 [docs/01-org-structure.md](docs/01-org-structure.md) §2.3 / §2.4（**运维与安全审批归运营中心**），算法建议单独成中心。
+- **BG 是组织单元**，成员 = **AS、HR、CPO、CTO、COO、CKO、CRO、Assistant AS**（CEO 属 BG 但不计入成员数）；**CEO 是自然人（属于 BG），是实际掌舵人与最终决策者；BG 名义 lead 是 AS（代行 CEO，CEO 可不在场）**。CPO/CTO/COO/CRO 同时是中心 **PC / TC / OC / RC（产品/技术/运营/研究中心）** 的所属。**"小队（squad）"是实现层概念（Multica 中为 issue 分派服务的 @ 工具），架构层只定义 BG / 中心。**
+- **中心细分**：TC 技术中心（负责人 = 技术总监/技术主管）下设细分角色（技术规划 / 研发（前后端统一）/ 质量审查）；PC / OC 细分见 [docs/01-org-structure.md](docs/01-org-structure.md) §2.3 / §2.4（**运维与安全审批归运营中心**）；**RC 研究中心**（负责人 = CRO）下设研究助理 / 数学家 / 算法研究员，负责开源论文阅读与独立研究（见 [docs/01-org-structure.md](docs/01-org-structure.md) §2.5）；算法建议单独成中心。
 - **命名规则**：角色命名采用**三级版本**（最高 CEO/EVP/VP · 中间 Director/Manager · 职员；级别 Assist / 普通 / Senior = 模型成本档位），详见 [docs/01-org-structure.md](docs/01-org-structure.md)。
 - **AS 下设 Assistant AS**：AS 的二级能力（Assist 档/便宜），**例行推动 + 红线 S0 扫描同频，10min ~ 1h 一次**（由触发器统一把控时间），遇阻塞 push 不动时上报 AS 并告知严重性（详见 [docs/02-boundaries.md](docs/02-boundaries.md)）。
 - **术语锁定**：职级=岗位层，级别=模型成本档（Assist/普通/Senior），专家统一称 **Senior（高级）**，S0/S1/S2=红线严重级（详见 [docs/00-prerequisites.md](docs/00-prerequisites.md) §4）。

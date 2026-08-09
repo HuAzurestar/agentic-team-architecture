@@ -9,9 +9,9 @@
 
 ## 2. 创建 Squad / Agent
 
-- 创建 **BG Squad**：成员 = 角色 Agent（AS、HR、CPO、CTO、COO、CKO、Assistant AS）+ **CEO（自然人 / 用户）**；head = **AS**。
-- 创建中心 Squad：PC（CPO）、TC（CTO / 技术总监）、OC（COO）。
-- 各角色落地为 Agent，绑定 Skill / MCP / Hook；**各成员注明汇报人是 CEO**（Assistant AS 向 AS）。
+- 创建 **BG Squad**：成员 = 角色 Agent（AS、HR、CPO、CTO、COO、CKO、CRO、Assistant AS）+ **CEO（自然人 / 用户）**；head = **AS**。
+- 创建中心 Squad：PC（CPO）、TC（CTO / 技术总监）、OC（COO）、RC（CRO）。
+- 各角色落地为 Agent，绑定 Skill / MCP / Hook；**各成员注明汇报人是 CEO**（Assistant AS 向 AS）；**描述按四要素写全**（负责人 / 协作对象 / 下属对象 / 记载内容，见 [docs/02-boundaries.md](02-boundaries.md) §1.0）。
 
 ## 3. 创建 Project（上下文容器）
 

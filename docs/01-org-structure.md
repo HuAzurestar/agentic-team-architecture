@@ -7,26 +7,27 @@
 ```
 OPC（One Person Company）= 一位 CEO + 一个 AI 团队运营一家公司（可拓展到多人多 OPC，各 BG 有各自的 CEO）
 └── BG（Business Group，事业群）= OPC 的组织单元
-    ├── BG 成员：AS、HR、CPO、CTO、COO、CKO、Assistant AS
-    └── 中心：PC / TC / OC —— 分别由 CPO / CTO / COO 所属
+    ├── BG 成员：AS、HR、CPO、CTO、COO、CKO、CRO、Assistant AS
+    └── 中心：PC / TC / OC / RC —— 分别由 CPO / CTO / COO / CRO 所属
 ```
 
 - **OPC**：顶层形态，唯一不变。
-- **BG**：业务组织单元，成员为 **AS、HR、CPO、CTO、COO、CKO、Assistant AS**（7 个 Agent 角色；CEO 属 BG 但不计入成员数）。一个 OPC 可含多个 BG，各自命名。
-- **中心**：CPO、CTO、COO 同时作为中心的**所属（head）**，对应 **PC 产品中心 / TC 技术中心 / OC 运营中心**；中心是 BG 之下的第二层组织。
-- **C..O**：BG 的功能负责人。当前定义 CPO（产品）、CTO（技术）、COO（运营）、CKO（知识）；BG 下若要加成员，除 HR/AS/CKO 外就是其它 C..O。
+- **BG**：业务组织单元，成员为 **AS、HR、CPO、CTO、COO、CKO、CRO、Assistant AS**（8 个 Agent 角色；CEO 属 BG 但不计入成员数）。一个 OPC 可含多个 BG，各自命名。
+- **中心**：CPO、CTO、COO、CRO 同时作为中心的**所属（head）**，对应 **PC 产品中心 / TC 技术中心 / OC 运营中心 / RC 研究中心**；中心是 BG 之下的第二层组织。
+- **C..O**：BG 的功能负责人。当前定义 CPO（产品）、CTO（技术）、COO（运营）、CKO（知识）、CRO（研究）；BG 下若要加成员，除 HR/AS/CKO 外就是其它 C..O。
 
 > **架构与实现分离**：架构层只定义 **BG / 中心**。"小队（squad）"是实现层概念——在 Multica 中是为 issue 分派服务的 @ 工具，不属于架构；见 [docs/06-multica-landing.md](06-multica-landing.md)。
 
 ## 2. BG 组织架构
 
-BG 采用**扁平成员制**。**CEO 属于 BG，是 BG 的实际掌舵人与最终决策者**；BG 名义 lead 是 **AS**（代行 CEO，CEO 可不在场）。CPO / CTO / COO 同时是中心（PC / TC / OC）的所属；HR、CKO、AS 为 BG 直属。
+BG 采用**扁平成员制**。**CEO 属于 BG，是 BG 的实际掌舵人与最终决策者**；BG 名义 lead 是 **AS**（代行 CEO，CEO 可不在场）。CPO / CTO / COO / CRO 同时是中心（PC / TC / OC / RC）的所属；HR、CKO、AS 为 BG 直属。
 
 ```
-BG（组织单元；BG 成员 7 = AS、HR、CPO、CTO、COO、CKO、Assistant AS；CEO 属 BG 不计入）
+BG（组织单元；BG 成员 8 = AS、HR、CPO、CTO、COO、CKO、CRO、Assistant AS；CEO 属 BG 不计入）
 ├── CPO — BG 成员；兼 PC 产品中心所属：负责产品的成色设计
 ├── CTO — BG 成员；兼 TC 技术中心所属：负责如何实现产品
 ├── COO — BG 成员；兼 OC 运营中心所属：负责产品的长期执行
+├── CRO — BG 成员；兼 RC 研究中心所属：负责研究与新内容研究
 ├── CKO — BG 成员（直属）：管理 skills / 知识 / 文档 / issue 关闭
 ├── HR  — BG 成员（直属）：人事与架构调整（agent 归属、skill 配置），有管理权不可越权
 └── AS  — BG 成员（直属）：CEO 代理人 / BG 名义 lead，推动工作；可蠢不可越权
@@ -40,6 +41,7 @@ BG（组织单元；BG 成员 7 = AS、HR、CPO、CTO、COO、CKO、Assistant AS
 | CPO | BG 成员；PC 产品中心 | 产品的**成色设计**（需求、体验、质量） |
 | CTO | BG 成员；TC 技术中心 | **如何实现**产品（架构、研发、交付） |
 | COO | BG 成员；OC 运营中心 | 产品的**长期执行**（运营、增长、完整落地） |
+| CRO | BG 成员；RC 研究中心 | **研究与新内容研究**：读开源论文、独立研究，出研究成果 |
 | CKO | BG 成员（直属） | 管理 skills / 获取资讯 / 文档与 issue 管理（关闭权限在 CKO） |
 | HR | BG 成员（直属） | 人事与架构调整：agent 归属、skill 等配置；管理权但不越权 |
 | AS | BG 成员（直属） | CEO 代理人 / BG 名义 lead：推动工作；杂务；可蠢不可越权 |
@@ -83,6 +85,20 @@ OC 运营中心（负责人 = COO）
 ├── 产品运营 / 活动运营（Product / Campaign Operator）—— 日常线上活动策划、用户生命周期管理、版本发布后业务数据跟踪与复盘
 └── 内容运营 / 编辑（Content Operator / Editor）—— 平台内容生产、审核、日常发布与媒体矩阵维护
 ```
+
+### 2.5 RC 研究中心（CRO 下属）细分角色
+
+RC 研究中心负责**研究与新内容研究**：阅读开源论文（下载、阅读、总结），在此基础上做**独立研究**，产出研究成果（研究结论 / 算法 / 数学证明 / 可行性分析）。
+
+```
+RC 研究中心（负责人 = CRO）
+├── 研究助理（Research Assistant）—— 检索与整理资料、论文下载与摘要、数据准备，支撑研究员工作
+├── 数学家（Mathematician）—— 专职数学证明：证明推演、定理验证、数学严谨性把关
+└── 算法研究员（Algorithm Researcher）—— 专职算法设计与测试：算法方案设计、实现原型、对比测试
+```
+
+- **研究产出流程**（新内容）：**PC 列出新需求、定下基准** → **RC 研究**（论文调研 + 独立研究）→ **CKO 整理成研究成果**（edit / 归档）。详细流程见 [docs/04-collaboration.md](04-collaboration.md) §1。
+- **技能需求**：RC 所需的 skill（论文检索 / 下载 / 摘要等）由 **CKO 协助检索**，HR 配置挂载。
 
 ## 3. 汇报线与决策
 
