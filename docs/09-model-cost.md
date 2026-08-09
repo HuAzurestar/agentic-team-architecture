@@ -1,6 +1,6 @@
 # 09 模型与成本参考（HR 用）
 
-> HR 管理 Agent / 模型参数配置与成本评估的参考基准。**原则：优先使用 opencode Go 套餐（廉价/免费）；deepseek 官方 API 成本高，谨慎使用。** 由 HR 跟进维护。
+> HR 管理 Agent / 模型参数配置与成本评估的参考基准。**原则：优先使用 opencode Go 套餐（廉价/免费）；deepseek 官方 API 成本高，谨慎使用。** 由 HR 跟进维护。**实际发生的数据（任务时长 / 成本 / 预估准确度）记在 [docs/10-cost-ledger.md](10-cost-ledger.md)（成本与绩效台账）。**
 
 ## 1. 档位默认（核心产品研发BG v1）
 
