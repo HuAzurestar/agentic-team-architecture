@@ -98,7 +98,11 @@ RC 研究中心（负责人 = CRO）
 ```
 
 - **研究产出流程**（新内容）：**PC 列出新需求、定下基准** → **RC 研究**（论文调研 + 独立研究）→ **CKO 整理成研究成果**（edit / 归档）。详细流程见 [docs/04-collaboration.md](04-collaboration.md) §1。
-- **技能需求**：RC 所需的 skill（论文检索 / 下载 / 摘要等）由 **CKO 协助检索**，HR 配置挂载。
+- **技能需求（2026-08-09 已配置）**：CRO 确认需求 → CKO 检索导入 8 个候选 skill 并逐项评测 → HR 挂载：
+  - **数学家**：`lean4-theorem-proving` + `openmath-lean-theorem`（Lean4 证明辅助——**按 CEO 指示全部导入，后续以实际证明结果评判**，不预设评测分数；本地工具链 elan + lean4 + lake + mathlib）；
+  - **算法研究员**：`algorithm-solver`（原型 / 测试；基准对比层待自制）；
+  - **研究助理**：`ArXiv Search Collector` / `ArXiv Paper Processor` / `Scihub Paper Downloader`（检索 / 摘要 / 下载，sci-hub 为兜底，主流走 arxiv 官方）。
+  - 评测细节见 CKO 在 NEX-13 的报告；导入的未选用 skill（`Sci Hub Search`、`Arxiv` 等）留作备选。
 
 ## 3. 汇报线与决策
 
