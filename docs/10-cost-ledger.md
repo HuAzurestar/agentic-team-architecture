@@ -79,6 +79,19 @@
 | 例行扫描与推动（Assistant AS） | 30 min | 2026-08-09 07:00 | completed |
 | 知识记录（CKO） | 每日 09:00 | 2026-08-09 07:00 | running |
 
+### 3.4 实际 token 用量（2026-08-09，`multica runtime usage` 实测）
+
+| 运行时 | 模型 | 输入 tokens | 输出 tokens | 缓存读取 |
+| --- | --- | --- | --- | --- |
+| opencode（Go 套餐） | deepseek-v4-flash-free | 595,034 | 37,532 | 6,512,128 |
+| opencode（Go 套餐） | deepseek-v4-flash | 693,124 | 23,053 | 10,482,944 |
+| opencode（Go 套餐） | glm-5.2 | 307,106 | 9,596 | 737,201 |
+| opencode（Go 套餐） | kimi-k3 | 12,486 | 57 | 0 |
+| claude code（deepseek 官方） | deepseek-v4-flash | 19,129,441 | 1,315,887 | 295,132,160 |
+| claude code（deepseek 官方） | deepseek-v4-pro | 7,569,660 | 609,952 | 43,061,248 |
+
+> CLI 的 `cost_usd_ticks` 全为 0，不直接给出金额；Go 套餐为套餐内 flat（用量大），deepseek 官方按 [docs/09](09-model-cost.md) §3 单价计（输入 ¥1/M 未命中 / 输出 ¥2/M）。**金额换算待平台账单 / 运行端日志补充**，token 用量即为实际记录。
+
 ## 4. 台账规则
 
 - 各 C..O 随**复盘 / 周报**回填本中心记录（§1 字段），落于本文件或 issue 评论。

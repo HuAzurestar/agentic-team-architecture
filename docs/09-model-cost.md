@@ -91,8 +91,14 @@ claude code 只挂 deepseek 两个模型（BASE URL = https://api.deepseek.com/a
 - 实测后按结果调整 §1 档位默认（含 Senior 备选是否启用），并同步 docs/05 变更记录。
 - 尚未实测前档位维持现状；**K3 只给高级UI审核用**（配额小、非常贵），其余人不得用。
 
-## 6. open-code-review 配置状态（NEX-13 遗留 #1，HR 待办）
+## 6. open-code-review 配置状态（NEX-13 遗留 #1）
 
-- **现状**：open-code-review skill（alibaba/open-code-review）已安装，但未配置 LLM——运行端需 `ocr` CLI，且需设置 **OCR_LLM_URL / OCR_LLM_TOKEN / OCR_LLM_MODEL**。
-- **阻塞点**：① 需 CEO 提供 LLM 凭据（URL / TOKEN / MODEL）并批准该参数配置变更（见 §4 管理规则：人事变动须 CEO 批准）；② 需在运行端安装 `ocr` CLI。
-- **当前替代**：质量审查继续走现有 skill 方案（open-code-review 之外的审查 skill）。凭据与 CLI 就绪后，由 HR 配置启用。
+- **现状**：skill（alibaba/open-code-review）已安装；**LLM 配置规格已定、token 已由 CEO 提供（2026-08-09）**。
+- **配置规格**（`OCR_LLM_*` 环境变量，需设置在挂载该 skill 的 Agent 上：code-reviewer / CTO / 研发 / 架构师 / 质量审查·普通 / 质量审查·高级）：
+  - **OCR_LLM_URL** = `https://opencode.ai/zen/go/v1`（opencode.ai Go 套餐，OpenAI 兼容，**已验证可访问**）；
+  - **OCR_LLM_MODEL** = `deepseek-v4-flash`（端点实测只提供 `deepseek-v4-flash` 与 `deepseek-v4-pro`，**无 flash-free**；按 CEO 指示暂只配 flash，其它模型不配置）；
+  - **OCR_LLM_TOKEN** = CEO 提供的 opencode.ai Go 套餐 token（**密钥不落文档**）。
+- **待办（权限在 CEO / admin，HR 无 agent env 权限）**：
+  - ① 用 `multica agent env set <agent-id> --custom-env-file <json>` 将上述三个变量应用到 6 个挂载该 skill 的 Agent（JSON：`{"OCR_LLM_URL":"https://opencode.ai/zen/go/v1","OCR_LLM_MODEL":"deepseek-v4-flash","OCR_LLM_TOKEN":"<token>"}`）；
+  - ② 运行端安装 `ocr` CLI（alibaba/open-code-review v1.8.10 发布包，Windows 用 `opencodereview-windows-amd64.exe`，改名为 `ocr` 入 PATH）。
+- **当前替代**：上述就绪前，质量审查继续走现有 skill 方案（open-code-review 之外的审查 skill）。
