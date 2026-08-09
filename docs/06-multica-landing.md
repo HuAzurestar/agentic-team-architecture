@@ -39,6 +39,11 @@
   - AS（含 Assistant AS）负责推动与唤醒——Assist 档高频扫描阻塞并上报；
   - 升级链：相关 C..O 协商 → AS 推动 → CEO最终确认；
   - CEO 未决策 = 停摆，由 AS 记录并在定期汇报时统一通知（见 [docs/02-boundaries.md](02-boundaries.md) §3）。
+- **主动 @ 其它 Agent / Squad（推进机制，mention 契约）**：跨角色推动**必须**写 `[@显示名](mention://agent/<真实UUID>)`（Squad leader 用 `[@队名](mention://squad/<squad-id>)`）——
+  - **格式**：Markdown 链接 + 真实 UUID（`multica agent list --output json` 的 `id` 字段）；**纯文本 `@名字`、错误 UUID / 用错 type（member）会静默失败**（评论照发、对方不启动）；
+  - **条件**：该次运行需能溯源到人类 originator（CEO），否则对 `private` 目标 fail-closed；目标已在跑/排队时新 @ 会折进现有任务（coalesced/deferred，属正常折叠）；
+  - **判读**：发完看创建响应 `trigger_outcomes`——`queued`=已 push；`blocked`+reason_code=定位原因；`coalesced/deferred`=已并入；
+  - **使用者**：AS / Assistant AS 的 push 一律用此机制（见 [docs/02-boundaries.md](02-boundaries.md) §1.5）。
 - **跨 BG 共享**：**普通职员为跨 BG 共享角色**（agent 可复用）；**Assistant AS 是 BG 角色**（不属于跨 BG 共享）。跨 BG 协同调动人事时 HR 需注意协调。
 
 ## 4. Autopilot 管理
