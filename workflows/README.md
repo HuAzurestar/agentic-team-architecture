@@ -11,6 +11,8 @@
 | 03 | [架构迭代与云↔本地同步](03-iteration-sync.md) | 架构文档迭代四步 + 云端 push / 本地 pull | CKO / 各中心 |
 | 04 | [升级三问与红线认定](04-escalation-triage.md) | 越权疑点的升级复核与级别认定 | 直属上级 / AS / CKO |
 | 05 | [核心价值流](05-core-value-flow.md) | PC 设计 → TC 实现 → OC 运营 的交接与驳回 | CPO / CTO / COO / AS |
+| 06 | [失败备案归档与统一索引](06-failure-filing.md) | RC 失败备案镜像进 CKO 归档与统一索引（源真，NEX 锚点） | RC / CKO |
+| 07 | [skill 需求→导入评测→挂载 协同](07-skill-collab.md) | 新 skill 从需求到挂载的四步流程（检索导入 / 评测 / HR 挂载） | 需求方 / CKO / HR |
 
 ## 约定
 
