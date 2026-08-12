@@ -19,3 +19,4 @@
 - 每个工作流给出：**目的 / 触发 / 步骤 / 出口物 / 负责角色**，并引用相关 docs。
 - 流程可被 Autopilot、issue、手动操作引用；**触发时机由 CEO 确认创建、AS 跟进**（[docs/08-bootstrap.md](../docs/08-bootstrap.md) §5）。
 - 变更流程须同步更新本目录与相关 docs，按 [云↔本地同步规则](../README.md) 提交。
+- **创建前查重**：新建 issue / 工作流 / skill 前先检索同父 issue 或已有清单，避免并行重复创建（NEX-55/57、NEX-56/58 教训，2026-08-12）；已发现的重复 issue 由 AS 收口置 cancelled，须在评论说明并以主 issue 为准。

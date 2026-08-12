@@ -14,8 +14,8 @@
 ## 步骤
 
 1. **红线手册核对**：读 [docs/07-redline-manual.md](../docs/07-redline-manual.md)，对照近期越权 / 升级事件，判断 S0/S1/S2 是否需要补充示例；不在手册的认定后回填（[工作流 04](04-escalation-triage.md)）。
-2. **工作流整理**：把近期可复用的流程整理进 [workflows/](../workflows/README.md)；重复流程收敛，变更同步 docs。
-3. **skill 维护**：按需制作 / 维护 skill（新增、改描述、停用废弃）；配置变更与 HR 协同（[docs/02-boundaries.md](../docs/02-boundaries.md) §1.6）。
+2. **工作流整理**：把近期可复用的流程整理进 [workflows/](../workflows/README.md)；重复流程收敛，变更同步 docs。**创建前查重**：新建 issue / 工作流 / skill 前先检索同父 issue 或已有清单，避免并行重复创建（NEX-55/57、NEX-56/58 重复创建教训，2026-08-12）。
+3. **skill 维护**：按需制作 / 维护 skill（新增、改描述、停用废弃）；配置变更与 HR 协同（[docs/02-boundaries.md](../docs/02-boundaries.md) §1.6）。日期版 skill 家族（如 `paper-review-checklist-YYYYMMDD`）积累到 ≥3 版做共性总结（CEO 2026-08-11 指示）。
 4. **资讯获取 / 新闻快讯**：获取最新资讯，产出快讯；快讯对外发布前按红线手册判定（S1 对外口径）。
 5. **架构仓库更新**：改动提交并 **push 云端**，再 **pull 回本地**（[工作流 03](03-iteration-sync.md)）。
 6. **清理上下文**：归档本轮记录，控制上下文不过度扩张；可复用过程回填到本工作流。
