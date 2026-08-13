@@ -13,6 +13,7 @@
 | 05 | [核心价值流](05-core-value-flow.md) | PC 设计 → TC 实现 → OC 运营 的交接与驳回 | CPO / CTO / COO / AS |
 | 06 | [失败备案归档与统一索引](06-failure-filing.md) | RC 失败备案镜像进 CKO 归档与统一索引（源真，NEX 锚点） | RC / CKO |
 | 07 | [skill 需求→导入评测→挂载 协同](07-skill-collab.md) | 新 skill 从需求到挂载的四步流程（检索导入 / 评测 / HR 挂载） | 需求方 / CKO / HR |
+| 08 | [研究交付物审核与升级](08-research-review-escalation.md) | RC 交付物审核口 + 1 次不通过升级 Senior（2026-08-13 CEO 指令） | 作者 / 审核专员 / CRO / Senior |
 
 ## 约定
 

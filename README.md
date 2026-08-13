@@ -55,11 +55,11 @@ BG（组织单元；BG 成员 = AS、HR、CPO、CTO、COO、CKO、CRO、Assistan
 | [docs/04-collaboration.md](docs/04-collaboration.md) | 协作模式：价值流与跨中心协同 |
 | [docs/05-iteration.md](docs/05-iteration.md) | 可自我迭代：节奏、反馈循环、版本演进 |
 | [docs/06-multica-landing.md](docs/06-multica-landing.md) | Multica 落地映射：Squad / Agent / Autopilot / Issue / Project 管理（其它 agentic system 留空） |
-| [docs/07-redline-manual.md](docs/07-redline-manual.md) | 红线手册（v1.3）：S0/S1/S2 判定基准（CKO 维护） |
+| [docs/07-redline-manual.md](docs/07-redline-manual.md) | 红线手册（v1.4）：S0/S1/S2 判定基准（CKO 维护） |
 | [docs/08-bootstrap.md](docs/08-bootstrap.md) | 启动引导：从零把架构落到 Multica 的最小启动清单 |
 | [docs/09-model-cost.md](docs/09-model-cost.md) | 模型与成本参考（HR 用）：档位默认、Go 套餐配额、deepseek 官方价格 |
 | [docs/10-cost-ledger.md](docs/10-cost-ledger.md) | 成本与绩效台账（HR 维护）：实际任务时长 / 成本 / 预估准确度记录 |
-| [workflows/](workflows/README.md) | 工作流库（CKO 维护）：例行知识管理 / 红线扫描 / 迭代同步 / 升级认定 / 核心价值流 / 失败备案归档 / skill 协同 |
+| [workflows/](workflows/README.md) | 工作流库（CKO 维护）：例行知识管理 / 红线扫描 / 迭代同步 / 升级认定 / 核心价值流 / 失败备案归档 / skill 协同 / 研究交付物审核与升级 |
 
 ## 云端 ↔ 本地同步与迭代规则
 
