@@ -13,8 +13,12 @@
 | 质量审查 普通（兼职上线审核） | opencode | mimo-v2.5（Go 套餐） | 普通 |
 | 质量审查 Senior | opencode | glm-5.2（Go 套餐） | Senior |
 | 高级UI审核（仅前端） | opencode | kimi-k3（Go 套餐，非常贵） | Senior |
+| 数学家 / 算法研究员（RC） | opencode | deepseek-v4-flash（Go 套餐） | 普通 |
+| 审核专员（RC，2026-08-13） | claude code | deepseek-v4-pro | Senior |
+| 数学&算法专员·Senior（RC，2026-08-13） | claude code | deepseek-v4-pro | Senior |
 
 > 若需升档，deepseek 官方提供 deepseek-v4-pro（单价高）；Senior Reviewer 替代：minimax-m3 / deepseek-v4-pro / qwen3.7-plus。
+> **2026-08-13 CEO 指令**：deepseek-v4-pro 已到上限，claude code / dsv4p 仅保留给 **审核专员** 与 **数学&算法专员·Senior** 两档使用；数学家 / 算法研究员回到 opencode Go 套餐（dsv4f，廉价 / 免费）。
 
 ## 2. opencode Go 套餐模型与配额（HR 参考）
 

@@ -93,15 +93,22 @@ RC 研究中心负责**研究与新内容研究**：阅读开源论文（下载�
 ```
 RC 研究中心（负责人 = CRO）
 ├── 研究助理（Research Assistant）—— 检索与整理资料、论文下载与摘要、数据准备，支撑研究员工作
-├── 数学家（Mathematician）—— 专职数学证明：证明推演、定理验证、数学严谨性把关
-└── 算法研究员（Algorithm Researcher）—— 专职算法设计与测试：算法方案设计、实现原型、对比测试
+├── 审核专员（Review Specialist）—— 统一审核口：代码 / 实验 / 论文 / 文章 / Lean 证明交付前审查（CEO 审稿标准），所有研究交付物须经其审核
+├── 数学家（Mathematician）—— 专职数学证明与 Lean 使用：证明推演、定理验证、数学严谨性把关（确保 Lean 确实使用且无问题）
+├── 算法研究员（Algorithm Researcher）—— 专职算法设计与研究：算法方案设计、实现原型、实验与报告
+└── 数学&算法专员·Senior（Math & Algorithm Specialist）—— Senior 档：知晓数学和算法的一切细节（含 skill），承担难度任务（审核 1 次不通过后升级处理）
 ```
+
+- **审核机制（2026-08-13 CEO 指令）**：所有研究交付物（代码 / 实验 / 论文 / 文章 / Lean 证明）提交 in_review 前必须经手 **审核专员**（claude code / dsv4p，挂最先进审核 skill）审核，审核条件与既有五维审计一致（引文存在性 / 内容可追溯性 / 判断准确性 / 计划合理性 / 失败备案充分性）；作者与审核专员互斥，不得自审自放行；审核记录落 issue。
+- **升级优先级（2026-08-13 CEO 指令）**：数学家 / 算法研究员交付物经审核专员审核 **1 次不通过** → 升级派发给 **数学&算法专员·Senior**（claude code / dsv4p）代为处理（任务难度可能较高、flash 档模型不足以处理），后续由 Senior 持续推进至通过。
 
 - **研究产出流程**（新内容）：**PC 列出新需求、定下基准** → **RC 研究**（论文调研 + 独立研究）→ **CKO 整理成研究成果**（edit / 归档）。详细流程见 [docs/04-collaboration.md](04-collaboration.md) §1。
 - **技能需求（2026-08-09 已配置）**：CRO 确认需求 → CKO 检索导入 8 个候选 skill 并逐项评测 → HR 挂载：
   - **数学家**：`lean4-theorem-proving` + `openmath-lean-theorem`（Lean4 证明辅助——**按 CEO 指示全部导入，后续以实际证明结果评判**，不预设评测分数；本地工具链 elan + lean4 + lake + mathlib）；
   - **算法研究员**：`algorithm-solver`（原型 / 测试；基准对比层待自制）；
   - **研究助理**：`ArXiv Search Collector` / `ArXiv Paper Processor` / `Scihub Paper Downloader`（检索 / 摘要 / 下载，sci-hub 为兜底，主流走 arxiv 官方）。
+  - **审核专员（2026-08-13 追加）**：`research-review`（CEO 审稿标准，核心审核 skill）+ `open-code-review`（代码）+ `lean4-theorem-proving` / `openmath-lean-theorem`（Lean 证明）+ `algorithm-solver`（算法）+ `doc-review-2` / `docs-review`（文档 / 文章）。
+  - **数学&算法专员·Senior（2026-08-13 追加）**：`lean4-theorem-proving` / `openmath-lean-theorem` + `algorithm-solver` + `research-review`（自检 / 审核标准）。
   - 评测细节见 CKO 在 NEX-13 的报告；导入的未选用 skill（`Sci Hub Search`、`Arxiv` 等）留作备选。
 
 ## 3. 汇报线与决策

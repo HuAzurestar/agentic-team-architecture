@@ -29,6 +29,9 @@
 | 质量审查·普通 | opencode | mimo-v2.5 |
 | 质量审查·高级 | opencode | glm-5.2 |
 | 高级UI审核 | opencode | kimi-k3（仅前端，非常贵） |
+| 数学家 / 算法研究员（RC，2026-08-13 回 opencode） | opencode | deepseek-v4-flash（Go 套餐） |
+| 审核专员（RC，2026-08-13） | claude code | deepseek-v4-pro |
+| 数学&算法专员·Senior（RC，2026-08-13） | claude code | deepseek-v4-pro |
 
 > 成本单价 / 配额：Go 套餐见 [docs/09](09-model-cost.md) §2；claude code（deepseek 官方）见 §3。
 
