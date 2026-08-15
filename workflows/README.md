@@ -14,6 +14,7 @@
 | 06 | [失败备案归档与统一索引](06-failure-filing.md) | RC 失败备案镜像进 CKO 归档与统一索引（源真，NEX 锚点） | RC / CKO |
 | 07 | [skill 需求→导入评测→挂载 协同](07-skill-collab.md) | 新 skill 从需求到挂载的四步流程（检索导入 / 评测 / HR 挂载） | 需求方 / CKO / HR |
 | 08 | [研究交付物审核与升级](08-research-review-escalation.md) | RC 交付物审核口 + 1 次不通过升级 Senior（2026-08-13 CEO 指令） | 作者 / 审核专员 / CRO / Senior |
+| 09 | [长任务执行协议](09-long-task-execution.md) | 小时级长任务：冒烟 → 备份+实验号 → 报路径 → CEO 一键运行 → 回传（CEO `0d4909c2`） | 发起方 / CEO / CRO |
 
 ## 约定
 
