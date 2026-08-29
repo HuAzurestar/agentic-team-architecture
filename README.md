@@ -61,6 +61,11 @@ BG（组织单元；BG 成员 = AS、HR、CPO、CTO、COO、CKO、CRO、Assistan
 | [docs/10-cost-ledger.md](docs/10-cost-ledger.md) | 成本与绩效台账（HR 维护）：实际任务时长 / 成本 / 预估准确度记录 |
 | [workflows/](workflows/README.md) | 工作流库（CKO 维护）：例行知识管理 / 红线扫描 / 迭代同步 / 升级认定 / 核心价值流 / 失败备案归档 / skill 协同 / 研究交付物审核与升级 / 长任务执行协议 |
 
+## 协作 Skill
+
+- [skills/git-collaboration](skills/git-collaboration/SKILL.md)：英文版 Git 协作 skill，用于建立、评估或实施仓库的分支、提交、PR、CI/CD 与代码评审规范。
+- [skills_cn/git-collaboration](skills_cn/git-collaboration/SKILL.md)：中文版 Git 协作 skill。
+
 ## 云端 ↔ 本地同步与迭代规则
 
 **架构文档以云端 GitHub 仓库为主源（source of truth），本地工作目录作为它的工作副本；任何一次迭代都要同时落在两边。**

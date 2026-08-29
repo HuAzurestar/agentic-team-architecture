@@ -1,0 +1,4 @@
+interface:
+  display_name: "Git 协作"
+  short_description: "设计并执行 Git 协作、CI 和语言检查规范"
+  default_prompt: "检查此仓库，并建立或应用其 Git 协作、CI 及语言检查规范。"

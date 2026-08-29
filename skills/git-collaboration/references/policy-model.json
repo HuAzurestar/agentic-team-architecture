@@ -1,0 +1,27 @@
+{
+  "schema_version": "1.0.0",
+  "primary_types": [
+    {"issue_type": "feature", "branch_prefix": "feature", "commit_type": "feat"},
+    {"issue_type": "bug", "branch_prefix": "fix", "commit_type": "fix"},
+    {"issue_type": "documentation", "branch_prefix": "docs", "commit_type": "docs"},
+    {"issue_type": "refactor", "branch_prefix": "refactor", "commit_type": "refactor"},
+    {"issue_type": "performance", "branch_prefix": "perf", "commit_type": "perf"},
+    {"issue_type": "test", "branch_prefix": "test", "commit_type": "test"},
+    {"issue_type": "build", "branch_prefix": "build", "commit_type": "build"},
+    {"issue_type": "ci", "branch_prefix": "ci", "commit_type": "ci"},
+    {"issue_type": "maintenance", "branch_prefix": "chore", "commit_type": "chore"},
+    {"issue_type": "proof", "branch_prefix": "proof", "commit_type": "proof", "optional": true},
+    {"issue_type": "paper", "branch_prefix": "paper", "commit_type": "paper", "optional": true}
+  ],
+  "overrides": [
+    {"name": "hotfix", "branch_prefix": "hotfix", "branch_pattern": "hotfix/<issue>-<summary>", "commit_type": "fix", "allowed_issue_types": ["bug"], "requires_issue": true, "issue_in_branch_name": true},
+    {"name": "revert", "branch_prefix": "revert", "branch_pattern": "revert/<issue>-<summary>", "commit_type": "revert", "allowed_issue_types": ["bug", "maintenance"], "requires_issue": true, "issue_in_branch_name": true},
+    {"name": "release", "branch_prefix": "release", "branch_pattern": "release/<version>", "commit_type": "chore", "allowed_issue_types": ["maintenance"], "requires_issue": true, "issue_in_branch_name": false}
+  ],
+  "exemptions": [
+    {"name": "repository-bootstrap", "requires_issue": false, "require_documented_reason": true},
+    {"name": "automated-dependency-update", "requires_issue": false, "require_documented_reason": true},
+    {"name": "release-automation", "requires_issue": false, "require_documented_reason": true},
+    {"name": "emergency-administration", "requires_issue": false, "require_documented_reason": true}
+  ]
+}

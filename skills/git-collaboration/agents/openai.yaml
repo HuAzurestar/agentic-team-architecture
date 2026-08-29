@@ -1,0 +1,4 @@
+interface:
+  display_name: "Git Collaboration"
+  short_description: "Design and enforce Git collaboration conventions"
+  default_prompt: "Inspect this repository and establish or apply its Git collaboration, CI, and language-check conventions."
