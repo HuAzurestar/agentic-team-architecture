@@ -6,12 +6,14 @@ from src.document import parse_file, render_document
 from src.document.parser import parse_text
 from src.core.result import SyncResult, SyncStatus
 from src.controller.metadata import drop_empty
+from src.core.logging import get_logger
 
 
 class SyncController:
     """Select the primary platform and coordinate local/remote operations."""
     def __init__(self, config: dict):
         self.config = config
+        self.logger = get_logger()
         self.providers = {}
         yt = config.get("providers", {}).get("youtrack", {})
         if yt.get("enabled") and yt.get("token"):
@@ -197,13 +199,20 @@ class SyncController:
         # Remote IDs are authoritative; the local file is only a backup/update payload.
         document = parse_file(file)
         self._require_sync_metadata(document, "sync-to-remote")
-        primary = document.sync.primary
-        provider_name = "github" if primary.startswith("github_") else "youtrack"
-        provider = self.providers.get(provider_name)
-        if not provider:
-            raise ValueError(f"provider not configured: {provider_name}")
-        provider.update(document, document.body, joint=joint)
-        return {"status": "SUCCESS", "operation": "sync-to-remote", "ids": document.platform_ids}
+        # The first ID is the authority for conflict resolution, but every
+        # existing platform ID must be updated so cross-platform sync works.
+        updated = []
+        for key in document.sync.order:
+            if key == "general" or not document.platform_ids.get(key):
+                continue
+            provider_name = "github" if key.startswith("github_") else "youtrack"
+            provider = self.providers.get(provider_name)
+            if not provider:
+                raise ValueError(f"provider not configured: {provider_name}")
+            self.logger.info("sync_provider primary=%s current=%s joint=%s", document.sync.primary, key, joint)
+            provider.update(document, document.body, joint=joint)
+            updated.append(key)
+        return {"status": "SUCCESS", "operation": "sync-to-remote", "updated": updated, "ids": document.platform_ids}
 
     @staticmethod
     def _require_sync_metadata(document, operation: str) -> None:
@@ -213,25 +222,6 @@ class SyncController:
             raise ValueError(f"{operation} only supports doc_type: markdown")
         if not document.platform_ids:
             raise ValueError(f"{operation} requires at least one platform ID in YAML id")
-        result = SyncResult(SyncStatus.SUCCESS, "local_to_remote", document.general_id)
-        if not document.platform_ids:
-            result.status = SyncStatus.NOT_FOUND
-            result.add(status="FAILED", reason="no_platform_id")
-            return result
-        provider = self.providers.get("youtrack")
-        if not provider:
-            result.status = SyncStatus.NOT_FOUND
-            result.add(status="FAILED", reason="youtrack_not_configured")
-            return result
-        try:
-            provider.update(document, document.body)
-            for key in document.platform_ids:
-                if key.startswith("youtrack_"):
-                    result.add(provider=key, id=document.platform_ids[key], status="SUCCESS")
-        except Exception as exc:
-            result.status = SyncStatus.PARTIAL_SUCCESS
-            result.add(provider="youtrack", status="FAILED", error=str(exc))
-        return result
 
     def _not_implemented(self, direction: str, file: Path) -> SyncResult:
         document = parse_file(file)
