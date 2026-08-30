@@ -9,11 +9,14 @@ from src.core.logging import get_logger
 
 
 def main() -> None:
+    # Keep one CLI entry point so every operation receives the same config,
+    # argument logging, validation, and error reporting behavior.
     parser = argparse.ArgumentParser(description="Remote-authoritative Markdown sync controller")
     parser.add_argument("command", choices=["status", "download", "upload", "sync-from-remote", "sync-to-local", "sync-to-remote"])
     parser.add_argument("file", nargs="?")
     parser.add_argument("--remote", help="兼容旧下载格式，例如 youtrack_article:DEMO-A-1")
     parser.add_argument("--target", help="创建目标，例如 youtrack/issue/DEMO")
+    # Safe mode is the default; --joint explicitly opts into extended fields.
     parser.add_argument("--joint", action="store_true", help="sync extended fields")
     args = parser.parse_args()
     logger = get_logger("python " + " ".join(sys.argv))

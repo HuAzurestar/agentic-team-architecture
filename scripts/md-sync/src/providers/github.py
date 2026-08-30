@@ -7,6 +7,7 @@ from src.core.logging import get_logger
 
 
 class GitHubProvider:
+    """GitHub Issues and Pull Requests adapter using the REST API."""
     name = "github"
 
     def __init__(self, config: dict):
@@ -83,6 +84,8 @@ class GitHubProvider:
         raise ValueError("unsupported GitHub object type")
 
     def update(self, document: MarkdownDocument, body: str, joint: bool = False):
+        # Public API support is intentionally conservative: title/body are safe
+        # by default; relationship and management fields require explicit mode.
         for key in ("github_issue", "github_pull_request"):
             remote = document.platform_ids.get(key)
             if not remote: continue

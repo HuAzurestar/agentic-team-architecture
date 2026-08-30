@@ -9,6 +9,7 @@ from src.controller.metadata import drop_empty
 
 
 class SyncController:
+    """Select the primary platform and coordinate local/remote operations."""
     def __init__(self, config: dict):
         self.config = config
         self.providers = {}
@@ -26,6 +27,7 @@ class SyncController:
         print("providers: " + ", ".join(self.providers) if self.providers else "providers: none")
 
     def download(self, file: Path, remote: str | None = None) -> None:
+        # A missing file may be bootstrapped only from an explicit remote ID.
         if not file.exists():
             if not remote or ":" not in remote:
                 raise FileNotFoundError(f"本地文件不存在，请使用 --remote provider:id: {file}")
@@ -192,6 +194,7 @@ class SyncController:
         return {"status": "SUCCESS", "provider": target_key, "id": remote_id, "local_file": str(document.path)}
 
     def sync_to_remote(self, file: Path, joint: bool = False):
+        # Remote IDs are authoritative; the local file is only a backup/update payload.
         document = parse_file(file)
         self._require_sync_metadata(document, "sync-to-remote")
         primary = document.sync.primary

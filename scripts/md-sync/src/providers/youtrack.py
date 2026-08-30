@@ -6,6 +6,7 @@ from src.core.logging import get_logger
 from .base import RemoteProvider
 
 class YouTrackProvider(RemoteProvider):
+    """YouTrack Issue and Article adapter with UTF-8 JSON payloads."""
     name = "youtrack"
     def __init__(self, config: dict):
         self.url, self.token = config["url"].rstrip("/"), config.get("token", "")
@@ -44,6 +45,8 @@ class YouTrackProvider(RemoteProvider):
             response.read()
 
     def update(self, document: MarkdownDocument, body: str, joint: bool = False) -> None:
+        # Verify the remote title and body after every update so silent API
+        # failures cannot be reported as a successful synchronization.
         for key, field in (("youtrack_issue", "description"), ("youtrack_article", "content")):
             remote_id = document.platform_ids.get(key)
             if not remote_id:

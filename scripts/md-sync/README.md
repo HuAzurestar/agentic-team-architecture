@@ -1,5 +1,53 @@
 # Markdown Multi-Remote Sync
 
+> 当前实现说明（UTF-8）
+
+## 当前入口
+
+所有操作统一从 `src.controller.main` 进入：
+
+```powershell
+cd scripts/md-sync
+$env:PYTHONPATH='.'
+python -m src.controller.main status
+python -m src.controller.main download local.md --remote youtrack_issue:DEMO-1
+python -m src.controller.main upload local.md --target youtrack/issue/DEMO
+python -m src.controller.main sync-to-remote local.md
+python -m src.controller.main sync-to-remote local.md --joint
+python -m src.controller.main sync-from-remote local.md
+```
+
+支持的远端 ID：`github_issue`、`github_pull_request`、`youtrack_issue`、`youtrack_article`。
+
+## 同步模式
+
+- `download`：从远端创建本地 Markdown 备份。
+- `upload`：在指定项目中创建新的远端对象，并把新 ID 写回本地 YAML。
+- `sync-from-remote`：根据本地 ID 从远端覆盖更新本地文件。
+- `sync-to-remote`：根据本地 ID 更新已有远端对象。
+
+默认 `sync-to-remote` 是安全模式，只同步标题和 Markdown 正文，跳过项目、状态、优先级、指派人、标签、版本及关系等管理字段。
+
+只有显式增加 `--joint` 才进入扩展字段同步流程。发送字段和跳过字段都会写入独立日志。
+
+同步要求本地文件具有 YAML Front Matter、`doc_type: markdown`，并至少有一个平台 ID。远端不存在或正文为空时拒绝写入本地文件。
+
+## 配置与日志
+
+平台地址和 Token 配置在本地 `config/sync.yaml`。该文件不得提交到 Git。
+
+每次 CLI 执行生成独立日志：
+
+```text
+logs/md-sync.yyyymmdd.hhmmss.msms.log
+```
+
+日志首行包含完整的 `CLI ARGS`，并记录主平台选择、API 请求、响应状态、发送字段、跳过字段、本地写入和错误详情。日志目录也不得提交到 Git。
+
+## 回归测试
+
+完整测试清单见 [docs/regression-test-plan.md](docs/regression-test-plan.md)。
+
 本目录定义以 Markdown 为交换格式的多端文档同步协议。架构文档以远端 GitHub 为主源，本地 Markdown 仅作为工作副本或备份。
 
 ## 基本文档格式
