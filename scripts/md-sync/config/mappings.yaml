@@ -1,0 +1,12 @@
+common:
+  project: project
+  priority: priority
+  assignee: assignee
+  status: status
+  type: type
+
+youtrack:
+  state: status
+
+github:
+  state: status

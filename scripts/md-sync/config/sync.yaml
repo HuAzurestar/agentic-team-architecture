@@ -1,0 +1,22 @@
+mode: remote_authoritative
+
+providers:
+  youtrack:
+    enabled: true
+    url: "http://youtrack.localhost:20263"
+    token_env: "YOUTRACK_TOKEN"
+  github:
+    enabled: false
+    api_url: "https://api.github.com"
+    token_env: "GITHUB_TOKEN"
+
+sync:
+  download_before_upload: true
+  create_missing_remote: false
+  update_local_backup: true
+  preserve_local_files: true
+  line_ending: crlf
+
+documents:
+  root: "./documents"
+  backup_root: "./backups"
