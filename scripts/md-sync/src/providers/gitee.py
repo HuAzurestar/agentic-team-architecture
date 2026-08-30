@@ -41,10 +41,18 @@ class GiteeProvider:
         owner, name = repo.split("/", 1)
         if key == "gitee_issue":
             data = self._request("GET", f"/repos/{owner}/{name}/issues/{number}")
+            repository_data = data.get("repository") or {}
             data["_sync_pull_requests"] = self._request("GET", f"/repos/{owner}/issues/{number}/pull_requests?repo={name}")
             body = data.get("body") or ""
             data["repository"] = {"full_name": repo}
             data["_sync_connected_prs"] = data.pop("_sync_pull_requests", [])
+            data["state"] = data.get("issue_state") or data.get("state")
+            data["labels"] = data.get("labels") or []
+            data["assignees"] = repository_data.get("assignee") or []
+            if data.get("issue_type"):
+                data["type"] = data["issue_type"]
+            data["_sync_parent_issue"] = None
+            data["_sync_sub_issues"] = []
         elif key == "gitee_pull_request":
             data = self._request("GET", f"/repos/{owner}/{name}/pulls/{number}")
             data["_sync_commits"] = self._request("GET", f"/repos/{owner}/{name}/pulls/{number}/commits")

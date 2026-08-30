@@ -68,6 +68,7 @@ class SyncController:
             if data.get("labels"): platform["labels"] = [label.get("name") for label in data["labels"]]
             if data.get("assignees"): platform["assignees"] = [user.get("login") for user in data["assignees"]]
             if data.get("milestone"): platform["milestone"] = data["milestone"].get("title")
+            if data.get("type"): platform["type"] = data["type"]
             relationships = {}
             if key in ("github_issue", "gitee_issue"):
                 parent = data.get("_sync_parent_issue") or {}

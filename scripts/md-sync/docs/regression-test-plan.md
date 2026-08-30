@@ -121,9 +121,12 @@ CLI ARGS: python ...\\src\\controller\\main.py sync-to-remote example.md --joint
 | GitHub PR #13 download | 成功，生成 `github-pr13-to-gitee.md`，包含标题、正文、base/head 和 commit 信息 |
 | GitHub PR #13 → Gitee Issue | 成功，创建 `liangyu-hu/test-repo#IKC1GX`，并回写本地 `gitee_issue` |
 | Gitee Issue `IKC1GX` download | 成功，标题、正文、状态和仓库信息可读取 |
+| Gitee Issue 字段检查 | 成功读取状态、类型、作者、指派人、标签、里程碑字段；本次 Issue 的里程碑、标签为空，按规则省略 |
+| Gitee Issue 关系检查 | 已调用关联 PR 接口；本次没有关联 PR；父子字段为空，未伪造关系 |
 | Gitee Issue 初次 upload | 首次失败，原因是错误使用 GitHub 风格创建路径；修正为 Gitee `/repos/{owner}/issues?repo={repo}` 后成功 |
 | Gitee Issue/PR 列表 | Issue 存在 `IKC1GX`；PR 列表为空 |
 | Gitee 仓库分支 | 分支列表为空，无法进行真实 Gitee PR 创建回归 |
+| Gitee PR upload | 已用 `base_branch: main`、`head_branch: test-gitee-pr` 实测；API 返回 400“目标库为空”，正确拒绝且未创建 PR |
 | GitHub Issue #1/#3/#12 download | 按“远端正文为空即拒绝”规则失败，不生成本地空备份 |
 | 不存在对象 `#100`/`DEMO-100`/`DEMO-A-100` | 均返回 404 并记录 API 错误详情 |
 | 跨平台 sync-to-remote | 已修正为按 `id` 中所有平台 ID 更新，而不是只更新主平台 |
