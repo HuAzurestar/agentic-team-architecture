@@ -58,7 +58,9 @@ class GiteeProvider:
         platform = document.metadata.get("platform", {}).get(key, {})
         title = platform.get("title") or document.metadata.get("title") or document.path.stem
         if object_type == "issue":
-            data = self._request("POST", f"/repos/{owner}/{name}/issues", {"title": title, "body": document.body})
+            # Gitee's create-Issue endpoint keeps the repository in a query
+            # parameter, unlike GitHub's /repos/{owner}/{repo}/issues.
+            data = self._request("POST", f"/repos/{owner}/issues?repo={name}", {"title": title, "body": document.body})
         else:
             head = platform.get("head_branch")
             base = platform.get("base_branch")
@@ -77,5 +79,5 @@ class GiteeProvider:
             platform = document.metadata.get("platform", {}).get(key, {})
             payload = {"title": platform.get("title") or document.path.stem, "body": body}
             self.logger.info("sync_payload provider=gitee target=%s fields=%s joint=%s", remote, list(payload), joint)
-            path = f"/repos/{owner}/{name}/issues/{number}" if key == "gitee_issue" else f"/repos/{owner}/{name}/pulls/{number}"
+            path = f"/repos/{owner}/issues/{number}?repo={name}" if key == "gitee_issue" else f"/repos/{owner}/{name}/pulls/{number}"
             self._request("PATCH", path, payload)
