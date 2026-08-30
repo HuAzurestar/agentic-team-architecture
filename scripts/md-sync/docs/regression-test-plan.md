@@ -5,6 +5,7 @@
 ## 测试环境
 
 - GitHub 仓库：`HuAzurestar/test-repo`
+- Gitee 仓库：`liangyu-hu/test-repo`
 - YouTrack 地址：本地 YouTrack 实例
 - 本地配置：`config/sync.yaml`
 - 编码要求：所有 Markdown、YAML、日志均使用 UTF-8
@@ -39,6 +40,11 @@ python -m src.controller.main sync-from-remote <file.md>
 | T10 | 多端 Markdown | download + sync-to-remote | `id` 中存在多个平台 ID 时，按第一个平台 ID 作为主端 |
 | T11 | 两份本地副本 | 一份修改后 sync-to-remote，另一份 sync-from-remote | 未修改的副本从远端重新获取后，与远端内容一致 |
 | T12 | `--joint` 模式 | 修改 YAML 扩展字段后执行 sync-to-remote | 明确允许时才尝试同步额外字段；失败必须记录，不得静默成功 |
+| T13 | Gitee Issue | download 已创建的 Gitee Issue | 获取标题、正文、仓库和状态，并正确写入 `gitee_issue` |
+| T14 | GitHub Issue → Gitee Issue | GitHub download 后 upload 到 Gitee | 创建 Gitee Issue，并回写 Gitee ID；API 失败时保留原文件且明确报错 |
+| T15 | Gitee Issue → GitHub Issue | Gitee download 后 upload 到 GitHub | 创建 GitHub Issue，并回写 GitHub ID |
+| T16 | Gitee PR | 使用存在的 base/head 分支 upload、download、sync | 获取和更新标题、正文、分支、状态；无分支时明确拒绝 |
+| T17 | Gitee 对称性 | 对照 GitHub Issue/PR 字段逐项检查 | 双方共有字段使用统一 YAML 名称；平台独有字段放在各自平台节点 |
 
 ## 拒绝与错误回归
 
@@ -106,3 +112,4 @@ CLI ARGS: python ...\\src\\controller\\main.py sync-to-remote example.md --joint
 5. `--joint` 才能触发扩展字段同步。
 6. Token、完整 Authorization 头和敏感配置不得出现在日志或 Git 提交中。
 7. GitHub Issue/PR、YouTrack Issue/Article 的 ID 必须正确回写到本地 YAML。
+8. Gitee Issue/PR 的 ID、标题、正文、状态、分支和可用关系字段遵循同样的回归标准。
