@@ -8,12 +8,13 @@ def parse_text(text: str, path: Path = Path("<memory>")) -> MarkdownDocument:
         if len(parts) != 3: raise ValueError("YAML Front Matter 未闭合")
         metadata, body = yaml.safe_load(parts[1]) or {}, parts[2].lstrip("\r\n")
     if metadata.get("doc_type", "markdown") != "markdown": raise ValueError("当前唯一支持 markdown")
-    ids = metadata.get("id", {})
+    ids = metadata.get("id", {}) or {}
+    if not isinstance(ids, dict): raise ValueError("id must be a YAML mapping")
     unknown = set(ids) - {"general", *PLATFORM_IDS}
     if not isinstance(ids, dict) or unknown: raise ValueError("id 必须只包含 general 和四个平台 ID")
-    sync = metadata.get("sync", {}) or {}
-    if sync.get("primary") and sync["primary"] not in ids: raise ValueError("sync.primary 必须对应已有 ID")
-    return MarkdownDocument(path, metadata, body, ids, SyncPolicy(sync.get("primary"), tuple(sync.get("order", ()))))
+    # Platform priority is the insertion order of the id mapping.
+    order = tuple(ids.keys())
+    return MarkdownDocument(path, metadata, body, ids, SyncPolicy(order[0] if order else None, order))
 def parse_file(path: Path) -> MarkdownDocument: return parse_text(path.read_text(encoding="utf-8"), path)
 
 def render_document(document: MarkdownDocument, body: str | None = None) -> str:
