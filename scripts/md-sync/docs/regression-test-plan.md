@@ -113,3 +113,31 @@ CLI ARGS: python ...\\src\\controller\\main.py sync-to-remote example.md --joint
 6. Token、完整 Authorization 头和敏感配置不得出现在日志或 Git 提交中。
 7. GitHub Issue/PR、YouTrack Issue/Article 的 ID 必须正确回写到本地 YAML。
 8. Gitee Issue/PR 的 ID、标题、正文、状态、分支和可用关系字段遵循同样的回归标准。
+
+## 已执行结果（2026-08-30）
+
+| 测试 | 实际结果 |
+|---|---|
+| GitHub PR #13 download | 成功，生成 `github-pr13-to-gitee.md`，包含标题、正文、base/head 和 commit 信息 |
+| GitHub PR #13 → Gitee Issue | 成功，创建 `liangyu-hu/test-repo#IKC1GX`，并回写本地 `gitee_issue` |
+| Gitee Issue `IKC1GX` download | 成功，标题、正文、状态和仓库信息可读取 |
+| Gitee Issue 初次 upload | 首次失败，原因是错误使用 GitHub 风格创建路径；修正为 Gitee `/repos/{owner}/issues?repo={repo}` 后成功 |
+| Gitee Issue/PR 列表 | Issue 存在 `IKC1GX`；PR 列表为空 |
+| Gitee 仓库分支 | 分支列表为空，无法进行真实 Gitee PR 创建回归 |
+| GitHub Issue #1/#3/#12 download | 按“远端正文为空即拒绝”规则失败，不生成本地空备份 |
+| 不存在对象 `#100`/`DEMO-100`/`DEMO-A-100` | 均返回 404 并记录 API 错误详情 |
+| 跨平台 sync-to-remote | 已修正为按 `id` 中所有平台 ID 更新，而不是只更新主平台 |
+
+## Gitee 与 GitHub 对称性检查
+
+Gitee Provider 已使用与 GitHub 相同的抽象入口：`fetch`、`create`、`update`。当前已对称支持：
+
+- Issue/PR 的标题和正文下载、创建、更新；
+- Issue/PR 的平台 ID 写回 YAML；
+- Issue/PR 的状态、作者、标签等基础字段保留在平台 YAML 节点；
+- PR 的 base/head 分支和 commit 信息下载；
+- Issue 关联 PR 信息下载；
+- UTF-8 JSON/Markdown、API 状态码和错误摘要日志；
+- 默认安全同步与 `--joint` 参数入口。
+
+仍需在拥有有效分支和 PR 的 Gitee 仓库中补测：PR 创建、PR 更新、reviewer、CI 检查、deployment、分支关联以及 Issue-PR Development 关系。Gitee 测试仓库当前为空仓库，因此这些项目暂记为 BLOCKED，不视为通过。

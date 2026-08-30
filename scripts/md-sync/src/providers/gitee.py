@@ -43,10 +43,14 @@ class GiteeProvider:
             data = self._request("GET", f"/repos/{owner}/{name}/issues/{number}")
             data["_sync_pull_requests"] = self._request("GET", f"/repos/{owner}/issues/{number}/pull_requests?repo={name}")
             body = data.get("body") or ""
+            data["repository"] = {"full_name": repo}
+            data["_sync_connected_prs"] = data.pop("_sync_pull_requests", [])
         elif key == "gitee_pull_request":
             data = self._request("GET", f"/repos/{owner}/{name}/pulls/{number}")
             data["_sync_commits"] = self._request("GET", f"/repos/{owner}/{name}/pulls/{number}/commits")
             body = data.get("body") or ""
+            data["repository"] = {"full_name": repo}
+            data["_sync_development"] = {"commits": data["_sync_commits"], "reviewers": {"users": []}, "checks": [], "deployments": []}
         else:
             raise ValueError("unsupported Gitee ID")
         data["_sync_repository"] = repo
