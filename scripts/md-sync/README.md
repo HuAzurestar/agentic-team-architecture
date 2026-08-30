@@ -34,6 +34,10 @@ python -m src.controller.main sync-from-remote local.md
 
 ## 配置与日志
 
+当前支持的远端 ID 包括：`github_issue`、`github_pull_request`、`gitee_issue`、`gitee_pull_request`、`youtrack_issue`、`youtrack_article`。
+
+Gitee 使用 API v5，创建目标格式为 `gitee/issue/owner/repo` 或 `gitee/pull-request/owner/repo`。Token 通过 `config/sync.yaml` 的 `providers.gitee.token` 或 `GITEE_TOKEN` 提供。
+
 平台地址和 Token 配置在本地 `config/sync.yaml`。该文件不得提交到 Git。
 
 每次 CLI 执行生成独立日志：

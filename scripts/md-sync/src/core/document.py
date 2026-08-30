@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from pathlib import Path
-PLATFORM_IDS = ("github_issue", "github_pull_request", "youtrack_issue", "youtrack_article")
+PLATFORM_IDS = ("github_issue", "github_pull_request", "gitee_issue", "gitee_pull_request", "youtrack_issue", "youtrack_article")
 @dataclass(frozen=True)
 class SyncPolicy:
     primary: str | None = None

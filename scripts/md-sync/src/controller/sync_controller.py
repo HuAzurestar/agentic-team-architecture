@@ -23,6 +23,10 @@ class SyncController:
         if gh.get("enabled") and gh.get("token"):
             from src.providers.github import GitHubProvider
             self.providers["github"] = GitHubProvider(gh)
+        ge = config.get("providers", {}).get("gitee", {})
+        if ge.get("enabled") and ge.get("token"):
+            from src.providers.gitee import GiteeProvider
+            self.providers["gitee"] = GiteeProvider(ge)
 
     def status(self) -> None:
         print(f"mode: {self.config.get('mode', 'remote_authoritative')}")
@@ -34,14 +38,14 @@ class SyncController:
             if not remote or ":" not in remote:
                 raise FileNotFoundError(f"本地文件不存在，请使用 --remote provider:id: {file}")
             provider_name, remote_id = remote.split(":", 1)
-            key = provider_name if provider_name in ("youtrack_article", "youtrack_issue", "github_issue", "github_pull_request") else f"{provider_name}_article"
+            key = provider_name if provider_name in ("youtrack_article", "youtrack_issue", "github_issue", "github_pull_request", "gitee_issue", "gitee_pull_request") else f"{provider_name}_article"
             document = parse_text(f'---\ndoc_type: markdown\nid:\n  {key}: "{remote_id}"\n---\n', file)
         else:
             document = parse_file(file)
             self._require_sync_metadata(document, "download")
         if not document.sync.primary:
             raise ValueError("download requires id with a platform ID")
-        provider_name = "github" if document.sync.primary.startswith("github_") else "youtrack"
+        provider_name = "github" if document.sync.primary.startswith("github_") else ("gitee" if document.sync.primary.startswith("gitee_") else "youtrack")
         provider = self.providers.get(provider_name)
         if not provider:
             raise ValueError(f"provider not configured: {provider_name}")
@@ -56,7 +60,7 @@ class SyncController:
         if document.sync.primary == "github_pull_request": ids["github_pull_request"] = f"{data['base']['repo']['full_name']}#{data['number']}"
         metadata["id"] = ids
         metadata = drop_empty(metadata)
-        if document.sync.primary == "github_issue" or document.sync.primary == "github_pull_request":
+        if document.sync.primary in ("github_issue", "github_pull_request", "gitee_issue", "gitee_pull_request"):
             key = document.sync.primary
             repository = data.get("repository", {}).get("full_name") or document.platform_ids[key].rsplit("#", 1)[0]
             platform = {"title": data.get("title"), "repository": repository, "state": data.get("state")}
@@ -65,14 +69,14 @@ class SyncController:
             if data.get("assignees"): platform["assignees"] = [user.get("login") for user in data["assignees"]]
             if data.get("milestone"): platform["milestone"] = data["milestone"].get("title")
             relationships = {}
-            if key == "github_issue":
+            if key in ("github_issue", "gitee_issue"):
                 parent = data.get("_sync_parent_issue") or {}
                 if parent.get("number"): relationships["parent_issue"] = [f"{repository}#{parent['number']}"]
                 children = [f"{repository}#{item['number']}" for item in data.get("_sync_sub_issues", []) if item.get("number")]
                 if children: relationships["sub_issues"] = children
                 connected_prs = [f"{repository}#{item['number']}" for item in data.get("_sync_connected_prs", []) if item.get("number")]
                 if connected_prs: relationships["pull_requests"] = connected_prs
-            if key == "github_pull_request":
+            if key in ("github_pull_request", "gitee_pull_request"):
                 platform.update({"base_branch": data.get("base", {}).get("ref"), "head_branch": data.get("head", {}).get("ref"), "draft": data.get("draft", False), "merged": data.get("merged", False)})
                 development = data.get("_sync_development", {})
                 platform["development"] = {"commits": [item.get("sha") for item in development.get("commits", []) if item.get("sha")], "reviewers": [item.get("login") for item in development.get("reviewers", {}).get("users", []) if item.get("login")], "checks": [{"name": item.get("name"), "status": item.get("status"), "conclusion": item.get("conclusion")} for item in development.get("checks", [])], "deployments": [{"environment": item.get("environment"), "sha": item.get("sha"), "url": item.get("environment_url") or item.get("target_url")} for item in development.get("deployments", [])]}
@@ -166,6 +170,16 @@ class SyncController:
                 print("WARNING: GitHub Development PR links cannot be created through the public API; pull_requests was kept locally only.", file=sys.stderr)
             document.path.write_text(render_document(document), encoding="utf-8", newline="")
             return {"status": "SUCCESS", "provider": target_key, "id": response["id"], "local_file": str(document.path)}
+        if provider == "gitee" and object_type in ("issue", "pull-request") and project:
+            target_key = "gitee_issue" if object_type == "issue" else "gitee_pull_request"
+            if document.platform_ids.get(target_key):
+                raise ValueError(f"upload target {target_key} already has ID")
+            response = self.providers["gitee"].create(document, "issue" if object_type == "issue" else "pull_request", project)
+            document.ids[target_key] = response["id"]
+            document.metadata["id"] = document.ids
+            document.metadata.setdefault("platform", {}).setdefault(target_key, {})["repository"] = project
+            document.path.write_text(render_document(document), encoding="utf-8", newline="")
+            return {"status": "SUCCESS", "provider": target_key, "id": response["id"], "local_file": str(document.path)}
         if provider != "youtrack" or object_type not in ("issue", "article") or not project:
             raise ValueError("当前支持 youtrack/issue/PROJECT、youtrack/article/PROJECT、github/issue/OWNER/REPO")
         target_key = f"youtrack_{object_type}"
@@ -205,7 +219,7 @@ class SyncController:
         for key in document.sync.order:
             if key == "general" or not document.platform_ids.get(key):
                 continue
-            provider_name = "github" if key.startswith("github_") else "youtrack"
+            provider_name = "github" if key.startswith("github_") else ("gitee" if key.startswith("gitee_") else "youtrack")
             provider = self.providers.get(provider_name)
             if not provider:
                 raise ValueError(f"provider not configured: {provider_name}")
