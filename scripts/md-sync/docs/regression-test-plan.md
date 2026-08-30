@@ -130,6 +130,8 @@ CLI ARGS: python ...\\src\\controller\\main.py sync-to-remote example.md --joint
 | Gitee PR 基线创建 | 创建 `master` 基线和 `test/md-sync-pr` 分支，并提交 `pr-fixture.md` 作为差异 |
 | Gitee PR upload（重测） | 使用 `master` → `test/md-sync-pr` 创建成功，得到 `liangyu-hu/test-repo#1` |
 | Gitee PR #1 download | 成功获取标题、正文、base/head 分支和 commit 信息 |
+| Gitee Issue `IKC1GX` sync-to-remote + download | 成功更新后重新下载，标题、正文和状态回读一致 |
+| Gitee PR `#1` sync-to-remote + download | 成功更新后重新下载，标题、正文、base/head 和 commit 信息回读一致 |
 | GitHub Issue #1/#3/#12 download | 按“远端正文为空即拒绝”规则失败，不生成本地空备份 |
 | 不存在对象 `#100`/`DEMO-100`/`DEMO-A-100` | 均返回 404 并记录 API 错误详情 |
 | 跨平台 sync-to-remote | 已修正为按 `id` 中所有平台 ID 更新，而不是只更新主平台 |
