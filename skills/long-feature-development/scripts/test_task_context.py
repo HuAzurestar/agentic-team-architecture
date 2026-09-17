@@ -26,13 +26,19 @@ STATUS = """# PIRC-23 Status
 
 | Task | Type | State | Pickup refs | Completion refs | Next action |
 | --- | --- | --- | --- | --- | --- |
-| REQ | Requirement | `DONE` | repo@main@1111111 | repo@main@2222222 | SOL |
+| REQ-001 | Requirement | `DONE` | repo@main@1111111 | repo@main@2222222 | SOL-001 |
+| SOL-001 | Solution | `DONE` | repo@main@2222222 | repo@main@3333333 | DEV-02 |
 | DEV-02 | Development | `WIP` | app@task@3333333 | - | Implement parser |
 """
 
 TASKS = """# PIRC-23 Tasks
 
-## REQ — Confirm requirement
+## REQ-001 — Confirm requirement point
+
+- Goal: Confirm it.
+- Gists: none
+
+## SOL-001 — Confirm solution point
 
 - Goal: Confirm it.
 - Gists: none
@@ -46,8 +52,50 @@ TASKS = """# PIRC-23 Tasks
 - Gists: gists/parser.md
 """
 
-REQUIREMENT = "# PIRC-23 Requirement\n\nConfirmed requirement.\n"
-SOLUTION = "# PIRC-23 Solution\n\nBaselined solution.\n"
+REQUIREMENT = """# PIRC-23 Requirement
+
+## Derived document state
+
+| Item | Value |
+| --- | --- |
+| Status | `CONFIRMED` |
+
+## Requirement points
+
+### REQ-001 — Confirmed requirement
+
+| Item | Value |
+| --- | --- |
+| Class | `ACTIVE` |
+| State | `CONFIRMED` |
+
+Confirmed requirement.
+
+## Disposition records
+"""
+
+SOLUTION = """# PIRC-23 Solution
+
+## Derived document state
+
+| Item | Value |
+| --- | --- |
+| Status | `BASELINED` |
+
+## Solution points
+
+### SOL-001 — Confirmed solution
+
+| Item | Value |
+| --- | --- |
+| Class | `ACTIVE` |
+| State | `CONFIRMED` |
+| Requirement points | `REQ-001` |
+
+Baselined solution.
+
+## Disposition records
+"""
 
 
 class TaskContextTests(unittest.TestCase):
@@ -75,8 +123,8 @@ class TaskContextTests(unittest.TestCase):
     def test_explicit_task_must_exist_in_status_and_tasks(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             root = self.make_feature(Path(temp))
-            context = task_context.build_context(root, "REQ")
-            self.assertEqual(context["task"]["id"], "REQ")
+            context = task_context.build_context(root, "REQ-001")
+            self.assertEqual(context["task"]["id"], "REQ-001")
             self.assertEqual(context["gists"], [])
 
     def test_missing_current_task_row_fails(self) -> None:
@@ -97,9 +145,111 @@ class TaskContextTests(unittest.TestCase):
             )
             tasks = TASKS.replace("- Gists: none", "- Gists：无。", 1)
             root = self.make_feature(Path(temp), status=status, tasks=tasks)
-            context = task_context.build_context(root, "REQ")
-            self.assertEqual(context["task"]["id"], "REQ")
+            requirement = (
+                REQUIREMENT.replace("## Derived document state", "## 派生文档状态")
+                .replace("| Item | Value |", "| 项目 | 值 |")
+                .replace("| Status |", "| 状态 |")
+                .replace("| Class |", "| 类别 |")
+                .replace("| State |", "| 状态 |")
+            )
+            solution = (
+                SOLUTION.replace("## Derived document state", "## 派生文档状态")
+                .replace("| Item | Value |", "| 项目 | 值 |")
+                .replace("| Status |", "| 状态 |")
+                .replace("| Class |", "| 类别 |")
+                .replace("| State |", "| 状态 |")
+            )
+            (root / "REQUIREMENT.md").write_text(requirement, encoding="utf-8")
+            (root / "SOLUTION.md").write_text(solution, encoding="utf-8")
+            context = task_context.build_context(root, "REQ-001")
+            self.assertEqual(context["task"]["id"], "REQ-001")
             self.assertEqual(context["gists"], [])
+
+    def test_decision_point_requires_matching_status_task(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            extra = REQUIREMENT.replace(
+                "## Disposition records",
+                """### REQ-002 — Another confirmed point
+
+| Item | Value |
+| --- | --- |
+| Class | `ACTIVE` |
+| State | `CONFIRMED` |
+
+## Disposition records""",
+            )
+            root = self.make_feature(Path(temp))
+            (root / "REQUIREMENT.md").write_text(extra, encoding="utf-8")
+            with self.assertRaisesRegex(task_context.ContextError, "missing STATUS tasks"):
+                task_context.build_context(root)
+
+    def test_derived_document_status_mismatch_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            proposed = REQUIREMENT.replace("| State | `CONFIRMED` |", "| State | `PROPOSED` |")
+            root = self.make_feature(Path(temp))
+            (root / "REQUIREMENT.md").write_text(proposed, encoding="utf-8")
+            with self.assertRaisesRegex(task_context.ContextError, "status must be DRAFT"):
+                task_context.build_context(root)
+
+    def test_rejected_point_can_be_reopened(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            rejected_requirement = (
+                REQUIREMENT.replace("| Status | `CONFIRMED` |", "| Status | `DRAFT` |")
+                .replace("| Class | `ACTIVE` |", "| Class | `DISPOSITION` |")
+                .replace("| State | `CONFIRMED` |", "| State | `REJECTED` |")
+            )
+            pending_solution = (
+                SOLUTION.replace("| Status | `BASELINED` |", "| Status | `DRAFT` |")
+                .replace("| State | `CONFIRMED` |", "| State | `PROPOSED` |")
+            )
+            pending_status = STATUS.replace(
+                "| SOL-001 | Solution | `DONE` |",
+                "| SOL-001 | Solution | `WIP` |",
+            )
+            root = self.make_feature(Path(temp), status=pending_status)
+            (root / "REQUIREMENT.md").write_text(rejected_requirement, encoding="utf-8")
+            (root / "SOLUTION.md").write_text(pending_solution, encoding="utf-8")
+            rejected = task_context.build_context(root, "REQ-001")
+            self.assertEqual(rejected["task"]["state"], "DONE")
+
+            reopened_requirement = (
+                rejected_requirement.replace("| Class | `DISPOSITION` |", "| Class | `ACTIVE` |")
+                .replace("| State | `REJECTED` |", "| State | `REOPENED` |")
+            )
+            reopened_status = pending_status.replace(
+                "| REQ-001 | Requirement | `DONE` |",
+                "| REQ-001 | Requirement | `WIP` |",
+            )
+            (root / "STATUS.md").write_text(reopened_status, encoding="utf-8")
+            (root / "REQUIREMENT.md").write_text(reopened_requirement, encoding="utf-8")
+            context = task_context.build_context(root, "REQ-001")
+            self.assertEqual(context["task"]["state"], "WIP")
+
+    def test_done_task_rejects_reopened_point(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            reopened_requirement = (
+                REQUIREMENT.replace("| Status | `CONFIRMED` |", "| Status | `DRAFT` |")
+                .replace("| State | `CONFIRMED` |", "| State | `REOPENED` |")
+            )
+            root = self.make_feature(Path(temp))
+            (root / "REQUIREMENT.md").write_text(reopened_requirement, encoding="utf-8")
+            with self.assertRaisesRegex(task_context.ContextError, "requires a decided point state"):
+                task_context.build_context(root)
+
+    def test_confirmed_solution_rejects_unconfirmed_requirement_ref(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            reopened_requirement = (
+                REQUIREMENT.replace("| Status | `CONFIRMED` |", "| Status | `DRAFT` |")
+                .replace("| State | `CONFIRMED` |", "| State | `REOPENED` |")
+            )
+            reopened_status = STATUS.replace(
+                "| REQ-001 | Requirement | `DONE` |",
+                "| REQ-001 | Requirement | `WIP` |",
+            )
+            root = self.make_feature(Path(temp), status=reopened_status)
+            (root / "REQUIREMENT.md").write_text(reopened_requirement, encoding="utf-8")
+            with self.assertRaisesRegex(task_context.ContextError, "unconfirmed requirements"):
+                task_context.build_context(root)
 
     def test_duplicate_task_state_row_fails(self) -> None:
         with tempfile.TemporaryDirectory() as temp:

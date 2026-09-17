@@ -1,35 +1,48 @@
 ---
-title: <feature> Requirement
+title: <feature-key> Requirement
 ---
 
-# <feature> Requirement
+# <feature-key> Requirement
 
-## Confirmation boundary
+## Derived document state
 
 | Item | Value |
 | --- | --- |
-| Status | `PROPOSED` |
-| Confirmed by | - |
-| Confirmed at | - |
+| Status | `DRAFT` |
+| Derivation | Every active `REQ-*` point is individually `CONFIRMED`; no active point is `PROPOSED` or `REOPENED` |
 
-When a human changes the status to `CONFIRMED`, this file and its confirmed text become append-only. Preserve superseded text and add dated amendments.
+This status is derived, not globally approved. Confirmed point text is immutable until a human explicitly reopens that point.
 
 ## Background
 
 Why this feature is needed.
 
-## Goal
+## Requirement points
 
-What observable result must be delivered.
+### REQ-001 — <point-title>
 
-## Scope
+| Item | Value |
+| --- | --- |
+| Class | `ACTIVE` |
+| State | `PROPOSED` |
+| Decided by | - |
+| Decided at | - |
 
-- Included:
-- Excluded:
+#### Statement
 
-## Acceptance
+One atomic requirement statement.
+
+#### Acceptance
 
 1. Observable acceptance scenario.
+
+#### Decision history
+
+- None.
+
+## Disposition records
+
+Move rejected, out-of-scope, and infeasible points here without deleting their statement, reason, or decision history. Set `Class` to `DISPOSITION`.
 
 ## Amendments
 

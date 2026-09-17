@@ -10,9 +10,11 @@ Read this file only when a task changes state or the feature's next transition c
 | `WIP` | `BLOCKED` | Record the blocker, its effect, and the release condition. |
 | `BLOCKED` | `WIP` | Record the new pickup refs and why the blocker is released. |
 | `WIP` | `DONE` | Record every completion ref and the next task or action. |
-| `DONE` | `WIP` | Reopen only with an explicit reason and new pickup refs. |
+| `DONE` | `WIP` | Record the point's `REOPENED` commit or another explicit reason, plus new pickup refs. |
 
 Do not infer `DONE` from a summary statement. The task owner changes the `STATUS.md` row after the matching `TASKS.md` completion condition is satisfied.
+
+For requirement and solution point decisions, read [confirmation.md](confirmation.md). Point state and task state are separate; the Mermaid diagrams there are authoritative for their relationship.
 
 ## Feature transition note
 

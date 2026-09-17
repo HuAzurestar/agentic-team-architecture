@@ -1,22 +1,24 @@
 ---
-title: <feature> Status
+title: <feature-key> Status
 ---
 
-# <feature> Status
+# <feature-key> Status
 
 | Item | Current value | Note |
 | --- | --- | --- |
+| Feature ID | `NO-FEAT-<6-char-random>` | Developer assigns the official ID when appropriate |
+| Previous IDs | - | Append aliases after an ID change |
 | Phase | Requirement | Display only |
 | Next transition | Solution | Read transition rules only when changing |
-| Current task | REQ | Locate this row below, then read its TASKS section |
+| Current task | REQ-001 | Locate this row below, then read its TASKS section |
 | Blocker | None | Include the release condition when blocked |
 
 ## Task state
 
 | Task | Type | State | Pickup refs | Completion refs | Next action |
 | --- | --- | --- | --- | --- | --- |
-| REQ | Requirement | `TODO` | - | - | Confirm requirement |
-| SOL | Solution | `TODO` | - | - | Baseline solution |
+| REQ-001 | Requirement | `TODO` | - | - | Decide `REQ-001` |
+| SOL-001 | Solution | `TODO` | - | - | Decide `SOL-001` after its requirement points are confirmed |
 
 ## Working branches
 

@@ -1,41 +1,52 @@
 ---
-title: <feature> Solution
+title: <feature-key> Solution
 ---
 
-# <feature> Solution
+# <feature-key> Solution
 
-## Baseline boundary
+## Derived document state
 
 | Item | Value |
 | --- | --- |
-| Status | `PROPOSED` |
-| Baselined by | - |
-| Baselined at | - |
+| Status | `DRAFT` |
+| Derivation | Every active `SOL-*` point is individually `CONFIRMED`; no active point is `PROPOSED` or `REOPENED` |
 | Requirement | `<requirement-reference>` |
 
-When a human changes the status to `BASELINED`, this file and its baselined text become append-only. Preserve superseded design and add dated revisions. Keep dynamic branches and SHAs in `STATUS.md`, not here.
+This status is derived, not globally approved. Confirmed solution points are immutable until a human explicitly reopens them. Keep dynamic branches and SHAs in `STATUS.md`, not here.
 
-## Approach
+## Solution points
 
-How the requirement will be implemented.
+### SOL-001 — <point-title>
 
-## Affected interfaces
+| Item | Value |
+| --- | --- |
+| Class | `ACTIVE` |
+| State | `PROPOSED` |
+| Requirement points | `REQ-001` |
+| Decided by | - |
+| Decided at | - |
+
+#### Approach
+
+One atomic solution statement.
+
+#### Affected interfaces
 
 - API:
 - Database:
 - Other repositories or consumers:
 
-## Task outline
-
-Summarize task boundaries without copying live task state. Detailed work belongs in local `TASKS.md`; live state belongs in `STATUS.md`.
-
-## Validation
+#### Validation
 
 What will be checked, and what will intentionally not be checked.
 
-## Known constraints
+#### Decision history
 
-Current limitations or unresolved implementation constraints.
+- None.
+
+## Disposition records
+
+Move rejected, out-of-scope, and infeasible points here without deleting their approach, reason, or decision history. Set `Class` to `DISPOSITION`.
 
 ## Revisions
 

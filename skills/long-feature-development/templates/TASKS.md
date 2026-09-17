@@ -1,21 +1,21 @@
-# <feature> Tasks
+# <feature-key> Tasks
 
 Task state and refs belong in `STATUS.md`. This local file explains the work by task ID.
 
-## REQ — Confirm requirement
+## REQ-001 — Decide one requirement point
 
-- Goal: Turn the human-approved proposal into the confirmed requirement boundary.
+- Goal: Obtain and record a pointwise human decision for `REQ-001`.
 - Inputs: `REQUIREMENT.md`
-- Work: Resolve open requirement questions and record explicit human confirmation.
-- Completion condition: `REQUIREMENT.md` is `CONFIRMED`, with confirmer and time recorded.
+- Work: Resolve ambiguity, request a decision naming the exact point, and create one decision commit.
+- Completion condition: `REQ-001` has a decided result and its decision commit SHA is recorded in `STATUS.md`.
 - Gists: none
 
-## SOL — Baseline solution
+## SOL-001 — Decide one solution point
 
-- Goal: Establish the retained implementation plan for the confirmed requirement.
+- Goal: Obtain and record a pointwise human decision for `SOL-001`.
 - Inputs: `REQUIREMENT.md`, `SOLUTION.md`
-- Work: Resolve solution gaps and record explicit human baseline approval.
-- Completion condition: `SOLUTION.md` is `BASELINED`, with baseliner and time recorded.
+- Work: Check referenced requirement points, resolve ambiguity, request the exact decision, and create one decision commit.
+- Completion condition: `SOL-001` has a decided result and its decision commit SHA is recorded in `STATUS.md`.
 - Gists: none
 
 ## <task-id> — <task-title>

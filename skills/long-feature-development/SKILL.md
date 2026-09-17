@@ -10,7 +10,7 @@ This Codex skill uses a small, versioned feature record to continue development 
 ## Required feature layout
 
 ```text
-<Project-Manage>/<feature>/
+<Project-Manage>/<feature-key>/
 ├── REQUIREMENT.md
 ├── SOLUTION.md
 ├── STATUS.md
@@ -22,13 +22,17 @@ This Codex skill uses a small, versioned feature record to continue development 
 
 ## Initialize a feature
 
-1. Resolve `<Project-Manage>` and the feature ID before creating files.
+1. Resolve `<Project-Manage>`. If the developer has not assigned a feature ID, use `NO-FEAT` when unique or `NO-FEAT-<6-char-random>` when collision is possible. Do not delay initialization to invent an official ID.
 2. Copy only the four matching files from `templates/`: `REQUIREMENT.md`, `SOLUTION.md`, `STATUS.md`, and local `TASKS.md`.
-3. Replace or remove every angle-bracket placeholder. Keep one `TASKS.md` section for every task row in `STATUS.md`; the supplied `REQ` and `SOL` sections are mandatory.
+3. Replace or remove every angle-bracket placeholder. Keep one `TASKS.md` section for every task row in `STATUS.md`; the supplied `REQ-001` and `SOL-001` point tasks are mandatory until replaced by real point IDs.
 4. Create local `gists/` only when a task needs one.
 5. Add exact, feature-scoped local exclude entries for `TASKS.md` and `gists/`; do not add a repository-wide ignore rule without authorization.
 6. Run the [task context helper](scripts/task_context.py) as `python <skill-root>/scripts/task_context.py <feature-directory>` before the first project-management commit. Fix every reported mismatch.
-7. Leave requirement and solution in `PROPOSED` until a human confirms or baselines them.
+7. Leave requirement and solution in `DRAFT`. Their overall states are derived from point states, never set by a global approval.
+
+## Feature identity
+
+`NO-FEAT` and `NO-FEAT-<6-char-random>` are valid temporary feature keys. Use six lowercase alphanumeric characters for the random suffix. The developer alone chooses when to assign an official ID; feasibility confirmation is common but not required. When the ID changes, rename the feature directory, update the document titles and `STATUS.md` feature ID in one project-management change, and append the old key to `Previous IDs`. Never rewrite old commits or remote history to hide the temporary key.
 
 ## Start or resume
 
@@ -45,20 +49,23 @@ The project-management repository containing `STATUS.md` cannot embed the SHA of
 
 ## Confirmation boundaries
 
-- `REQUIREMENT.md` is editable while `PROPOSED`. A human changes it to `CONFIRMED`.
-- After `CONFIRMED`, do not delete the requirement file or delete/overwrite confirmed text. Append a dated amendment; mark obsolete text `SUPERSEDED` and point to its replacement.
-- `SOLUTION.md` is editable while `PROPOSED`. A human changes it to `BASELINED`.
-- After `BASELINED`, do not delete the solution file or delete/overwrite baselined text. Append a dated revision and preserve superseded design history.
-- Never interpret an LLM proposal or an implementation commit as human confirmation.
+- Give every decision point a stable `REQ-*` or `SOL-*` ID. A broad statement such as "approve all" never changes point state.
+- An LLM may propose likely confirmable points only when authorized. It must then restate each exact ID and content for a second human confirmation.
+- A confirmed point is locked until a human explicitly reopens it. Preserve its content and decision history; never silently replace it.
+- A rejected point may be revised and reopened without a separate withdrawal. Reconfirmation still requires an explicit human decision.
+- Requirement `CONFIRMED` and solution `BASELINED` are derived states: every active point is individually `CONFIRMED`, and no active point is `PROPOSED` or `REOPENED`.
+
+Read [references/confirmation.md](references/confirmation.md) only when adding, deciding, revising, or reopening a requirement or solution point.
 
 ## Work on one task
 
 - Tasks use only `TODO`, `WIP`, `BLOCKED`, and `DONE`.
 - Requirement, solution, development, testing, and review are task types in the same `STATUS.md` table; do not create separate state machines.
-- Set the requirement task to `DONE` only when `REQUIREMENT.md` is `CONFIRMED`; set the solution task to `DONE` only when `SOLUTION.md` is `BASELINED`.
+- Give each requirement or solution point a task with the same ID. Set it to `DONE` only after its individual decision commit SHA is recorded; rejection, out-of-scope, and infeasible decisions also complete the point task.
 - On pickup, change the task to `WIP` in `STATUS.md` and record every relevant `repo@branch@SHA` in `接取 refs`.
 - Read scope and completion conditions from the matching `TASKS.md` section. Put extra local context in a gist and reference it there.
 - Prefix implementation commit subjects with the feature and task, for example `PIRC-23/DEV-01: add feature templates`.
+- Use one decision point per decision commit. The subject is `<feature-key>/<point-id>: <RESULT> <summary>`, where `RESULT` is `CONFIRMED`, `REJECTED`, `OUT-OF-SCOPE`, `INFEASIBLE`, or `REOPENED`.
 - A task may produce multiple commits. Do not merge implementation branches automatically.
 - On completion, update the `STATUS.md` row with every output `repo@branch@SHA`, set `DONE`, and name the next task or action.
 - On interruption, keep `WIP` and write the exact next action. On blockage, set `BLOCKED` and write the cause and release condition.
@@ -81,7 +88,7 @@ Read [references/transitions.md](references/transitions.md) only when changing t
 
 ## Context boundary
 
-Treat a confirmed requirement as approved intent, a baselined solution as the retained implementation plan, Git as implementation state, `STATUS.md` as the task/ref index, and `TASKS.md` as local task detail. If they disagree, report the conflict; do not rewrite a confirmed/baselined document to hide it.
+Treat individually confirmed requirement points as approved intent, individually confirmed solution points as the retained implementation plan, Git as implementation state, `STATUS.md` as the task/ref index, and `TASKS.md` as local task detail. If they disagree, report the conflict; do not rewrite a decided point to hide it.
 
 Do not preload repository-wide documentation. Discover code context from the current task, referenced gists, actual diffs, symbols, manifests, and repository instructions.
 

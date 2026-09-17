@@ -14,6 +14,9 @@ from typing import Any
 ALLOWED_STATES = {"TODO", "WIP", "BLOCKED", "DONE"}
 TASK_ID_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*\Z")
 TABLE_SEPARATOR_RE = re.compile(r":?-{3,}:?\Z")
+ACTIVE_POINT_STATES = {"PROPOSED", "REOPENED", "CONFIRMED"}
+DISPOSITION_POINT_STATES = {"REJECTED", "OUT-OF-SCOPE", "INFEASIBLE"}
+DECIDED_POINT_STATES = {"CONFIRMED", *DISPOSITION_POINT_STATES}
 TASK_TABLE_HEADERS = (
     ("Task", "Type", "State", "Pickup refs", "Completion refs", "Next action"),
     ("Task", "类型", "状态", "接取 refs", "完成 refs", "下一步"),
@@ -172,6 +175,138 @@ def task_section(tasks_text: str, task_id: str) -> str:
     return tasks_text[start:end].strip()
 
 
+def h2_section(text: str, headings: tuple[str, ...]) -> str:
+    patterns = [
+        re.compile(rf"^##[ \t]+{re.escape(heading)}[ \t]*$", re.MULTILINE)
+        for heading in headings
+    ]
+    matches = [match for pattern in patterns for match in pattern.finditer(text)]
+    if len(matches) != 1:
+        raise ContextError(f"expected exactly one section named: {' or '.join(headings)}")
+    next_heading = re.search(r"^##[ \t]+", text[matches[0].end() :], re.MULTILINE)
+    end = matches[0].end() + next_heading.start() if next_heading else len(text)
+    return text[matches[0].start() : end]
+
+
+def metadata_value(section: str, keys: set[str], location: str) -> str:
+    rows = unique_table(
+        markdown_tables(section),
+        (("Item", "Value"), ("项目", "值")),
+        f"{location} metadata",
+    )
+    values = [row[1] for row in rows if row[0] in keys]
+    if len(values) != 1:
+        raise ContextError(f"{location} must contain exactly one of: {', '.join(sorted(keys))}")
+    return values[0]
+
+
+def point_sections(document_text: str, prefix: str) -> dict[str, str]:
+    heading = re.compile(
+        rf"^###[ \t]+`?({prefix}-[A-Za-z0-9][A-Za-z0-9._-]*)`?(?:[ \t]+(?:—|–|-)[ \t]+.*)?[ \t]*$",
+        re.MULTILINE,
+    )
+    matches = list(heading.finditer(document_text))
+    sections: dict[str, str] = {}
+    for match in matches:
+        point_id = match.group(1)
+        if point_id in sections:
+            raise ContextError(f"duplicate decision point in document: {point_id}")
+        next_heading = re.search(r"^#{2,3}[ \t]+", document_text[match.end() :], re.MULTILINE)
+        end = match.end() + next_heading.start() if next_heading else len(document_text)
+        sections[point_id] = document_text[match.start() : end]
+    return sections
+
+
+def validate_decision_document(
+    document_text: str, prefix: str, final_status: str
+) -> dict[str, str]:
+    sections = point_sections(document_text, prefix)
+    if not sections:
+        return {}
+
+    derived_section = h2_section(
+        document_text, ("Derived document state", "派生文档状态")
+    )
+    document_status = metadata_value(derived_section, {"Status", "状态"}, f"{prefix} document")
+    states: dict[str, str] = {}
+    active_states: list[str] = []
+    for point_id, section in sections.items():
+        point_class = metadata_value(section, {"Class", "类别"}, point_id)
+        point_state = metadata_value(section, {"State", "状态"}, point_id)
+        if point_class == "ACTIVE":
+            if point_state not in ACTIVE_POINT_STATES:
+                raise ContextError(f"active point {point_id} has invalid state: {point_state!r}")
+            active_states.append(point_state)
+        elif point_class == "DISPOSITION":
+            if point_state not in DISPOSITION_POINT_STATES:
+                raise ContextError(
+                    f"disposition point {point_id} has invalid state: {point_state!r}"
+                )
+        else:
+            raise ContextError(f"point {point_id} has invalid class: {point_class!r}")
+        states[point_id] = point_state
+
+    expected_status = (
+        final_status
+        if active_states and all(state == "CONFIRMED" for state in active_states)
+        else "DRAFT"
+    )
+    if document_status != expected_status:
+        raise ContextError(
+            f"{prefix} document status must be {expected_status}, got {document_status}"
+        )
+    return states
+
+
+def validate_decision_mapping(
+    records: dict[str, dict[str, str]], requirement_text: str, solution_text: str
+) -> None:
+    requirement_states = validate_decision_document(
+        requirement_text, "REQ", "CONFIRMED"
+    )
+    solution_states = validate_decision_document(solution_text, "SOL", "BASELINED")
+    for prefix, states in (("REQ", requirement_states), ("SOL", solution_states)):
+        task_ids = {task_id for task_id in records if task_id.startswith(prefix + "-")}
+        if not states and not task_ids:
+            continue
+        point_ids = set(states)
+        missing_tasks = sorted(point_ids - task_ids)
+        missing_points = sorted(task_ids - point_ids)
+        if missing_tasks:
+            raise ContextError(
+                f"{prefix} decision points are missing STATUS tasks: {', '.join(missing_tasks)}"
+            )
+        if missing_points:
+            raise ContextError(
+                f"{prefix} STATUS tasks are missing document points: {', '.join(missing_points)}"
+            )
+        for point_id, point_state in states.items():
+            if records[point_id]["state"] == "DONE" and point_state not in DECIDED_POINT_STATES:
+                raise ContextError(
+                    f"DONE task {point_id} requires a decided point state, got {point_state}"
+                )
+
+    for point_id, section in point_sections(solution_text, "SOL").items():
+        if solution_states[point_id] != "CONFIRMED":
+            continue
+        raw_refs = metadata_value(
+            section,
+            {"Requirement points", "需求点"},
+            point_id,
+        )
+        refs = [value.strip().strip("`") for value in raw_refs.split(",")]
+        if not refs or any(not value for value in refs):
+            raise ContextError(f"confirmed solution point {point_id} has no requirement refs")
+        invalid = sorted(
+            ref for ref in refs if requirement_states.get(ref) != "CONFIRMED"
+        )
+        if invalid:
+            raise ContextError(
+                f"confirmed solution point {point_id} references unconfirmed requirements: "
+                + ", ".join(invalid)
+            )
+
+
 def declared_gists(section: str, feature_root: Path) -> list[dict[str, str]]:
     declarations = re.findall(r"^- Gists[:：][ \t]*(.+?)[ \t]*$", section, re.MULTILINE)
     if len(declarations) != 1:
@@ -219,6 +354,7 @@ def build_context(feature_directory: Path, requested_task: str | None = None) ->
     tasks_text = read_utf8(root / "TASKS.md")
     records = task_records(status_text)
     validate_task_mapping(records, tasks_text)
+    validate_decision_mapping(records, requirement_text, solution_text)
     task_id = selected_task_id(status_text, requested_task)
     if task_id not in records:
         raise ContextError(f"STATUS.md must contain exactly one task-state row for {task_id}")
