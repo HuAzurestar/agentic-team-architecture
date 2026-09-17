@@ -22,21 +22,21 @@ title: <feature> Status
 
 | Repository | Local path | Working branch | Working HEAD SHA | Current task |
 | --- | --- | --- | --- | --- |
-| `<project-manage-repo>` | `<path>` | `<branch>` | `SELF` | `<task>` |
+| `<project-manage-repo>` | `<path>` | `<branch>` | `DERIVED:HEAD` | `<task>` |
 | `<implementation-repo>` | `<path>` | `<task-branch>` | `<sha>` | `<task>` |
 
 ## Integration opponents
 
 | Repository | Integration branch | Integration SHA | Receives | Note |
 | --- | --- | --- | --- | --- |
-| `<project-manage-repo>` | `<stable-branch>` | `LIVE:<stable-branch>` | Project-management work branch | Resolve live ref |
-| `<implementation-repo>` | `<feature-branch>` | `<sha>` | Task branches | Ongoing development merge target |
+| `<project-manage-repo>` | `<stable-branch>` | `<observed-sha>` | Project-management work branch | Last verified merge target |
+| `<implementation-repo>` | `<feature-branch>` | `<observed-sha>` | Task branches | Last verified merge target |
 
 ## PR/MR objects
 
 | Object | Repository | Source branch | Source SHA | Target branch | Target SHA | Note |
 | --- | --- | --- | --- | --- | --- | --- |
-| Not created | `<repo>` | `<feature-branch>` | `<sha>` | `<stable-branch>` | `<sha>` | Final review and merge target |
+| Not created | `<repo>` | `<feature-branch>` | `<observed-sha>` | `<stable-branch>` | `<observed-sha>` | Final review and merge target |
 
 ## Remote project-management objects
 

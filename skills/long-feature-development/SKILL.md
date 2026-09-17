@@ -24,20 +24,24 @@ This Codex skill uses a small, versioned feature record to continue development 
 
 1. Resolve `<Project-Manage>` and the feature ID before creating files.
 2. Copy only the four matching files from `templates/`: `REQUIREMENT.md`, `SOLUTION.md`, `STATUS.md`, and local `TASKS.md`.
-3. Create local `gists/` only when a task needs one.
-4. Add exact, feature-scoped local exclude entries for `TASKS.md` and `gists/`; do not add a repository-wide ignore rule without authorization.
-5. Leave requirement and solution in `PROPOSED` until a human confirms or baselines them.
+3. Replace or remove every angle-bracket placeholder. Keep one `TASKS.md` section for every task row in `STATUS.md`; the supplied `REQ` and `SOL` sections are mandatory.
+4. Create local `gists/` only when a task needs one.
+5. Add exact, feature-scoped local exclude entries for `TASKS.md` and `gists/`; do not add a repository-wide ignore rule without authorization.
+6. Run the [task context helper](scripts/task_context.py) as `python <skill-root>/scripts/task_context.py <feature-directory>` before the first project-management commit. Fix every reported mismatch.
+7. Leave requirement and solution in `PROPOSED` until a human confirms or baselines them.
 
 ## Start or resume
 
 1. Resolve the exact `<Project-Manage>` mapping and feature ID. Stop if either is ambiguous.
-2. Read `STATUS.md`, then read `REQUIREMENT.md` and `SOLUTION.md`. Verify their confirmation state before treating them as fixed boundaries.
-3. Select the current task from the only task-state table in `STATUS.md`. Read only that task's section in `TASKS.md` and the gists explicitly named there.
+2. Run `python <skill-root>/scripts/task_context.py <feature-directory>`. Use `--task <task-id>` only when the user explicitly selects a non-current task. The command is the single recovery reader: it prints the requirement, solution, status, selected task section, and only its declared gists.
+3. From that output, verify the requirement and solution confirmation states before treating them as fixed boundaries.
 4. For every repository, separately verify the working branch/HEAD, the integration branch/SHA used for ongoing task merges, and the final PR/MR source/target refs.
 5. Mark unavailable remote state as unverified instead of guessing.
 6. Compare recorded and observed refs. Resolve stale state before changing code.
 
-For the project-management repository containing `STATUS.md`, use `SELF` for its working HEAD and `LIVE:<branch>` for a branch changed by the same status update. Resolve both at restore time. Other repositories and task pickup/completion refs use literal SHAs.
+Treat a nonzero `task_context.py` exit as a hard stop. Do not infer a missing current-task row, matching task-state row, `TASKS.md` section, or declared gist.
+
+The project-management repository containing `STATUS.md` cannot embed the SHA of the commit that contains that same file. Its working-HEAD cell therefore uses `DERIVED:HEAD`, meaning the checked-out Git HEAD is the source of truth. Resolve it only when `STATUS.md` is tracked, matches HEAD, and has no staged or unstaged changes; otherwise stop. Every integration-opponent SHA, PR/MR SHA, task pickup ref, and task completion ref must be a literal observed SHA, never a moving branch alias.
 
 ## Confirmation boundaries
 
@@ -66,10 +70,11 @@ Read [references/transitions.md](references/transitions.md) only when changing t
 - Treat each repository independently. A feature may span several repositories.
 - Use one feature integration branch and at most one final implementation PR/MR per affected repository.
 - Record three different refs separately:
-  - **working HEAD**: the branch and SHA currently checked out for a task;
-  - **integration opponent**: the branch and SHA that task branches merge/rebase against during development;
-  - **final PR/MR refs**: the source and target branches and SHAs used for final review and merge.
+  - **working HEAD**: the branch and SHA currently checked out for a task; only the project-management repository may use `DERIVED:HEAD` under the clean-file rule above;
+  - **integration opponent**: the branch and literal observed SHA that task branches merge/rebase against during development;
+  - **final PR/MR refs**: the source and target branches and literal observed SHAs used for final review and merge.
 - Never use one generic "current SHA" field for all three meanings.
+- When an integration or PR/MR branch moves, retain the previously recorded SHA until comparison is complete, then update it to the newly observed literal SHA. Do not use `LIVE:<branch>`, `latest`, or another moving token.
 - Code work is committed to implementation branches and is not merged automatically.
 - Project-management changes are committed separately. Merge and upload them only when authorized.
 - Invoke the available `git-collaboration` skill only at Git-policy boundaries such as creating branches, committing, synchronizing, opening PRs/MRs, reviewing, or configuring CI. Do not load its full references during ordinary context restoration.
@@ -90,3 +95,14 @@ Leave a resumable state containing:
 - commits produced in this run;
 - exact next action;
 - blockers and their release conditions.
+
+Before ending, rerun `task_context.py` for the current task. A failed context check means the state is not resumable.
+
+## Validate this Skill
+
+After changing its context rules or helper, run the [context regression tests](scripts/test_task_context.py) and deterministic audit:
+
+```text
+python scripts/test_task_context.py
+python <skill-quality-reviewer>/scripts/skill-audit.py <skill-root> --format json
+```
