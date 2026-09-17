@@ -4,6 +4,16 @@ title: <feature> Requirement
 
 # <feature> Requirement
 
+## Confirmation boundary
+
+| Item | Value |
+| --- | --- |
+| Status | `PROPOSED` |
+| Confirmed by | - |
+| Confirmed at | - |
+
+When a human changes the status to `CONFIRMED`, this file and its confirmed text become append-only. Preserve superseded text and add dated amendments.
+
 ## Background
 
 Why this feature is needed.
@@ -21,9 +31,6 @@ What observable result must be delivered.
 
 1. Observable acceptance scenario.
 
-## Human confirmation
+## Amendments
 
-- Status: proposed
-- Confirmed by:
-- Confirmed at:
-
+- None.
