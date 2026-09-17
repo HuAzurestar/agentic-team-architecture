@@ -1,11 +1,11 @@
 ---
 name: long-feature-development
-description: Resume and advance a multi-session software feature from a project-management directory, using compact Markdown state and Git refs across repositories or PRs/MRs. Use for work spanning sessions; do not use for an ordinary one-session change.
+description: Help Codex resume and advance a multi-session software feature from a project-management directory, using compact Markdown state and Git refs across repositories or PRs/MRs. Use for work spanning sessions; do not use for an ordinary one-session change.
 ---
 
 # Long Feature Development
 
-Use a small, versioned feature record to continue development without relying on previous chat history. The project chooses the concrete path represented by `<Project-Manage>`; never assume MPA or another fixed repository.
+This Codex skill uses a small, versioned feature record to continue development without relying on previous chat history. The project chooses the concrete path represented by `<Project-Manage>`; never assume MPA or another fixed repository.
 
 ## Required feature layout
 
