@@ -30,6 +30,8 @@ Use a small, versioned feature record to continue development without relying on
 5. For every PR/MR row, verify its source branch/SHA and target branch/SHA when the forge is accessible. Mark unavailable remote state as unverified instead of guessing.
 6. Compare recorded and observed refs. Resolve stale state before changing code.
 
+For the project-management repository that contains `STATUS.md`, use the marker `SELF` instead of embedding the document's own commit SHA. Resolve `SELF` with `git rev-parse HEAD` at restore time. Other repositories and task pickup/completion refs use literal SHAs.
+
 ## Work on one task
 
 - Tasks use only `TODO`, `WIP`, `BLOCKED`, and `DONE`.
@@ -68,4 +70,3 @@ Leave a resumable state containing:
 - commits produced in this run;
 - exact next action;
 - blockers and their release conditions.
-

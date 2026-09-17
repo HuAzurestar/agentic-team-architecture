@@ -15,7 +15,8 @@ title: <feature> Status
 
 | Repository | Local path | Branch | HEAD SHA | Purpose |
 | --- | --- | --- | --- | --- |
-| `<repo>` | `<path>` | `<branch>` | `<sha>` | Feature integration branch |
+| `<project-manage-repo>` | `<path>` | `<branch>` | `SELF` | Repository containing this file; resolve live HEAD |
+| `<implementation-repo>` | `<path>` | `<branch>` | `<sha>` | Feature integration branch |
 
 ## PR/MR objects
 
@@ -29,4 +30,3 @@ title: <feature> Status
 | --- | --- | --- |
 | Requirement | `<remote-or-none>` | Approved intent |
 | Solution | `<remote-or-none>` | Current implementation proposal |
-
