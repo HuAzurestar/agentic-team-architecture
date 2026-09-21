@@ -4,6 +4,8 @@ Read this file only when a task changes state or the feature's next transition c
 
 ## Task transitions
 
+`PENDING` is the sole unassigned state. The context helper derives `READY` when all direct dependencies are `DONE`, otherwise `WAITING`; these labels are never persisted in the State column. `BLOCKED` is reserved for an already assigned task with a concrete obstacle, impact, and release condition. An unfinished dependency does not make an unassigned task blocked.
+
 | From | To | Required update |
 | --- | --- | --- |
 | `PENDING` | `WIP` | Verify all dependencies are `DONE`; record owner, start time, baseline history, start refs, and current HEAD. |
@@ -15,6 +17,8 @@ Read this file only when a task changes state or the feature's next transition c
 | `DONE` | `WIP` | Record the point's `REOPENED` commit or another explicit reopen reason, clear completion time, and append new start refs. |
 
 Do not infer `DONE` from a summary statement. The task owner changes the `TASKS.md` row only after the matching detail file's completion condition is satisfied. `FAILURE` and `REOPEN` are events, not persistent states: record the failed attempt, then return to `WIP` or explicitly reopen a completed task.
+
+Use `scripts/task_state.py` for normal transitions. It rejects invalid transitions and non-ready assignments, validates the task contracts, and replaces the task row and derived Mermaid block atomically. Direct edits plus `task_context.py --sync-topology` are limited to explicit repair or legacy import; normal recovery is read-only and fails on stale topology.
 
 For requirement and solution point decisions, read [confirmation.md](confirmation.md). Point state and task state are separate; the Mermaid diagrams there are authoritative for their relationship.
 

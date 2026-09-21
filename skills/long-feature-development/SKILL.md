@@ -65,15 +65,16 @@ Read [references/confirmation.md](references/confirmation.md) only when adding, 
 - `STATUS.md` is the primary control entry: it stores feature state, the current task/gate summary, and repository/object registries. `TASKS.md` is the only complete task-state and dependency index; STATUS never duplicates its full table.
 - Requirement, solution, development, testing, review, rework, acceptance, and gate are task types in the same `TASKS.md` table; do not create per-type state machines.
 - Give each requirement or solution point a task with the same ID. Set it to `DONE` only after its individual decision commit SHA is recorded; rejection, out-of-scope, and infeasible decisions also complete the point task.
-- On assignment, require every dependency to be `DONE`, change `PENDING` to `WIP`, record the start time, and record every relevant start ref plus current HEAD in `tasks/<task-id>.md`.
+- `PENDING` means unassigned. A pending task with all dependencies `DONE` is derived as `READY`; one with unfinished dependencies is derived as `WAITING`. Neither is a stored task state.
+- On assignment, require `READY`, record the owner, start time, every relevant start ref, and current HEAD in `tasks/<task-id>.md`, then use `python <skill-root>/scripts/task_state.py <feature-directory> <task-id> --to WIP ...` to update the index.
 - Read scope and completion conditions from `tasks/<task-id>.md`. Put bounded trace material in a gist and reference it there; never use a gist as an unbounded context dump.
 - Declare related intent with exactly one `- Requirement points:` and one `- Solution points:` line. Use comma-separated point IDs or `none`; missing, ambiguous, or unknown selectors are hard errors.
 - Prefix implementation commit subjects with the feature and task, for example `PIRC-23/DEV-01: add feature templates`.
 - Use one decision point per decision commit. The subject is `<feature-key>/<point-id>: <RESULT> <summary>`, where `RESULT` is `CONFIRMED`, `REJECTED`, `OUT-OF-SCOPE`, `INFEASIBLE`, or `REOPENED`.
 - A task may produce multiple commits. Do not merge implementation branches automatically.
 - When work is complete, move `WIP` to `RECORDING`, create the final task commit or record the accepted existing commit, then write exactly one completion SHA per affected repository before moving to `DONE`.
-- On interruption, keep `WIP` and update the task detail's resume action. On blockage, set `BLOCKED` and write the cause and release condition. A failed or abandoned attempt remains in history; reopening creates new start refs instead of rewriting old ones.
-- Keep the Mermaid graph in `TASKS.md` derived from its rows. Run `task_context.py <feature-directory> --sync-topology` after changing task rows, then validate normally.
+- On interruption, keep `WIP` and update the task detail's resume action. Use `BLOCKED` only for an assigned task stopped by a concrete obstacle; record its blocker, impact, and release condition before the state transition. Ordinary waiting on dependencies remains `PENDING`. A failed or abandoned attempt remains in history; reopening creates new start refs instead of rewriting old ones.
+- Change normal task states only through `task_state.py`; it validates the transition and rewrites the task row and derived Mermaid block together with an atomic file replacement. Use `task_context.py <feature-directory> --sync-topology` only to repair or import legacy/manual state, then validate normally. A stale diagram is always an error during read-only recovery.
 
 Read [references/transitions.md](references/transitions.md) only when changing task state or the feature's next transition.
 

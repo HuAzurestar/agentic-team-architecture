@@ -244,6 +244,14 @@ def validate_dependency_graph(records: dict[str, dict[str, Any]]) -> None:
             unfinished = [dep for dep in record["dependencies"] if records[dep]["state"] != "DONE"]
             if unfinished:
                 raise ContextError(f"active task {task_id} has unfinished dependencies: {', '.join(unfinished)}")
+        record["readiness"] = (
+            "READY"
+            if record["state"] == "PENDING"
+            and all(records[dep]["state"] == "DONE" for dep in record["dependencies"])
+            else "WAITING"
+            if record["state"] == "PENDING"
+            else "ACTIVE"
+        )
 
 
 def mermaid_topology(records: dict[str, dict[str, Any]]) -> str:
@@ -276,15 +284,19 @@ def validate_topology(tasks_text: str, records: dict[str, dict[str, Any]]) -> No
         raise ContextError("TASKS.md topology is stale; run task_context.py <feature-directory> --sync-topology")
 
 
-def sync_topology(path: Path) -> None:
-    text = read_utf8(path)
+def synchronized_topology(text: str) -> str:
     records = task_records(text)
     validate_dependency_graph(records)
     matches = list(TOPOLOGY_RE.finditer(text))
     if len(matches) != 1:
         raise ContextError("TASKS.md must contain exactly one generated task-topology block")
     replacement = "<!-- task-topology:start -->\n" + mermaid_topology(records) + "\n<!-- task-topology:end -->"
-    updated = text[: matches[0].start()] + replacement + text[matches[0].end() :]
+    return text[: matches[0].start()] + replacement + text[matches[0].end() :]
+
+
+def sync_topology(path: Path) -> None:
+    text = read_utf8(path)
+    updated = synchronized_topology(text)
     if updated != text:
         path.write_text(updated, encoding="utf-8")
 
@@ -343,6 +355,15 @@ def task_detail(root: Path, record: dict[str, Any]) -> tuple[str, list[dict[str,
         refs.append(item)
     if set(record["head_refs"]) != repositories and record["state"] != "PENDING":
         raise ContextError(f"task {task_id} repository set differs between TASKS.md and its detail")
+    if record["state"] == "BLOCKED":
+        for label in ("Blocker", "Impact", "Release condition"):
+            matches = re.findall(
+                rf"^- {re.escape(label)}[:：][ \t]*(.+?)[ \t]*$", text, re.MULTILINE
+            )
+            if len(matches) != 1 or matches[0].strip().casefold() in {
+                "", "-", "none", "n/a", "无", "无。",
+            }:
+                raise ContextError(f"BLOCKED task {task_id} requires a non-empty {label}")
     return text, refs
 
 
@@ -858,6 +879,7 @@ def render_markdown(context: dict[str, Any]) -> str:
         "",
         f"- Type: {task['type']}",
         f"- State: {task['state']}",
+        f"- Readiness: {task['readiness']}",
         f"- Owner: {task['owner']}",
         f"- Depends on: {task['depends_raw']}",
         f"- HEAD SHA: {task['head_raw']}",

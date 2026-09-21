@@ -11,6 +11,7 @@ import unittest
 from pathlib import Path
 
 import task_context
+import task_state
 
 
 STATUS = """# PIRC-23 Status
@@ -143,6 +144,8 @@ DETAILS = {
 - Completion condition: Tests pass.
 - Resume action: Continue parser.
 - Blocker: none
+- Impact: none
+- Release condition: none
 - Gists: gists/parser.md
 
 ## Repository refs
@@ -322,6 +325,74 @@ class TaskContextTests(unittest.TestCase):
             (root / "tasks" / "SOL-001.md").write_text(detail, encoding="utf-8")
             with self.assertRaisesRegex(task_context.ContextError, "unfinished dependencies"):
                 task_context.build_context(root)
+
+    def test_pending_readiness_is_derived_from_dependencies(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = self.make_feature(Path(temp))
+            records = task_context.task_records((root / "TASKS.md").read_text(encoding="utf-8"))
+            task_context.validate_dependency_graph(records)
+            self.assertEqual(records["GATE-ACCEPT"]["readiness"], "WAITING")
+            tasks = (root / "TASKS.md").read_text(encoding="utf-8").replace(
+                "| DEV-02 | Development | Implement parser | `WIP` | codex | SOL-001 | 2026-09-01T09:21:00Z | - | app@4444444; pm@3333333 |",
+                "| DEV-02 | Development | Implement parser | `DONE` | codex | SOL-001 | 2026-09-01T09:21:00Z | 2026-09-01T09:30:00Z | app@4444444; pm@3333333 |",
+            )
+            (root / "TASKS.md").write_text(tasks, encoding="utf-8")
+            detail = (root / "tasks" / "DEV-02.md").read_text(encoding="utf-8")
+            detail = detail.replace("| 4444444 | - |", "| 4444444 | 4444444 |").replace(
+                "| 3333333 | - |", "| 3333333 | 3333333 |"
+            )
+            (root / "tasks" / "DEV-02.md").write_text(detail, encoding="utf-8")
+            task_context.sync_topology(root / "TASKS.md")
+            records = task_context.task_records((root / "TASKS.md").read_text(encoding="utf-8"))
+            task_context.validate_dependency_graph(records)
+            self.assertEqual(records["GATE-ACCEPT"]["readiness"], "READY")
+
+    def test_blocked_task_requires_blocker_impact_and_release_condition(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            tasks = TASKS.replace("| DEV-02 | Development | Implement parser | `WIP` |", "| DEV-02 | Development | Implement parser | `BLOCKED` |")
+            root = self.make_feature(Path(temp), tasks=tasks)
+            detail_path = root / "tasks" / "DEV-02.md"
+            detail_path.write_text(
+                detail_path.read_text(encoding="utf-8").replace("- Blocker: none", "- Blocker: service unavailable"),
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(task_context.ContextError, "non-empty Impact"):
+                task_context.build_context(root)
+            detail_path.write_text(
+                detail_path.read_text(encoding="utf-8")
+                .replace("- Impact: none", "- Impact: integration test cannot run")
+                .replace("- Release condition: none", "- Release condition: service restored"),
+                encoding="utf-8",
+            )
+            blocked_status = STATUS.replace("| Condition | `ACTIVE` |", "| Condition | `BLOCKED` |")
+            (root / "STATUS.md").write_text(blocked_status, encoding="utf-8")
+            self.assertEqual(task_context.build_context(root)["task"]["state"], "BLOCKED")
+
+    def test_state_writer_rejects_waiting_assignment_and_syncs_topology(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = self.make_feature(Path(temp))
+            args = task_state.parse_args([
+                str(root), "GATE-ACCEPT", "--to", "WIP", "--owner", "codex",
+                "--started-at", "2026-09-01T09:31:00Z", "--head", "pm@3333333",
+            ])
+            with self.assertRaisesRegex(task_context.ContextError, "not READY"):
+                task_state.update(root, args)
+
+    def test_state_writer_updates_row_and_mermaid_together(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = self.make_feature(Path(temp))
+            detail_path = root / "tasks" / "DEV-02.md"
+            detail_path.write_text(
+                detail_path.read_text(encoding="utf-8").replace("- Blocker: none", "- Blocker: service unavailable").replace("- Impact: none", "- Impact: integration test cannot run").replace("- Release condition: none", "- Release condition: service restored"),
+                encoding="utf-8",
+            )
+            args = task_state.parse_args([str(root), "DEV-02", "--to", "BLOCKED"])
+            task_state.update(root, args)
+            text = (root / "TASKS.md").read_text(encoding="utf-8")
+            self.assertIn("| DEV-02 | Development | Implement parser | `BLOCKED` |", text)
+            self.assertRegex(text, r'\["DEV-02 . Implement parser"\]:::blocked')
+            records = task_context.task_records(text)
+            task_context.validate_topology(text, records)
 
     def test_stale_topology_fails_and_sync_repairs_it(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
