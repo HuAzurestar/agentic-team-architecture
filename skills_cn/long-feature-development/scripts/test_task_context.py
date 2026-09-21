@@ -426,6 +426,51 @@ class TaskContextTests(unittest.TestCase):
         with self.assertRaisesRegex(task_context.ContextError, "requires a human"):
             task_context.validate_type_contract(record, detail, {"ACCEPT-01": record})
 
+    def test_done_review_requires_finding_values(self) -> None:
+        record = {"id": "REVIEW-02", "state": "DONE", "dependencies": []}
+        detail = """# REVIEW-02 — Review
+
+## Type contract
+
+| Field | Value |
+| --- | --- |
+| Target SHA | 1111111 |
+| Blocking findings | - |
+| Deferred findings | 0 |
+| Result gist | gists/REVIEW-02.md |
+"""
+        with self.assertRaisesRegex(task_context.ContextError, "incomplete field: Blocking findings"):
+            task_context.validate_type_contract(record, detail, {"REVIEW-02": record})
+
+    def test_nonselected_quality_contract_is_still_validated(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = self.make_feature(Path(temp))
+            gate = root / "tasks" / "GATE-ACCEPT.md"
+            gate.write_text(
+                gate.read_text(encoding="utf-8").replace("| Decision ref | - |\n", ""),
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(task_context.ContextError, "type contract is missing fields: Decision ref"):
+                task_context.build_context(root)
+
+    def test_complete_condition_is_reserved_for_done_phase(self) -> None:
+        records = {"GATE-ACCEPT": {"type": "Gate", "state": "DONE"}}
+        done = """# Status
+
+| Item | Current value | Note |
+| --- | --- | --- |
+| Phase | `DONE` | - |
+| Condition | `COMPLETE` | - |
+| Next transition | GATE-ACCEPT | - |
+| Current task | GATE-ACCEPT | - |
+| Current gate | GATE-ACCEPT | - |
+"""
+        task_context.validate_feature_state(done, records)
+        with self.assertRaisesRegex(task_context.ContextError, "DONE feature requires condition COMPLETE"):
+            task_context.validate_feature_state(done.replace("`COMPLETE`", "`ACTIVE`"), records)
+        with self.assertRaisesRegex(task_context.ContextError, "valid only when feature phase is DONE"):
+            task_context.validate_feature_state(done.replace("`DONE`", "`EXECUTING`"), records)
+
     def test_done_test_requires_honest_coverage_fields(self) -> None:
         record = {"id": "TEST-02", "state": "DONE", "dependencies": []}
         detail = """# TEST-02 — Test

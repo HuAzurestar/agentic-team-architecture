@@ -9,7 +9,7 @@ title: <feature-key> Status
 | Feature ID | `NO-FEAT-<6-char-random>` | Developer assigns the official ID when appropriate |
 | Previous IDs | - | Append aliases after an ID change |
 | Phase | `PLANNING` | Feature phase; only a completed gate changes it |
-| Condition | `ACTIVE` | `ACTIVE`, `BLOCKED`, `WAITING_HUMAN`, or `WAITING_EXTERNAL` |
+| Condition | `ACTIVE` | `ACTIVE`, `BLOCKED`, `WAITING_HUMAN`, `WAITING_EXTERNAL`, or terminal `COMPLETE` |
 | Next transition | `GATE-START` | Gate task that may perform the next feature transition |
 | Current task | REQ-001 | Locate this row in TASKS.md, then read tasks/REQ-001.md |
 | Current gate | GATE-START | A task ID, not a second state machine |

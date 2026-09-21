@@ -38,7 +38,7 @@ STATE_STYLE = {
     "DONE": "done",
 }
 ALLOWED_PHASES = {"PLANNING", "EXECUTING", "RELEASING", "DONE"}
-ALLOWED_CONDITIONS = {"ACTIVE", "BLOCKED", "WAITING_HUMAN", "WAITING_EXTERNAL"}
+ALLOWED_CONDITIONS = {"ACTIVE", "BLOCKED", "WAITING_HUMAN", "WAITING_EXTERNAL", "COMPLETE"}
 QUALITY_CONTRACT_FIELDS = {
     "TEST": {
         "Target SHA", "Environment", "Planned checks", "Executed", "Passed",
@@ -471,8 +471,16 @@ def validate_feature_state(status_text: str, records: dict[str, dict[str, Any]])
         raise ContextError(f"STATUS.md current gate has non-Gate type: {current_gate}")
     if next_transition != current_gate:
         raise ContextError("STATUS.md Next transition and Current gate must name the same gate task")
-    if condition == "ACTIVE" and records[current_task]["state"] not in {"WIP", "RECORDING"}:
-        raise ContextError("ACTIVE feature requires the current task to be WIP or RECORDING")
+    if phase == "DONE":
+        if condition != "COMPLETE":
+            raise ContextError("DONE feature requires condition COMPLETE")
+        if current_task != current_gate or records[current_gate]["state"] != "DONE":
+            raise ContextError("DONE feature requires its completed current gate as current task")
+    else:
+        if condition == "COMPLETE":
+            raise ContextError("condition COMPLETE is valid only when feature phase is DONE")
+        if condition == "ACTIVE" and records[current_task]["state"] not in {"WIP", "RECORDING"}:
+            raise ContextError("ACTIVE feature requires the current task to be WIP or RECORDING")
 
 
 def type_contract_fields(detail: str, task_id: str) -> dict[str, str]:
@@ -509,6 +517,10 @@ def validate_type_contract(
         for field in sorted(QUALITY_CONTRACT_FIELDS["TEST"]):
             if fields[field] in {"", "-"}:
                 raise ContextError(f"DONE test task {task_id} has incomplete field: {field}")
+    if kind in {"REVIEW", "REWORK"} and state == "DONE":
+        for field in sorted(QUALITY_CONTRACT_FIELDS[kind]):
+            if fields[field] in {"", "-"}:
+                raise ContextError(f"DONE {kind.lower()} task {task_id} has incomplete field: {field}")
     if kind in {"TEST", "REVIEW", "REWORK"} and state == "DONE":
         result_gist = fields["Result gist"]
         if not result_gist.startswith("gists/"):
@@ -667,7 +679,7 @@ def validate_decision_mapping(records: dict[str, dict[str, Any]], requirement_te
             raise ContextError(f"confirmed solution point {point_id} references unconfirmed requirements: " + ", ".join(invalid))
 
 
-def declared_gists(detail: str, feature_root: Path) -> list[dict[str, str]]:
+def declared_gist_paths(detail: str, feature_root: Path) -> list[tuple[str, Path]]:
     declarations = re.findall(r"^- Gists[:：][ \t]*(.+?)[ \t]*$", detail, re.MULTILINE)
     if len(declarations) != 1:
         raise ContextError("task detail must contain exactly one '- Gists:' declaration")
@@ -678,7 +690,7 @@ def declared_gists(detail: str, feature_root: Path) -> list[dict[str, str]]:
     if not values or any(not value for value in values):
         raise ContextError("Gists must be 'none' or a comma-separated path list")
     gist_root = (feature_root / "gists").resolve()
-    result: list[dict[str, str]] = []
+    result: list[tuple[str, Path]] = []
     seen: set[str] = set()
     for value in values:
         if "\\" in value:
@@ -699,8 +711,39 @@ def declared_gists(detail: str, feature_root: Path) -> list[dict[str, str]]:
             raise ContextError(f"gist path escapes gists/: {value}") from exc
         if not path.is_file():
             raise ContextError(f"declared gist is missing: {normalized}")
-        result.append({"path": normalized, "content": read_utf8(path)})
+        result.append((normalized, path))
     return result
+
+
+def declared_gists(detail: str, feature_root: Path) -> list[dict[str, str]]:
+    return [
+        {"path": normalized, "content": read_utf8(path)}
+        for normalized, path in declared_gist_paths(detail, feature_root)
+    ]
+
+
+def validate_type_contracts(
+    records: dict[str, dict[str, Any]],
+    details: dict[str, tuple[str, list[dict[str, str]]]],
+    root: Path,
+) -> dict[str, dict[str, str]]:
+    contracts: dict[str, dict[str, str]] = {}
+    for task_id, record in records.items():
+        contract = validate_type_contract(record, details[task_id][0], records)
+        if contract is None:
+            continue
+        contracts[task_id] = contract
+        if "Result gist" not in contract:
+            continue
+        result_gist = contract["Result gist"]
+        declared_paths = {
+            normalized for normalized, _ in declared_gist_paths(details[task_id][0], root)
+        }
+        if result_gist != "none" and result_gist not in declared_paths:
+            raise ContextError(
+                f"task {task_id} Result gist is not declared by its Gists field: {result_gist}"
+            )
+    return contracts
 
 
 def reject_legacy_status_table(status_text: str) -> None:
@@ -727,6 +770,7 @@ def build_context(feature_directory: Path, requested_task: str | None = None) ->
     details = validate_task_files(root, records)
     validate_decision_mapping(records, requirement_text, solution_text)
     validate_feature_state(status_text, records)
+    type_contracts = validate_type_contracts(records, details, root)
     task_id = selected_task_id(status_text, requested_task)
     if task_id not in records:
         raise ContextError(f"TASKS.md must contain exactly one index row for {task_id}")
@@ -737,15 +781,7 @@ def build_context(feature_directory: Path, requested_task: str | None = None) ->
     solution_ids = point_selectors(
         detail, "Solution points", ("Solution points", "方案点")
     )
-    type_contract = validate_type_contract(records[task_id], detail, records)
     gists = declared_gists(detail, root)
-    if type_contract is not None and "Result gist" in type_contract:
-        result_gist = type_contract["Result gist"]
-        declared_paths = {gist["path"] for gist in gists}
-        if result_gist != "none" and result_gist not in declared_paths:
-            raise ContextError(
-                f"task {task_id} Result gist is not declared by its Gists field: {result_gist}"
-            )
     return {
         "feature_directory": str(root),
         "feature": focused_status(status_text),
@@ -760,7 +796,7 @@ def build_context(feature_directory: Path, requested_task: str | None = None) ->
         "task": records[task_id],
         "task_detail": detail,
         "repository_refs": repository_refs,
-        "type_contract": type_contract,
+        "type_contract": type_contracts.get(task_id),
         "dependencies": [
             {"task": records[dep], "task_detail": details[dep][0]}
             for dep in records[task_id]["dependencies"]

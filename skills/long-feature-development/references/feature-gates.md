@@ -21,6 +21,7 @@ Feature condition is independent of phase:
 | `BLOCKED` | No runnable path exists until the recorded release condition is met. |
 | `WAITING_HUMAN` | A point decision, acceptance, or other human action is required. |
 | `WAITING_EXTERNAL` | CI, forge, deployment, or another external system must respond. |
+| `COMPLETE` | The feature phase is `DONE` and its completed gate is the current task. |
 
 Gate procedure:
 

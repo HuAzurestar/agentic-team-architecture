@@ -17,6 +17,7 @@ stateDiagram-v2
 | `BLOCKED` | 在解除条件满足前没有可运行路径。 |
 | `WAITING_HUMAN` | 等待逐点决定、验收或其他人工动作。 |
 | `WAITING_EXTERNAL` | 等待 CI、forge、部署或其他外部系统。 |
+| `COMPLETE` | Feature phase 为 `DONE`，且完成的 gate 是当前 task。 |
 
 Gate 步骤：
 
