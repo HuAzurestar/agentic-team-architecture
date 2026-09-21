@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import re
 import tempfile
 from pathlib import Path
 
@@ -98,7 +99,17 @@ def update(feature_directory: Path, args: argparse.Namespace) -> str:
     root = feature_directory.resolve()
     path = root / "TASKS.md"
     original = task_context.read_utf8(path)
+    original_records = task_context.task_records(original)
     candidate = transition_text(original, args)
+    if args.task_id in original_records and original_records[args.task_id]["state"] == "DONE" and args.to == "WIP":
+        detail = task_context.read_utf8(root / "tasks" / f"{args.task_id}.md")
+        reasons = re.findall(r"^- Reopen reason[:：][ \t]*(.+?)[ \t]*$", detail, re.MULTILINE)
+        if len(reasons) != 1 or reasons[0].strip().casefold() in {"", "-", "none", "n/a"}:
+            raise task_context.ContextError(
+                f"DONE -> WIP requires one persisted Reopen reason in tasks/{args.task_id}.md"
+            )
+        if reasons[0].strip() != args.reason:
+            raise task_context.ContextError("--reason must exactly match the persisted Reopen reason")
     records = task_context.task_records(candidate)
     task_context.validate_dependency_graph(records)
     task_context.validate_topology(candidate, records)

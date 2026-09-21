@@ -14,11 +14,13 @@
 | `WIP` | `RECORDING` | 完成条件满足；冻结候选输出，登记最终 commit 和 refs。 |
 | `RECORDING` | `DONE` | 记录完成时间和每个受影响仓库唯一 completion SHA；同步索引与拓扑。 |
 | `RECORDING` | `WIP` | 候选不完整；记录失败检查和 resume action，不伪造 completion refs。 |
-| `DONE` | `WIP` | 记录 `REOPENED` commit 或其他明确重开理由，清除完成时间并追加 start refs。 |
+| `DONE` | `WIP` | 持久化非空 `Reopen reason`，通过 `--reason` 传入相同文本，清除完成时间并追加 start refs。 |
 
 不得根据总结推断 `DONE`。只有详情文件的完成条件满足后，owner 才修改 `TASKS.md`。`FAILURE` 与 `REOPEN` 是事件，不是持久状态：保留失败 attempt，再回到 `WIP` 或显式重开。
 
 正常流转使用 `scripts/task_state.py`。它拒绝非法流转和非 READY 接取，校验 task 合同，并原子替换 task 行与派生 Mermaid。直接编辑并运行 `task_context.py --sync-topology` 只用于明确修复或旧数据导入；正常恢复只读，陈旧拓扑必须失败。
+
+正常跨文件顺序是：准备 task 详情和有变化的 `STATUS.md` 当前 task/condition；运行 `task_state.py`；运行只读 `task_context.py`；把全部项目管理变更一同提交。writer 只在 `TASKS.md` 内原子；中间工作树可以暂时不一致，但 commit 不可以。
 
 需求/方案点决定读取 [confirmation.md](confirmation.md)。点状态与 task 状态相互独立。
 

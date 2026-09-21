@@ -716,7 +716,7 @@ def validate_status_repositories(
         branch_sha = run_git(path, "rev-parse", "--verify", f"refs/heads/{branch}", check=False).lower()
         if not branch_sha or branch_sha != sha:
             raise ContextError(f"STATUS.md integration ref for {name} is stale: {branch}@{sha}")
-        trace_edges.append({"from": f"{name}:{sha}", "to": f"{name}:integration", "kind": "integration-head"})
+        trace_edges.append({"from": f"{name}:{sha}", "to": f"{name}:checkout", "kind": "integration-opponent"})
 
     for row in status["pr_mr_objects"]["rows"]:
         if len(row) < 6:
@@ -835,6 +835,7 @@ def validate_trace_graph(
 
     for task_id, record in records.items():
         for dependency in record["dependencies"]:
+            edges.append({"from": f"task:{dependency}", "to": f"task:{task_id}", "kind": "task-dependency"})
             for name in set(task_refs[task_id]) & set(task_refs[dependency]):
                 prior = task_refs[dependency][name]["completion"]
                 later = task_refs[task_id][name]["head"]
@@ -843,9 +844,11 @@ def validate_trace_graph(
                 path = Path(resolved[name]["path"])
                 if not ordered(name, path, prior, later):
                     raise ContextError(f"task dependency {dependency} -> {task_id} is disconnected in {name}")
-                edges.append({"from": f"task:{dependency}", "to": f"task:{task_id}", "kind": "task-dependency"})
 
-    node_names = sorted({edge[side] for edge in edges for side in ("from", "to")})
+    node_names = sorted(
+        {edge[side] for edge in edges for side in ("from", "to")}
+        | {f"task:{task_id}" for task_id in required}
+    )
     node_ids = {name: f"N{index}" for index, name in enumerate(node_names)}
     lines = ["```mermaid", "flowchart LR"]
     lines.extend(f'    {node_ids[name]}["{name}"]' for name in node_names)

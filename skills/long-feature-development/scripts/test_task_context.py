@@ -172,6 +172,7 @@ DETAILS = {
 - Blocker: none
 - Impact: none
 - Release condition: none
+- Reopen reason: none
 - Gists: gists/parser.md
 
 ## Repository refs
@@ -486,6 +487,10 @@ class TaskContextTests(unittest.TestCase):
             details["ORPHAN"] = ("- Disposition: superseded\n", [])
             trace = task_context.validate_trace_graph(STATUS, records, details, resolved, [])
             self.assertEqual(trace["mode"], "VALIDATED")
+            self.assertIn(
+                {"from": "task:DEV-02", "to": "task:GATE-ACCEPT", "kind": "task-dependency"},
+                trace["edges"],
+            )
             refs[0]["start_refs"] = f"main@{orphan}"
             with self.assertRaisesRegex(task_context.ContextError, "disconnected from its baselines"):
                 task_context.validate_trace_graph(STATUS, records, details, resolved, [])
@@ -520,6 +525,39 @@ class TaskContextTests(unittest.TestCase):
             )
             with self.assertRaisesRegex(task_context.ContextError, "is ignored"):
                 task_context.validate_shared_records(feature, resolved)
+
+    def test_done_reopen_reason_must_be_persisted_and_match_cli(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = self.make_feature(Path(temp))
+            tasks_path = root / "TASKS.md"
+            tasks_path.write_text(
+                tasks_path.read_text(encoding="utf-8").replace(
+                    "| DEV-02 | Development | Implement parser | `WIP` | codex | SOL-001 | 2026-09-01T09:21:00Z | - | app@4444444; pm@3333333 |",
+                    "| DEV-02 | Development | Implement parser | `DONE` | codex | SOL-001 | 2026-09-01T09:21:00Z | 2026-09-01T09:30:00Z | app@4444444; pm@3333333 |",
+                ),
+                encoding="utf-8",
+            )
+            detail_path = root / "tasks" / "DEV-02.md"
+            missing = task_state.parse_args([
+                str(root), "DEV-02", "--to", "WIP", "--reason", "review found a trace gap",
+            ])
+            with self.assertRaisesRegex(task_context.ContextError, "persisted Reopen reason"):
+                task_state.update(root, missing)
+            detail = detail_path.read_text(encoding="utf-8").replace(
+                "- Reopen reason: none", "- Reopen reason: review found a trace gap"
+            )
+            detail_path.write_text(detail, encoding="utf-8")
+            task_context.sync_topology(tasks_path)
+            mismatch = task_state.parse_args([
+                str(root), "DEV-02", "--to", "WIP", "--reason", "different reason",
+            ])
+            with self.assertRaisesRegex(task_context.ContextError, "exactly match"):
+                task_state.update(root, mismatch)
+            accepted = task_state.parse_args([
+                str(root), "DEV-02", "--to", "WIP", "--reason", "review found a trace gap",
+            ])
+            task_state.update(root, accepted)
+            self.assertIn("Reopen reason: review found a trace gap", detail_path.read_text(encoding="utf-8"))
 
     def test_stale_topology_fails_and_sync_repairs_it(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
