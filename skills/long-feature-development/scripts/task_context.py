@@ -367,6 +367,128 @@ def metadata_value(section: str, keys: set[str], location: str) -> str:
     return values[0]
 
 
+def document_status_value(document_text: str, prefix: str) -> str:
+    derived_matches = re.findall(
+        r"^##[ \t]+(?:Derived document state|派生文档状态)[ \t]*$",
+        document_text,
+        re.MULTILINE,
+    )
+    if derived_matches:
+        derived_section = h2_section(
+            document_text, ("Derived document state", "派生文档状态")
+        )
+        return metadata_value(
+            derived_section, {"Status", "状态"}, f"{prefix} document"
+        )
+    candidates = [
+        row[1]
+        for header, rows in markdown_tables(document_text)
+        if tuple(header) in {("Item", "Current value"), ("项目", "当前值")}
+        for row in rows
+        if row[0] in {"Status", "状态"}
+    ]
+    if len(candidates) != 1:
+        raise ContextError(
+            f"{prefix} document must contain exactly one derived or legacy status value"
+        )
+    return candidates[0]
+
+
+def section_table(text: str, headings: tuple[str, ...], location: str) -> dict[str, Any]:
+    section = h2_section(text, headings)
+    tables = markdown_tables(section)
+    if len(tables) != 1:
+        raise ContextError(f"{location} must contain exactly one Markdown table")
+    header, rows = tables[0]
+    return {"header": header, "rows": rows}
+
+
+def focused_status(status_text: str) -> dict[str, Any]:
+    summary_rows = unique_table(
+        markdown_tables(status_text),
+        (("Item", "Current value", "Note"), ("项目", "当前值", "备注")),
+        "status-summary",
+    )
+    return {
+        "summary": [
+            {"item": row[0], "value": row[1], "note": row[2]}
+            for row in summary_rows
+        ],
+        "working_branches": section_table(
+            status_text, ("Working branches", "工作分支"), "working-branches"
+        ),
+        "integration_opponents": section_table(
+            status_text,
+            ("Integration opponents", "日常汇入对手分支"),
+            "integration-opponents",
+        ),
+        "pr_mr_objects": section_table(
+            status_text, ("PR/MR objects", "PR/MR 对象"), "PR/MR-objects"
+        ),
+    }
+
+
+def point_selectors(detail: str, label: str, aliases: tuple[str, ...]) -> list[str]:
+    names = "|".join(re.escape(alias) for alias in aliases)
+    matches = re.findall(rf"^- (?:{names})[:：][ \t]*(.+?)[ \t]*$", detail, re.MULTILINE)
+    if len(matches) != 1:
+        raise ContextError(f"task detail must contain exactly one '- {label}:' declaration")
+    raw = matches[0].strip()
+    if raw.lower() == "none" or raw in {"无", "无。"}:
+        return []
+    values = [value.strip().strip("`") for value in raw.split(",")]
+    if not values or any(TASK_ID_RE.fullmatch(value) is None for value in values):
+        raise ContextError(f"{label} must be 'none' or a comma-separated point ID list")
+    if len(set(values)) != len(values):
+        raise ContextError(f"{label} contains a point more than once")
+    return values
+
+
+def focused_document(
+    document_text: str,
+    prefix: str,
+    final_status: str,
+    selected_ids: list[str],
+) -> dict[str, Any]:
+    states = validate_decision_document(document_text, prefix, final_status)
+    sections = point_sections(document_text, prefix)
+    selected: list[dict[str, str]] = []
+    tables = markdown_tables(document_text)
+    for point_id in selected_ids:
+        heading_match = sections.get(point_id)
+        table_matches = [
+            (header, row)
+            for header, rows in tables
+            for row in rows
+            if row and row[0] == point_id
+        ]
+        match_count = (1 if heading_match is not None else 0) + len(table_matches)
+        if match_count == 0:
+            raise ContextError(f"task detail selects unknown {prefix} points: {point_id}")
+        if match_count != 1:
+            raise ContextError(f"task detail selects ambiguous {prefix} point: {point_id}")
+        if heading_match is not None:
+            selected.append(
+                {"id": point_id, "state": states[point_id], "content": heading_match}
+            )
+        else:
+            header, row = table_matches[0]
+            content = "\n".join(
+                (
+                    "| " + " | ".join(header) + " |",
+                    "| " + " | ".join("---" for _ in header) + " |",
+                    "| " + " | ".join(row) + " |",
+                )
+            )
+            selected.append(
+                {"id": point_id, "state": row[1] if len(row) > 1 else "UNKNOWN", "content": content}
+            )
+    return {
+        "status": document_status_value(document_text, prefix),
+        "points": selected,
+    }
+
+
 def point_sections(document_text: str, prefix: str) -> dict[str, str]:
     heading = re.compile(
         rf"^###[ \t]+`?({prefix}-[A-Za-z0-9][A-Za-z0-9._-]*)`?(?:[ \t]+(?:—|–|-)[ \t]+.*)?[ \t]*$",
@@ -388,8 +510,7 @@ def validate_decision_document(document_text: str, prefix: str, final_status: st
     sections = point_sections(document_text, prefix)
     if not sections:
         return {}
-    derived_section = h2_section(document_text, ("Derived document state", "派生文档状态"))
-    document_status = metadata_value(derived_section, {"Status", "状态"}, f"{prefix} document")
+    document_status = document_status_value(document_text, prefix)
     states: dict[str, str] = {}
     active_states: list[str] = []
     for point_id, section in sections.items():
@@ -501,34 +622,75 @@ def build_context(feature_directory: Path, requested_task: str | None = None) ->
     if task_id not in records:
         raise ContextError(f"TASKS.md must contain exactly one index row for {task_id}")
     detail, repository_refs = details[task_id]
+    requirement_ids = point_selectors(
+        detail, "Requirement points", ("Requirement points", "需求点")
+    )
+    solution_ids = point_selectors(
+        detail, "Solution points", ("Solution points", "方案点")
+    )
     return {
         "feature_directory": str(root),
-        "documents": {"requirement": requirement_text, "solution": solution_text, "status": status_text},
+        "feature": focused_status(status_text),
+        "intent": {
+            "requirement": focused_document(
+                requirement_text, "REQ", "CONFIRMED", requirement_ids
+            ),
+            "solution": focused_document(
+                solution_text, "SOL", "BASELINED", solution_ids
+            ),
+        },
         "task": records[task_id],
         "task_detail": detail,
         "repository_refs": repository_refs,
-        "dependencies": [records[dep] for dep in records[task_id]["dependencies"]],
+        "dependencies": [
+            {"task": records[dep], "task_detail": details[dep][0]}
+            for dep in records[task_id]["dependencies"]
+        ],
         "topology": mermaid_topology(records),
         "gists": declared_gists(detail, root),
     }
 
 
+def render_table(table: dict[str, Any]) -> list[str]:
+    header = table["header"]
+    rows = table["rows"]
+    return [
+        "| " + " | ".join(header) + " |",
+        "| " + " | ".join("---" for _ in header) + " |",
+        *("| " + " | ".join(row) + " |" for row in rows),
+    ]
+
+
 def render_markdown(context: dict[str, Any]) -> str:
     task = context["task"]
+    feature = context["feature"]
     parts = [
         f"# Feature context: {task['id']}",
         "",
-        "## REQUIREMENT.md",
+        "## Feature summary",
         "",
-        context["documents"]["requirement"].rstrip(),
+        *(
+            f"- {row['item']}: {row['value']}"
+            + (f" — {row['note']}" if row["note"] not in {"", "-"} else "")
+            for row in feature["summary"]
+        ),
         "",
-        "## SOLUTION.md",
+        "### Working branches",
         "",
-        context["documents"]["solution"].rstrip(),
+        *render_table(feature["working_branches"]),
         "",
-        "## STATUS.md",
+        "### Integration opponents",
         "",
-        context["documents"]["status"].rstrip(),
+        *render_table(feature["integration_opponents"]),
+        "",
+        "### PR/MR objects",
+        "",
+        *render_table(feature["pr_mr_objects"]),
+        "",
+        "## Focused intent",
+        "",
+        f"- Requirement document status: {context['intent']['requirement']['status']}",
+        f"- Solution document status: {context['intent']['solution']['status']}",
         "",
         "## Selected task",
         "",
@@ -540,6 +702,20 @@ def render_markdown(context: dict[str, Any]) -> str:
         "",
         context["task_detail"].rstrip(),
     ]
+    for kind in ("requirement", "solution"):
+        for point in context["intent"][kind]["points"]:
+            parts.extend(
+                ("", f"## {kind.title()} point: {point['id']}", "", point["content"].rstrip())
+            )
+    for dependency in context["dependencies"]:
+        parts.extend(
+            (
+                "",
+                f"## Direct dependency: {dependency['task']['id']}",
+                "",
+                dependency["task_detail"].rstrip(),
+            )
+        )
     for gist in context["gists"]:
         parts.extend(("", f"## Gist: {gist['path']}", "", gist["content"].rstrip()))
     return "\n".join(parts).rstrip() + "\n"

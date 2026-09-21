@@ -23,6 +23,24 @@ STATUS = """# PIRC-23 Status
 | Current task | DEV-02 | Restore this task |
 | Current gate | GATE-ACCEPT | - |
 | Blocker | None | - |
+
+## Working branches
+
+| Repository | Local path | Working branch | Working HEAD SHA | Current task |
+| --- | --- | --- | --- | --- |
+| app | /work/app | task | 4444444 | DEV-02 |
+
+## Integration opponents
+
+| Repository | Integration branch | Integration SHA | Receives | Note |
+| --- | --- | --- | --- | --- |
+| app | feature | 4444444 | task branches | observed |
+
+## PR/MR objects
+
+| Object | Repository | Source branch | Source SHA | Target branch | Target SHA | Note |
+| --- | --- | --- | --- | --- | --- | --- |
+| Not created | app | feature | 4444444 | main | 1111111 | final target |
 """
 
 TASKS = """# PIRC-23 Tasks
@@ -91,6 +109,8 @@ DETAILS = {
     "REQ-001": """# REQ-001 — Confirm requirement
 
 - Goal: Confirm it.
+- Requirement points: REQ-001
+- Solution points: none
 - Gists: none
 
 ## Repository refs
@@ -102,6 +122,8 @@ DETAILS = {
     "SOL-001": """# SOL-001 — Confirm solution
 
 - Goal: Confirm it.
+- Requirement points: REQ-001
+- Solution points: SOL-001
 - Gists: none
 
 ## Repository refs
@@ -114,6 +136,8 @@ DETAILS = {
 
 - Goal: Restore exactly one task.
 - Inputs: TASKS.md
+- Requirement points: REQ-001
+- Solution points: SOL-001
 - Work: Parse the task.
 - Completion condition: Tests pass.
 - Resume action: Continue parser.
@@ -158,15 +182,73 @@ class TaskContextTests(unittest.TestCase):
             context = task_context.build_context(self.make_feature(Path(temp)))
             self.assertEqual(context["task"]["id"], "DEV-02")
             self.assertEqual(context["task"]["state"], "WIP")
-            self.assertEqual([item["id"] for item in context["dependencies"]], ["SOL-001"])
+            self.assertEqual([item["task"]["id"] for item in context["dependencies"]], ["SOL-001"])
             self.assertEqual(len(context["repository_refs"]), 2)
             self.assertEqual(context["gists"][0]["content"], "Parser details.\n")
+            self.assertEqual(context["intent"]["requirement"]["points"][0]["id"], "REQ-001")
+            self.assertNotIn("documents", context)
 
     def test_explicit_task_uses_external_detail_file(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             context = task_context.build_context(self.make_feature(Path(temp)), "REQ-001")
             self.assertIn("# REQ-001", context["task_detail"])
             self.assertEqual(context["gists"], [])
+
+    def test_output_omits_unselected_document_text(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = self.make_feature(Path(temp))
+            marker = "UNSELECTED-LONG-TEXT"
+            (root / "REQUIREMENT.md").write_text(
+                REQUIREMENT.replace("## Disposition records", f"## Disposition records\n\n{marker}"),
+                encoding="utf-8",
+            )
+            rendered = task_context.render_markdown(task_context.build_context(root))
+            self.assertNotIn(marker, rendered)
+            self.assertIn("Requirement point: REQ-001", rendered)
+            self.assertIn("Direct dependency: SOL-001", rendered)
+
+    def test_missing_or_unknown_point_selector_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = self.make_feature(Path(temp))
+            path = root / "tasks" / "DEV-02.md"
+            path.write_text(
+                path.read_text(encoding="utf-8").replace("- Requirement points: REQ-001\n", ""),
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(task_context.ContextError, "exactly one '- Requirement points:'"):
+                task_context.build_context(root)
+        with tempfile.TemporaryDirectory() as temp:
+            root = self.make_feature(Path(temp))
+            path = root / "tasks" / "DEV-02.md"
+            path.write_text(
+                path.read_text(encoding="utf-8").replace("Requirement points: REQ-001", "Requirement points: REQ-999"),
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(task_context.ContextError, "unknown REQ points"):
+                task_context.build_context(root)
+
+    def test_legacy_table_backed_point_can_be_focused(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = self.make_feature(Path(temp))
+            requirement = REQUIREMENT + """
+
+## Correction proposals
+
+| Point | State | Proposal |
+| --- | --- | --- |
+| CORR-REQ-02 | `CONFIRMED` | Load only focused context. |
+"""
+            (root / "REQUIREMENT.md").write_text(requirement, encoding="utf-8")
+            detail_path = root / "tasks" / "DEV-02.md"
+            detail_path.write_text(
+                detail_path.read_text(encoding="utf-8").replace(
+                    "Requirement points: REQ-001", "Requirement points: CORR-REQ-02"
+                ),
+                encoding="utf-8",
+            )
+            points = task_context.build_context(root)["intent"]["requirement"]["points"]
+            self.assertEqual(points[0]["id"], "CORR-REQ-02")
+            self.assertEqual(points[0]["state"], "CONFIRMED")
 
     def test_missing_current_task_fails(self) -> None:
         with tempfile.TemporaryDirectory() as temp:

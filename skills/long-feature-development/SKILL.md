@@ -39,7 +39,7 @@ This Codex skill uses a small, versioned feature record to continue development 
 ## Start or resume
 
 1. Resolve the exact `<Project-Manage>` mapping and feature ID. Stop if either is ambiguous.
-2. Run `python <skill-root>/scripts/task_context.py <feature-directory>`. Use `--task <task-id>` only when the user explicitly selects a non-current task. The command is the single recovery reader: it validates the task index and topology, then prints the selected task detail and only its declared gists. The focused requirement and solution slices are added by the context rules below.
+2. Run `python <skill-root>/scripts/task_context.py <feature-directory>`. Use `--task <task-id>` only when the user explicitly selects a non-current task. The command is the single recovery reader: it validates the task index and topology, then prints the feature summary and Git tables, selected task detail, direct dependency details, explicitly selected requirement/solution points, and declared gists.
 3. From that output, verify the requirement and solution confirmation states before treating them as fixed boundaries.
 4. For every repository, separately verify the working branch/HEAD, the integration branch/SHA used for ongoing task merges, and the final PR/MR source/target refs.
 5. Mark unavailable remote state as unverified instead of guessing.
@@ -67,6 +67,7 @@ Read [references/confirmation.md](references/confirmation.md) only when adding, 
 - Give each requirement or solution point a task with the same ID. Set it to `DONE` only after its individual decision commit SHA is recorded; rejection, out-of-scope, and infeasible decisions also complete the point task.
 - On assignment, require every dependency to be `DONE`, change `PENDING` to `WIP`, record the start time, and record every relevant start ref plus current HEAD in `tasks/<task-id>.md`.
 - Read scope and completion conditions from `tasks/<task-id>.md`. Put extra local context in a gist and reference it there.
+- Declare related intent with exactly one `- Requirement points:` and one `- Solution points:` line. Use comma-separated point IDs or `none`; missing, ambiguous, or unknown selectors are hard errors.
 - Prefix implementation commit subjects with the feature and task, for example `PIRC-23/DEV-01: add feature templates`.
 - Use one decision point per decision commit. The subject is `<feature-key>/<point-id>: <RESULT> <summary>`, where `RESULT` is `CONFIRMED`, `REJECTED`, `OUT-OF-SCOPE`, `INFEASIBLE`, or `REOPENED`.
 - A task may produce multiple commits. Do not merge implementation branches automatically.
@@ -95,6 +96,8 @@ Read [references/transitions.md](references/transitions.md) only when changing t
 Treat individually confirmed requirement points as approved intent, individually confirmed solution points as the retained implementation plan, Git as implementation state, `STATUS.md` as feature state, `TASKS.md` as the task/ref index, and `tasks/` as focused task detail. If they disagree, report the conflict; do not rewrite a decided point to hide it.
 
 Do not preload repository-wide documentation. Discover code context from the current task, referenced gists, actual diffs, symbols, manifests, and repository instructions.
+
+The built-in Markdown focus functions are the standalone behavior and do not require PIRC-14. A future PIRC-14 adapter may produce the same focused-context schema, but it must not broaden selectors, bypass validation, or become mandatory for recovery.
 
 ## End a run
 

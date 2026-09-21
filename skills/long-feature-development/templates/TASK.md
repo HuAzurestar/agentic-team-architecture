@@ -2,6 +2,8 @@
 
 - Goal:
 - Inputs:
+- Requirement points: none
+- Solution points: none
 - Work:
 - Completion condition:
 - Resume action:
