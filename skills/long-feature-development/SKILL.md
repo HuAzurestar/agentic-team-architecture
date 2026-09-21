@@ -15,18 +15,20 @@ This Codex skill uses a small, versioned feature record to continue development 
 ├── SOLUTION.md
 ├── STATUS.md
 ├── TASKS.md
+├── tasks/
+│   └── <task-id>.md
 └── gists/
 ```
 
-`REQUIREMENT.md`, `SOLUTION.md`, and `STATUS.md` are project-management records. `TASKS.md` and `gists/` are local agent working material by default and must not be uploaded unless the project explicitly changes that policy.
+`REQUIREMENT.md`, `SOLUTION.md`, and `STATUS.md` are project-management records. `TASKS.md`, `tasks/`, and `gists/` are local agent working material by default and must not be uploaded unless the project explicitly changes that policy.
 
 ## Initialize a feature
 
 1. Resolve `<Project-Manage>`. If the developer has not assigned a feature ID, use `NO-FEAT` when unique or `NO-FEAT-<6-char-random>` when collision is possible. Do not delay initialization to invent an official ID.
-2. Copy only the four matching files from `templates/`: `REQUIREMENT.md`, `SOLUTION.md`, `STATUS.md`, and local `TASKS.md`.
-3. Replace or remove every angle-bracket placeholder. Keep one `TASKS.md` section for every task row in `STATUS.md`; the supplied `REQ-001` and `SOL-001` point tasks are mandatory until replaced by real point IDs.
+2. Copy the four matching files from `templates/`, then copy `templates/TASK.md` once per initial task into local `tasks/<task-id>.md`.
+3. Replace or remove every angle-bracket placeholder. Keep exactly one `TASKS.md` index row and one `tasks/<task-id>.md` detail file per task; the supplied `REQ-001` and `SOL-001` point tasks are mandatory until replaced by real point IDs.
 4. Create local `gists/` only when a task needs one.
-5. Add exact, feature-scoped local exclude entries for `TASKS.md` and `gists/`; do not add a repository-wide ignore rule without authorization.
+5. Add exact, feature-scoped local exclude entries for `TASKS.md`, `tasks/`, and `gists/`; do not add a repository-wide ignore rule without authorization.
 6. Run the [task context helper](scripts/task_context.py) as `python <skill-root>/scripts/task_context.py <feature-directory>` before the first project-management commit. Fix every reported mismatch.
 7. Leave requirement and solution in `DRAFT`. Their overall states are derived from point states, never set by a global approval.
 
@@ -37,13 +39,13 @@ This Codex skill uses a small, versioned feature record to continue development 
 ## Start or resume
 
 1. Resolve the exact `<Project-Manage>` mapping and feature ID. Stop if either is ambiguous.
-2. Run `python <skill-root>/scripts/task_context.py <feature-directory>`. Use `--task <task-id>` only when the user explicitly selects a non-current task. The command is the single recovery reader: it prints the requirement, solution, status, selected task section, and only its declared gists.
+2. Run `python <skill-root>/scripts/task_context.py <feature-directory>`. Use `--task <task-id>` only when the user explicitly selects a non-current task. The command is the single recovery reader: it validates the task index and topology, then prints the selected task detail and only its declared gists. The focused requirement and solution slices are added by the context rules below.
 3. From that output, verify the requirement and solution confirmation states before treating them as fixed boundaries.
 4. For every repository, separately verify the working branch/HEAD, the integration branch/SHA used for ongoing task merges, and the final PR/MR source/target refs.
 5. Mark unavailable remote state as unverified instead of guessing.
 6. Compare recorded and observed refs. Resolve stale state before changing code.
 
-Treat a nonzero `task_context.py` exit as a hard stop. Do not infer a missing current-task row, matching task-state row, `TASKS.md` section, or declared gist.
+Treat a nonzero `task_context.py` exit as a hard stop. Do not infer a missing current-task field, `TASKS.md` row, task detail file, dependency, Git ref, or declared gist. An old task table in `STATUS.md` is not silently migrated.
 
 The project-management repository containing `STATUS.md` cannot embed the SHA of the commit that contains that same file. Its working-HEAD cell therefore uses `DERIVED:HEAD`, meaning the checked-out Git HEAD is the source of truth. Resolve it only when `STATUS.md` is tracked, matches HEAD, and has no staged or unstaged changes; otherwise stop. Every integration-opponent SHA, PR/MR SHA, task pickup ref, and task completion ref must be a literal observed SHA, never a moving branch alias.
 
@@ -59,16 +61,18 @@ Read [references/confirmation.md](references/confirmation.md) only when adding, 
 
 ## Work on one task
 
-- Tasks use only `TODO`, `WIP`, `BLOCKED`, and `DONE`.
-- Requirement, solution, development, testing, and review are task types in the same `STATUS.md` table; do not create separate state machines.
+- Tasks use only `PENDING`, `WIP`, `BLOCKED`, `RECORDING`, and `DONE`.
+- `TASKS.md` is the only task-state and dependency index. `STATUS.md` stores feature state and points to the current task; it never duplicates the task table.
+- Requirement, solution, development, testing, review, rework, acceptance, and gate are task types in the same `TASKS.md` table; do not create per-type state machines.
 - Give each requirement or solution point a task with the same ID. Set it to `DONE` only after its individual decision commit SHA is recorded; rejection, out-of-scope, and infeasible decisions also complete the point task.
-- On pickup, change the task to `WIP` in `STATUS.md` and record every relevant `repo@branch@SHA` in `接取 refs`.
-- Read scope and completion conditions from the matching `TASKS.md` section. Put extra local context in a gist and reference it there.
+- On assignment, require every dependency to be `DONE`, change `PENDING` to `WIP`, record the start time, and record every relevant start ref plus current HEAD in `tasks/<task-id>.md`.
+- Read scope and completion conditions from `tasks/<task-id>.md`. Put extra local context in a gist and reference it there.
 - Prefix implementation commit subjects with the feature and task, for example `PIRC-23/DEV-01: add feature templates`.
 - Use one decision point per decision commit. The subject is `<feature-key>/<point-id>: <RESULT> <summary>`, where `RESULT` is `CONFIRMED`, `REJECTED`, `OUT-OF-SCOPE`, `INFEASIBLE`, or `REOPENED`.
 - A task may produce multiple commits. Do not merge implementation branches automatically.
-- On completion, update the `STATUS.md` row with every output `repo@branch@SHA`, set `DONE`, and name the next task or action.
-- On interruption, keep `WIP` and write the exact next action. On blockage, set `BLOCKED` and write the cause and release condition.
+- When work is complete, move `WIP` to `RECORDING`, create the final task commit or record the accepted existing commit, then write exactly one completion SHA per affected repository before moving to `DONE`.
+- On interruption, keep `WIP` and update the task detail's resume action. On blockage, set `BLOCKED` and write the cause and release condition. A failed or abandoned attempt remains in history; reopening creates new start refs instead of rewriting old ones.
+- Keep the Mermaid graph in `TASKS.md` derived from its rows. Run `task_context.py <feature-directory> --sync-topology` after changing task rows, then validate normally.
 
 Read [references/transitions.md](references/transitions.md) only when changing task state or the feature's next transition.
 
@@ -88,7 +92,7 @@ Read [references/transitions.md](references/transitions.md) only when changing t
 
 ## Context boundary
 
-Treat individually confirmed requirement points as approved intent, individually confirmed solution points as the retained implementation plan, Git as implementation state, `STATUS.md` as the task/ref index, and `TASKS.md` as local task detail. If they disagree, report the conflict; do not rewrite a decided point to hide it.
+Treat individually confirmed requirement points as approved intent, individually confirmed solution points as the retained implementation plan, Git as implementation state, `STATUS.md` as feature state, `TASKS.md` as the task/ref index, and `tasks/` as focused task detail. If they disagree, report the conflict; do not rewrite a decided point to hide it.
 
 Do not preload repository-wide documentation. Discover code context from the current task, referenced gists, actual diffs, symbols, manifests, and repository instructions.
 

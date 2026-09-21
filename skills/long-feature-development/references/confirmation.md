@@ -40,15 +40,17 @@ Keep active `PROPOSED`, `REOPENED`, and `CONFIRMED` points in the document's poi
 
 ```mermaid
 stateDiagram-v2
-    [*] --> TODO
-    TODO --> WIP: record pickup refs
+    [*] --> PENDING
+    PENDING --> WIP: dependencies done; record start refs
     WIP --> BLOCKED: record blocker and release condition
     BLOCKED --> WIP: release condition is satisfied
-    WIP --> DONE: record the point-decision commit SHA
+    WIP --> RECORDING: point is decided
+    RECORDING --> DONE: record the point-decision commit SHA
+    RECORDING --> WIP: decision record is incomplete
     DONE --> WIP: point enters REOPENED
 ```
 
-A decided point remains `WIP` until its decision commit SHA is recorded in `STATUS.md`. One status commit may register several separately committed point decisions.
+A decided point remains `RECORDING` until its decision commit SHA is recorded in its task detail and `TASKS.md` is consistent. One project-management commit may register several separately committed point decisions.
 
 ## Decision commits
 

@@ -1,29 +1,29 @@
 # <feature-key> Tasks
 
-Task state and refs belong in `STATUS.md`. This local file explains the work by task ID.
+This local file is the only task-state and dependency index. Keep details in `tasks/<task-id>.md` and regenerate the graph with `task_context.py <feature-directory> --sync-topology` after changing a row.
 
-## REQ-001 — Decide one requirement point
+## Task index
 
-- Goal: Obtain and record a pointwise human decision for `REQ-001`.
-- Inputs: `REQUIREMENT.md`
-- Work: Resolve ambiguity, request a decision naming the exact point, and create one decision commit.
-- Completion condition: `REQ-001` has a decided result and its decision commit SHA is recorded in `STATUS.md`.
-- Gists: none
+| ID | Type | Name | State | Owner | Depends on | Started at | Completed at | HEAD SHA |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| REQ-001 | Requirement | Decide one requirement point | `PENDING` | - | - | - | - | - |
+| SOL-001 | Solution | Decide one solution point | `PENDING` | - | REQ-001 | - | - | - |
+| GATE-START | Gate | Enter implementation | `PENDING` | - | SOL-001 | - | - | - |
 
-## SOL-001 — Decide one solution point
+## Dependency topology
 
-- Goal: Obtain and record a pointwise human decision for `SOL-001`.
-- Inputs: `REQUIREMENT.md`, `SOLUTION.md`
-- Work: Check referenced requirement points, resolve ambiguity, request the exact decision, and create one decision commit.
-- Completion condition: `SOL-001` has a decided result and its decision commit SHA is recorded in `STATUS.md`.
-- Gists: none
-
-## <task-id> — <task-title>
-
-- Goal:
-- Inputs:
-- Work:
-- Completion condition:
-- Gists: none
-
-Copy the final section for each additional task, then replace or remove every angle-bracket placeholder. List gists as comma-separated feature-relative paths under `gists/`, for example `gists/api-contract.md, gists/db-notes.md`.
+<!-- task-topology:start -->
+```mermaid
+flowchart LR
+    T0["REQ-001 · Decide one requirement point"]:::pending
+    T1["SOL-001 · Decide one solution point"]:::pending
+    T2["GATE-START · Enter implementation"]:::pending
+    T0 --> T1
+    T1 --> T2
+    classDef pending fill:#e5e7eb,stroke:#6b7280,color:#111827
+    classDef wip fill:#dbeafe,stroke:#2563eb,color:#111827
+    classDef blocked fill:#fee2e2,stroke:#dc2626,color:#111827
+    classDef recording fill:#fef3c7,stroke:#d97706,color:#111827
+    classDef done fill:#dcfce7,stroke:#16a34a,color:#111827
+```
+<!-- task-topology:end -->
