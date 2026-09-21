@@ -20,81 +20,83 @@ description: 从项目管理目录恢复并推进跨会话的软件 feature，�
 └── gists/
 ```
 
-`REQUIREMENT.md`、`SOLUTION.md`、`STATUS.md` 是项目管理记录。`TASKS.md`、`tasks/`、`gists/` 默认是本地 Agent 材料，除非项目明确改变策略，否则不得上传。
+当 `<Project-Manage>` 位于 Git 仓库中时，以上六项都是共享项目管理记录。前三个文件是主要入口，后三项是按需聚焦的短追溯记录；不得用 `.gitignore`、`.git/info/exclude` 或等价规则隐藏。原始日志、大型产物和 secret 保存在目录外，只写入有界摘要和安全引用。
 
 ## 初始化
 
-1. 解析 `<Project-Manage>`。尚无正式 ID 时，唯一情况下使用 `NO-FEAT`，可能冲突时使用 `NO-FEAT-<6位随机值>`；不得为编造正式 ID 而等待。
-2. 复制四个文档模板，并为每个初始 task 把 `templates/TASK.md` 复制到 `tasks/<task-id>.md`。
-3. 替换或删除所有尖括号占位符。每个 task 必须恰有一条 `TASKS.md` 索引和一个详情文件；真实点 ID 替换前保留 `REQ-001`、`SOL-001`。
-4. 仅在需要时创建 `gists/`。
-5. 为 `TASKS.md`、`tasks/`、`gists/` 添加限定于该 feature 的本地 exclude；未经授权不得扩大规则。
-6. 第一次项目管理 commit 前运行 `python <skill-root>/scripts/task_context.py <feature-directory>`，修复全部错误。
-7. 需求和方案整体状态由逐点状态派生，不能用一次全局批准设置。
+1. 解析 `<Project-Manage>`。尚无正式 ID 时，唯一情况下使用 `NO-FEAT`，可能冲突时使用 `NO-FEAT-<6位随机值>`。
+2. 复制四个模板，并为每个初始 task 复制 `templates/TASK.md` 到 `tasks/<task-id>.md`。
+3. 替换或删除尖括号占位符。每个 task 恰有一个索引行和一个详情文件；真实点 ID 替换前保留 `REQ-001`、`SOL-001`。
+4. 仅在 task 需要时创建 gist；内容必须有界且只用于追溯。
+5. 若项目管理目录受 Git 管理，确认 `TASKS.md`、`tasks/`、`gists/` 未被忽略，并与其他 feature 记录一同纳入版本控制。
+6. 首次项目管理 commit 前运行 `python <skill-root>/scripts/task_context.py <feature-directory>`，修复全部错误。
+7. 需求和方案整体状态由逐点状态派生，不能用全局批准设置。
 
 ## Feature 身份
 
-`NO-FEAT` 与 `NO-FEAT-<6位随机值>` 都是有效临时 key。后缀使用六位小写字母或数字。正式 ID 的分配时点只由开发者决定。ID 变化时，在一次项目管理变更中重命名目录、更新标题和 `STATUS.md`，并把旧 key 追加到 `Previous IDs`；不得改写历史。
+`NO-FEAT` 与 `NO-FEAT-<6位随机值>` 都是有效临时 key。正式 ID 的分配时点只由开发者决定。ID 变化时，在一次项目管理变更中重命名目录、更新标题和 `STATUS.md`，把旧 key 追加到 `Previous IDs`；不得改写历史。
 
 ## 开始或恢复
 
-1. 解析准确的 `<Project-Manage>` 映射和 feature ID；有歧义就停止。
-2. 运行 `task_context.py`。只有用户明确选择非当前 task 时才加 `--task <task-id>`。它是唯一恢复读取器：校验索引和拓扑，只输出 feature 摘要与 Git 表、当前 task、直接依赖、显式选择的需求/方案点和 gist。
-3. 根据输出核对需求与方案状态，再将其视为边界。
-4. 对每个仓库分别核对工作 branch/HEAD、日常 integration branch/SHA 和最终 PR/MR source/target refs。
-5. 不可访问的远端状态标记为未验证，不得猜测。
-6. 记录值与观察值不一致时，先解决漂移再修改代码。
+1. 解析准确的 `<Project-Manage>` 映射和 feature ID；存在歧义就停止。
+2. 运行 `python <skill-root>/scripts/task_context.py <feature-directory>`。仅在人类明确选择非当前 task 时使用 `--task`。仓库移动或 path hint 不可用时，用可重复的 `--repo NAME=PATH` 显式覆盖。该命令是唯一恢复读取器，会校验 task 索引、拓扑、仓库身份、实际 Git refs 和必需追溯闭合，再输出聚焦上下文。
+3. 从输出核对需求和方案逐点确认状态，再把它们当作固定边界。
+4. 对每个仓库分别核对工作 branch/HEAD、开发期 integration branch/SHA、最终 PR/MR source/target refs。
+5. 无法取得的远端状态标为未验证，不得猜测。
+6. 比较记录与观察到的 refs；解决陈旧状态后才能改代码。
 
-脚本非零退出是硬停止。不得推断缺失的当前 task、索引行、详情文件、依赖、Git ref 或 gist；旧 `STATUS.md` task 表不得静默迁移。
-
-项目管理仓库不能在 `STATUS.md` 内写入“包含该文件的 commit SHA”，因此其工作 HEAD 可使用 `DERIVED:HEAD`。只有文件已跟踪、与 HEAD 一致且无 staged/unstaged 修改时才能解析；其他 Git/PR/MR/task refs 必须是实际观察的字面 SHA。
+`task_context.py` 非零退出是硬停止。不得推断缺失的当前 task、索引行、详情、依赖、Git ref 或 gist。项目管理仓库的 working HEAD 使用 `DERIVED:HEAD`，仅当 STATUS 已跟踪、与 HEAD 一致且无本文件改动时才能派生；其余 ref 必须是实际观察到的字面 SHA。
 
 ## 确认边界
 
-- 每个决定点使用稳定 `REQ-*` 或 `SOL-*` ID；“全部同意”不能改变点状态。
-- 仅在获授权时，LLM 才能提出推测可确认项，并必须逐项复述准确 ID 与内容，请求二次人工确认。
-- 已确认点在人员明确重开前锁定；保留内容和决定历史。
-- 被拒绝点可修订并重开；再次确认仍需明确人工决定。
-- `CONFIRMED` 与 `BASELINED` 是逐点派生状态。
+- 每个决定点使用稳定的二级标题 `## REQ-*` 或 `## SOL-*`；“全部批准”不能改变任何点状态，点内三级标题仍属于该点。
+- 仅在获得授权时，LLM 才能提出可能确认的点；随后必须复述每个准确 ID 和内容并进行二次人工确认。
+- 已确认点在人类明确重开前锁定；保留正文和决定历史。
+- 已拒绝点可修订后重开，无需单独撤回，但重新确认仍需明确人工决定。
+- `CONFIRMED` / `BASELINED` 是派生状态：所有活动点均逐点确认，且无 `PROPOSED` / `REOPENED`。
 
-新增、决定、修订或重开需求/方案点时才读取 [confirmation.md](references/confirmation.md)。
+新增、决定、修订或重开点时读取 [references/confirmation.md](references/confirmation.md)。
 
-## 处理一个 Task
+## 执行一个 Task
 
 - Task 只使用 `PENDING`、`WIP`、`BLOCKED`、`RECORDING`、`DONE`。
-- `TASKS.md` 是唯一 task 状态与依赖索引；`STATUS.md` 只保存 feature 状态并指向当前 task。
-- 需求、方案、开发、测试、评审、返工、验收和 gate 共用同一 task 状态机。
-- 每个需求/方案点建立同 ID task；其决定 commit SHA 登记后才能 `DONE`。
-- 接取前要求直接依赖均为 `DONE`；接取时写负责人、开始时间、所有 start refs 和当前 HEAD。
-- 范围与完成条件读取 `tasks/<task-id>.md`，额外材料放入显式 gist。
-- 详情中必须恰有一行 `Requirement points` 和一行 `Solution points`；值为逗号分隔 ID 或 `none`。缺失、歧义或未知 selector 都是硬错误。
-- 实现 commit subject 以 feature/task 开头。决定 commit 每次只处理一个点。
-- 一个 task 可产生多个 commit；不得自动 merge 实现分支。
-- 工作完成后先进入 `RECORDING`，创建最终 task commit 或登记已接受 commit，再为每个受影响仓库写唯一 completion SHA，然后进入 `DONE`。
-- 中断保持 `WIP` 并更新 resume action；阻塞写原因和解除条件。失败/放弃 attempt 保留历史，重开时追加 start refs。
-- `TASKS.md` Mermaid 必须由表格派生；修改行后运行 `--sync-topology` 再校验。
+- `STATUS.md` 是 feature 控制入口，保存 feature 状态、当前 task/gate 摘要和仓库/对象注册表；`TASKS.md` 是完整 task 状态与依赖的唯一来源。
+- 需求、方案、开发、测试、评审、返工、验收和 gate 使用同一张 task 表，不建立分类型状态机。
+- 每个需求/方案点都有同 ID task；只有逐点决定 commit SHA 已记录后才能 `DONE`。
+- `PENDING` 表示未接取。依赖全 `DONE` 时派生 `READY`，否则派生 `WAITING`；两者不是持久状态。
+- 接取时要求 `READY`，先在详情记录 owner、时间、start refs 和 HEAD，再用 `task_state.py ... --to WIP` 更新索引。
+- 从详情读取范围和完成条件；gist 只保存有界追溯材料。每个 task 必须各有一行 `Requirement points` 和 `Solution points`。
+- 实现 commit 标题加 `<feature>/<task>:` 前缀；决定 commit 使用 `<feature>/<point>: <RESULT> <summary>`。
+- Task 可产生多个 commit；不得自动 merge 实现分支。
+- 完成工作后从 `WIP` 进入 `RECORDING`，记录最终 commit 和每个仓库唯一 completion SHA，再进入 `DONE`。
+- 中断时保留 `WIP` 并更新 resume action。`BLOCKED` 只用于已接取且被具体障碍停止的 task，必须写 blocker、impact、release condition；普通依赖等待仍是 `PENDING`。
+- 正常状态修改只用 `task_state.py`，它原子替换 task 行和派生 Mermaid。`task_context.py --sync-topology` 仅用于明确修复/导入；只读恢复遇到陈旧图必须失败。
 
-改变 task 状态或 feature 流转时读取 [transitions.md](references/transitions.md)。创建、接取、记录或完成质量/验收/gate task 时读取 [task-contracts.md](references/task-contracts.md)。创建/执行 gate 或改变 feature phase/condition 时读取 [feature-gates.md](references/feature-gates.md)。详细测试输出和 review comments 只写入结果 gist；gate 不替代人工验收。
+改变 task 状态或下一流转时读取 [references/transitions.md](references/transitions.md)。创建、接取、记录或完成质量 task 时读取 [references/task-contracts.md](references/task-contracts.md)。创建/执行 gate 或改变 feature phase/condition 时读取 [references/feature-gates.md](references/feature-gates.md)。
 
-## Git 与托管平台边界
+## Git 与平台边界
 
-- 每个仓库独立处理；每个受影响仓库使用一个 feature integration branch，最多一个最终实现 PR/MR。
-- 分开记录工作 HEAD、日常 integration 对手和最终 PR/MR source/target refs；不得用一个“当前 SHA”混用。
-- 对手分支前进时先保留旧 SHA 完成比较，再更新为新观察 SHA；不得使用 `LIVE:<branch>`、`latest` 等移动标记。
-- 代码只提交到实现分支，不自动合并。项目管理变更单独提交，只在获授权后 merge/upload。
-- 只在分支、commit、同步、PR/MR、评审、CI 等 Git 策略边界调用 `git-collaboration`；普通恢复不加载其全部引用。
+- 每个仓库独立处理；一个 feature 可以跨仓库。
+- 仓库定位顺序为：显式 `--repo NAME=PATH`、相对项目管理仓库根目录的 path hints、按注册 remote 身份进行 sibling/workspace 发现。不得把历史绝对路径当作定位器；缺失或歧义均停止。
+- 对实际 Git 对象验证注册分支、working HEAD、integration opponent、PR/MR 端点、baseline 有序性、start-to-head 祖先关系、completion SHA 和依赖祖先关系；恢复输出包含派生追溯图，缺 commit 或必需路径断开都是错误。
+- 当前 gate 依赖闭包之外的 pending task 必须在详情声明明确 disposition，不得静默遗弃。
+- 每个受影响仓库使用一个 feature integration branch，至多一个最终实现 PR/MR。
+- working HEAD、integration opponent、最终 PR/MR source/target 是三种不同 ref，必须分别记录。
+- 分支前进时先比较旧 SHA，再更新为新观察到的字面 SHA；不得用 `latest` 或移动 token。
+- 代码提交到实现分支，不自动 merge；项目管理变更单独提交，只有获得授权才 merge/upload。
+- 仅在创建分支、commit、同步、PR/MR、评审或 CI 等 Git 策略边界调用可用的 `git-collaboration` Skill。
 
 ## 上下文边界
 
-逐点确认需求是意图，逐点确认方案是实施计划，Git 是实现状态，`STATUS.md` 是 feature 状态，`TASKS.md` 是 task/ref 索引，`tasks/` 是聚焦详情。它们冲突时报告，不得改写已决定点掩盖冲突。
+逐点确认的需求是批准意图，逐点确认的方案是保留实施计划，Git 是实现状态，`STATUS.md` 是 feature/仓库入口，`TASKS.md` 是 task/ref 索引，`tasks/` 与 `gists/` 是共享聚焦追溯。冲突时报告，不得改写已决定点掩盖冲突。
 
-不要预加载全仓文档。根据当前 task、显式 gist、实际 diff、符号、manifest 和仓库说明发现代码上下文。内置 Markdown focus 不依赖 PIRC-14；未来 PIRC-14 adapter 只能生成相同聚焦 schema，不得扩大 selector、绕过校验或成为恢复必需项。
+不要预载整个仓库文档；从当前 task、显式 gist、实际 diff、symbol、manifest 和仓库说明发现代码上下文。内置 Markdown 聚焦不依赖 PIRC-14；未来适配器不得扩大 selector、绕过校验或成为恢复前提。
 
 ## 结束一次运行
 
-留下可续接状态：当前 task/状态、观察到的分支和 SHA、PR/MR refs、本轮 commits、准确 resume action、blocker 及解除条件。结束前重新运行 `task_context.py`；失败表示不可续接。
+保留可恢复状态：当前 task/state、观察到的各仓 branch/SHA、PR/MR refs、本轮 commits、准确下一动作、blocker 与解除条件。结束前重新运行当前 task 的 `task_context.py`；失败表示状态不可恢复。
 
-## 验证
+## 验证本 Skill
 
 ```text
 python scripts/test_task_context.py

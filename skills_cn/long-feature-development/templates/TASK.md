@@ -8,6 +8,9 @@
 - Completion condition:
 - Resume action:
 - Blocker: none
+- Impact: none
+- Release condition: none
+- Disposition: required
 - Gists: none
 
 ## Repository refs
@@ -20,7 +23,7 @@
 
 ## Attempt notes
 
-只保留恢复所需短事实。详细日志、评审意见和测试输出写入显式 gist。
+只保留恢复所需短事实。详细日志、评审意见和测试输出写入有界的显式 gist；不得复制无界原始日志或 secret。
 
 ## Type contract
 

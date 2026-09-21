@@ -1,6 +1,6 @@
 # <feature-key> Tasks
 
-本地文件是唯一 task 状态与依赖索引。详情保存到 `tasks/<task-id>.md`；修改表格后运行 `task_context.py <feature-directory> --sync-topology` 重新派生图。
+本文件是共享的唯一 task 状态与依赖索引，详情保存在 `tasks/<task-id>.md`。正常状态变化使用 `task_state.py`，它同时更新表格与 Mermaid；`task_context.py --sync-topology` 仅用于修复或导入。
 
 ## Task index
 

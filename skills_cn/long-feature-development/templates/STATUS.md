@@ -15,6 +15,15 @@ title: <feature-key> 状态
 | 当前 gate | GATE-START | 它是 task ID，不是第二套状态机 |
 | 阻塞 | 无 | 阻塞时同时写解除条件 |
 
+## Repository registry
+
+Path hints 相对于项目管理仓库根目录；CLI 显式映射可以覆盖。
+
+| Repository | Role | Remote | Path hints | Stable branch | Integration branch |
+| --- | --- | --- | --- | --- | --- |
+| `<project-manage-repo>` | project-management | `<remote>` | `.` | `<stable-branch>` | `<feature-management-branch>` |
+| `<implementation-repo>` | implementation | `<remote>` | `../<repo-directory>` | `<stable-branch>` | `<feature-branch>` |
+
 ## 工作分支
 
 | 仓库 | 本地路径 | 工作分支 | 工作 HEAD SHA | 当前 task |

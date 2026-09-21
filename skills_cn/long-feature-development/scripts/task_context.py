@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import subprocess
 import sys
 from pathlib import Path, PurePosixPath
 from typing import Any
@@ -25,6 +26,9 @@ TASK_TABLE_HEADERS = (
 REPO_TABLE_HEADERS = (
     ("Repository", "Branch", "Baseline history", "Start refs", "HEAD SHA", "Completion SHA"),
     ("仓库", "分支", "基线历史", "开始 refs", "HEAD SHA", "完成 SHA"),
+)
+REPOSITORY_REGISTRY_HEADERS = (
+    ("Repository", "Role", "Remote", "Path hints", "Stable branch", "Integration branch"),
 )
 TOPOLOGY_RE = re.compile(
     r"<!-- task-topology:start -->\s*(.*?)\s*<!-- task-topology:end -->",
@@ -64,6 +68,13 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="Directory containing REQUIREMENT.md, SOLUTION.md, STATUS.md, TASKS.md, and tasks/",
     )
     parser.add_argument("--task", help="Explicit task ID; defaults to STATUS.md Current task")
+    parser.add_argument(
+        "--repo",
+        action="append",
+        default=[],
+        metavar="NAME=PATH",
+        help="Override one repository location; repeat for multiple repositories",
+    )
     parser.add_argument("--format", choices=("markdown", "json"), default="markdown")
     parser.add_argument(
         "--sync-topology",
@@ -244,6 +255,14 @@ def validate_dependency_graph(records: dict[str, dict[str, Any]]) -> None:
             unfinished = [dep for dep in record["dependencies"] if records[dep]["state"] != "DONE"]
             if unfinished:
                 raise ContextError(f"active task {task_id} has unfinished dependencies: {', '.join(unfinished)}")
+        record["readiness"] = (
+            "READY"
+            if record["state"] == "PENDING"
+            and all(records[dep]["state"] == "DONE" for dep in record["dependencies"])
+            else "WAITING"
+            if record["state"] == "PENDING"
+            else "ACTIVE"
+        )
 
 
 def mermaid_topology(records: dict[str, dict[str, Any]]) -> str:
@@ -276,15 +295,19 @@ def validate_topology(tasks_text: str, records: dict[str, dict[str, Any]]) -> No
         raise ContextError("TASKS.md topology is stale; run task_context.py <feature-directory> --sync-topology")
 
 
-def sync_topology(path: Path) -> None:
-    text = read_utf8(path)
+def synchronized_topology(text: str) -> str:
     records = task_records(text)
     validate_dependency_graph(records)
     matches = list(TOPOLOGY_RE.finditer(text))
     if len(matches) != 1:
         raise ContextError("TASKS.md must contain exactly one generated task-topology block")
     replacement = "<!-- task-topology:start -->\n" + mermaid_topology(records) + "\n<!-- task-topology:end -->"
-    updated = text[: matches[0].start()] + replacement + text[matches[0].end() :]
+    return text[: matches[0].start()] + replacement + text[matches[0].end() :]
+
+
+def sync_topology(path: Path) -> None:
+    text = read_utf8(path)
+    updated = synchronized_topology(text)
     if updated != text:
         path.write_text(updated, encoding="utf-8")
 
@@ -343,6 +366,15 @@ def task_detail(root: Path, record: dict[str, Any]) -> tuple[str, list[dict[str,
         refs.append(item)
     if set(record["head_refs"]) != repositories and record["state"] != "PENDING":
         raise ContextError(f"task {task_id} repository set differs between TASKS.md and its detail")
+    if record["state"] == "BLOCKED":
+        for label in ("Blocker", "Impact", "Release condition"):
+            matches = re.findall(
+                rf"^- {re.escape(label)}[:：][ \t]*(.+?)[ \t]*$", text, re.MULTILINE
+            )
+            if len(matches) != 1 or matches[0].strip().casefold() in {
+                "", "-", "none", "n/a", "无", "无。",
+            }:
+                raise ContextError(f"BLOCKED task {task_id} requires a non-empty {label}")
     return text, refs
 
 
@@ -372,7 +404,11 @@ def h2_section(text: str, headings: tuple[str, ...]) -> str:
 
 
 def metadata_value(section: str, keys: set[str], location: str) -> str:
-    rows = unique_table(markdown_tables(section), (("Item", "Value"), ("项目", "值")), f"{location} metadata")
+    rows = unique_table(
+        markdown_tables(section),
+        (("Item", "Value"), ("Field", "Value"), ("项目", "值"), ("字段", "值")),
+        f"{location} metadata",
+    )
     values = [row[1] for row in rows if row[0] in keys]
     if len(values) != 1:
         raise ContextError(f"{location} must contain exactly one of: {', '.join(sorted(keys))}")
@@ -415,6 +451,195 @@ def section_table(text: str, headings: tuple[str, ...], location: str) -> dict[s
     return {"header": header, "rows": rows}
 
 
+def repository_registry(status_text: str) -> dict[str, dict[str, str]]:
+    """Parse the optional repository registry; absence keeps legacy records readable."""
+    if not re.search(r"^##[ \t]+Repository registry[ \t]*$", status_text, re.MULTILINE):
+        return {}
+    rows = unique_table(
+        markdown_tables(h2_section(status_text, ("Repository registry",))),
+        REPOSITORY_REGISTRY_HEADERS,
+        "repository-registry",
+    )
+    keys = ("repository", "role", "remote", "path_hints", "stable_branch", "integration_branch")
+    result: dict[str, dict[str, str]] = {}
+    for row in rows:
+        item = dict(zip(keys, row))
+        name = item["repository"]
+        if not name or name == "-" or name in result:
+            raise ContextError(f"repository registry has invalid or duplicate name: {name!r}")
+        if item["role"] not in {"project-management", "implementation", "support"}:
+            raise ContextError(f"repository {name} has invalid role: {item['role']!r}")
+        if any(item[field] == "-" for field in ("remote", "path_hints", "stable_branch", "integration_branch")):
+            raise ContextError(f"repository {name} has incomplete registry fields")
+        result[name] = item
+    if not result:
+        raise ContextError("repository registry is empty")
+    if sum(item["role"] == "project-management" for item in result.values()) != 1:
+        raise ContextError("repository registry requires exactly one project-management repository")
+    return result
+
+
+def parse_repo_overrides(values: list[str]) -> dict[str, Path]:
+    result: dict[str, Path] = {}
+    for value in values:
+        if "=" not in value:
+            raise ContextError(f"repository override must be NAME=PATH: {value!r}")
+        name, raw_path = value.split("=", 1)
+        if not name or not raw_path or name in result:
+            raise ContextError(f"invalid or duplicate repository override: {value!r}")
+        result[name] = Path(raw_path).expanduser().resolve()
+    return result
+
+
+def run_git(path: Path, *arguments: str, check: bool = True) -> str:
+    process = subprocess.run(
+        ["git", "-C", str(path), *arguments],
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    if check and process.returncode:
+        message = process.stderr.strip() or process.stdout.strip() or "git command failed"
+        raise ContextError(f"Git check failed for {path}: {message}")
+    return process.stdout.strip() if process.returncode == 0 else ""
+
+
+def git_succeeds(path: Path, *arguments: str) -> bool:
+    return subprocess.run(
+        ["git", "-C", str(path), *arguments],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    ).returncode == 0
+
+
+def git_root(path: Path) -> Path | None:
+    output = run_git(path, "rev-parse", "--show-toplevel", check=False)
+    return Path(output).resolve() if output else None
+
+
+def normalize_remote(value: str) -> str:
+    normalized = value.strip().replace("\\", "/").rstrip("/")
+    if normalized.casefold().endswith(".git"):
+        normalized = normalized[:-4]
+    return normalized.casefold()
+
+
+def repository_remotes(path: Path) -> set[str]:
+    names = run_git(path, "remote").splitlines()
+    return {
+        normalize_remote(run_git(path, "remote", "get-url", name.strip()))
+        for name in names
+        if name.strip()
+    }
+
+
+def resolve_repositories(
+    feature_root: Path,
+    registry: dict[str, dict[str, str]],
+    overrides: dict[str, Path],
+) -> dict[str, dict[str, Any]]:
+    if not registry:
+        if overrides:
+            raise ContextError("--repo cannot be used without a Repository registry")
+        return {}
+    unknown = sorted(set(overrides) - set(registry))
+    if unknown:
+        raise ContextError("repository overrides name unknown repositories: " + ", ".join(unknown))
+    management_root = git_root(feature_root)
+    if management_root is None:
+        raise ContextError("feature directory is not inside the registered project-management Git repository")
+    resolved: dict[str, dict[str, Any]] = {}
+    for name, item in registry.items():
+        candidates: list[Path] = []
+        if name in overrides:
+            candidates.append(overrides[name])
+        else:
+            for raw_hint in item["path_hints"].split(";"):
+                hint = Path(raw_hint.strip())
+                candidates.append((hint if hint.is_absolute() else management_root / hint).resolve())
+            candidates.extend(
+                child.resolve()
+                for child in management_root.parent.iterdir()
+                if child.is_dir() and child != management_root
+            )
+            if item["role"] == "project-management":
+                candidates.insert(0, management_root)
+        matches: dict[str, Path] = {}
+        expected_remote = normalize_remote(item["remote"])
+        for candidate in candidates:
+            root = git_root(candidate) if candidate.exists() else None
+            if root is None:
+                continue
+            try:
+                remote_match = expected_remote in repository_remotes(root)
+            except ContextError:
+                remote_match = False
+            if remote_match:
+                matches[str(root).casefold()] = root
+        if not matches:
+            raise ContextError(f"repository {name} cannot be located with remote {item['remote']!r}")
+        if len(matches) != 1:
+            raise ContextError(f"repository {name} location is ambiguous: " + ", ".join(str(path) for path in matches.values()))
+        path = next(iter(matches.values()))
+        branch = run_git(path, "branch", "--show-current")
+        head = run_git(path, "rev-parse", "HEAD").lower()
+        for field in ("stable_branch", "integration_branch"):
+            branch_name = item[field]
+            if not run_git(path, "rev-parse", "--verify", f"refs/heads/{branch_name}", check=False):
+                raise ContextError(f"repository {name} is missing local branch {branch_name!r}")
+        resolved[name] = {**item, "path": str(path), "actual_branch": branch, "actual_head": head}
+    return resolved
+
+
+def validate_shared_records(feature_root: Path, resolved: dict[str, dict[str, Any]]) -> None:
+    if not resolved:
+        return
+    management = [item for item in resolved.values() if item["role"] == "project-management"]
+    if len(management) != 1:
+        raise ContextError("resolved repositories require exactly one project-management repository")
+    repository_root = Path(management[0]["path"])
+    required = [feature_root / name for name in ("REQUIREMENT.md", "SOLUTION.md", "STATUS.md", "TASKS.md")]
+    for directory_name in ("tasks", "gists"):
+        directory = feature_root / directory_name
+        if not directory.is_dir():
+            raise ContextError(f"required shared directory is missing: {directory_name}")
+        required.extend(path for path in directory.rglob("*") if path.is_file())
+    for path in required:
+        try:
+            relative = path.resolve().relative_to(repository_root).as_posix()
+        except ValueError as exc:
+            raise ContextError(f"shared record is outside project-management repository: {path}") from exc
+        if git_succeeds(repository_root, "check-ignore", "-q", "--", relative):
+            raise ContextError(f"shared project-management record is ignored: {relative}")
+        if not git_succeeds(repository_root, "ls-files", "--error-unmatch", relative):
+            raise ContextError(f"shared project-management record is not tracked: {relative}")
+
+
+def commit_exists(path: Path, sha: str) -> bool:
+    return bool(run_git(path, "rev-parse", "--verify", f"{sha}^{{commit}}", check=False))
+
+
+def is_ancestor(path: Path, older: str, newer: str) -> bool:
+    process = subprocess.run(
+        ["git", "-C", str(path), "merge-base", "--is-ancestor", older, newer],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+    return process.returncode == 0
+
+
+def ref_tokens(raw: str, separator: str) -> list[tuple[str, str]]:
+    if raw == "-":
+        return []
+    result: list[tuple[str, str]] = []
+    for token in raw.split(separator):
+        branch, sha = token.strip().strip("`").rsplit("@", 1)
+        result.append((branch, sha.lower()))
+    return result
+
+
 def focused_status(status_text: str) -> dict[str, Any]:
     summary_rows = unique_table(
         markdown_tables(status_text),
@@ -438,6 +663,195 @@ def focused_status(status_text: str) -> dict[str, Any]:
             status_text, ("PR/MR objects", "PR/MR 对象"), "PR/MR-objects"
         ),
     }
+
+
+def validate_status_repositories(
+    status_text: str,
+    status_path: Path,
+    resolved: dict[str, dict[str, Any]],
+) -> list[dict[str, str]]:
+    if not resolved:
+        return []
+    trace_edges: list[dict[str, str]] = []
+    status = focused_status(status_text)
+    working_rows = status["working_branches"]["rows"]
+    working_names = [row[0] for row in working_rows]
+    if len(working_names) != len(set(working_names)) or set(working_names) != set(resolved):
+        raise ContextError("STATUS.md working branches must name every registered repository exactly once")
+    for row in working_rows:
+        name, recorded_path, branch, recorded_head = row[:4]
+        repository = resolved[name]
+        actual_path = Path(repository["path"])
+        if Path(recorded_path).resolve() != actual_path:
+            raise ContextError(f"STATUS.md working path for {name} is stale: {recorded_path}")
+        if branch != repository["actual_branch"]:
+            raise ContextError(f"STATUS.md working branch for {name} is stale: {branch}")
+        if recorded_head == "DERIVED:HEAD":
+            if repository["role"] != "project-management":
+                raise ContextError(f"DERIVED:HEAD is only valid for the project-management repository: {name}")
+            try:
+                relative = status_path.resolve().relative_to(actual_path)
+            except ValueError as exc:
+                raise ContextError("STATUS.md is outside its project-management repository") from exc
+            if not run_git(actual_path, "ls-files", "--error-unmatch", relative.as_posix(), check=False):
+                raise ContextError("STATUS.md must be tracked before resolving DERIVED:HEAD")
+            if run_git(actual_path, "status", "--porcelain", "--", relative.as_posix(), check=False):
+                raise ContextError("STATUS.md must match HEAD before resolving DERIVED:HEAD")
+            head = repository["actual_head"]
+        else:
+            head = validate_literal_sha(recorded_head, f"STATUS.md working HEAD for {name}")
+            if head != repository["actual_head"]:
+                raise ContextError(f"STATUS.md working HEAD for {name} is stale: {head}")
+        trace_edges.append({"from": f"{name}:checkout", "to": f"{name}:{head}", "kind": "working-head"})
+
+    integration_rows = status["integration_opponents"]["rows"]
+    seen_integration: set[str] = set()
+    for row in integration_rows:
+        name, branch, sha = row[:3]
+        if name not in resolved or name in seen_integration:
+            raise ContextError(f"STATUS.md has invalid integration repository: {name!r}")
+        seen_integration.add(name)
+        sha = validate_literal_sha(sha, f"STATUS.md integration SHA for {name}")
+        path = Path(resolved[name]["path"])
+        branch_sha = run_git(path, "rev-parse", "--verify", f"refs/heads/{branch}", check=False).lower()
+        if not branch_sha or branch_sha != sha:
+            raise ContextError(f"STATUS.md integration ref for {name} is stale: {branch}@{sha}")
+        trace_edges.append({"from": f"{name}:{sha}", "to": f"{name}:integration", "kind": "integration-head"})
+
+    for row in status["pr_mr_objects"]["rows"]:
+        if len(row) < 6:
+            raise ContextError("STATUS.md PR/MR row is incomplete")
+        _, name, source_branch, source_sha, target_branch, target_sha = row[:6]
+        if name not in resolved:
+            raise ContextError(f"STATUS.md PR/MR names unknown repository: {name}")
+        path = Path(resolved[name]["path"])
+        source_sha = validate_literal_sha(source_sha, f"STATUS.md PR/MR source SHA for {name}")
+        target_sha = validate_literal_sha(target_sha, f"STATUS.md PR/MR target SHA for {name}")
+        actual_source = run_git(path, "rev-parse", "--verify", f"refs/heads/{source_branch}", check=False).lower()
+        actual_target = run_git(path, "rev-parse", "--verify", f"refs/heads/{target_branch}", check=False).lower()
+        if source_sha != actual_source or target_sha != actual_target:
+            raise ContextError(f"STATUS.md PR/MR refs for {name} are stale")
+        if not is_ancestor(path, target_sha, source_sha):
+            raise ContextError(f"PR/MR source for {name} is not descended from target SHA")
+        trace_edges.append({"from": f"{name}:{target_sha}", "to": f"{name}:{source_sha}", "kind": "pr-target-to-source"})
+    return trace_edges
+
+
+def required_task_ids(records: dict[str, dict[str, Any]], target: str) -> set[str]:
+    required: set[str] = set()
+
+    def visit(task_id: str) -> None:
+        if task_id in required:
+            return
+        required.add(task_id)
+        for dependency in records[task_id]["dependencies"]:
+            visit(dependency)
+
+    visit(target)
+    return required
+
+
+def validate_trace_graph(
+    status_text: str,
+    records: dict[str, dict[str, Any]],
+    details: dict[str, tuple[str, list[dict[str, str]]]],
+    resolved: dict[str, dict[str, Any]],
+    initial_edges: list[dict[str, str]],
+) -> dict[str, Any]:
+    if not resolved:
+        return {"mode": "LEGACY-UNVERIFIED", "edges": [], "mermaid": ""}
+    summary_rows = focused_status(status_text)["summary"]
+    summary = {row["item"]: row["value"] for row in summary_rows}
+    current_task = summary.get("Current task", summary.get("当前任务"))
+    current_gate = summary.get("Current gate", summary.get("当前 gate"))
+    if current_task not in records or current_gate not in records:
+        raise ContextError("trace graph cannot resolve current task and gate")
+    required = required_task_ids(records, current_gate)
+    if current_task not in required:
+        raise ContextError(f"current task {current_task} is disconnected from current gate {current_gate}")
+    for task_id, record in records.items():
+        if task_id in required or record["state"] != "PENDING":
+            continue
+        dispositions = re.findall(r"^- Disposition[:：][ \t]*(.+?)[ \t]*$", details[task_id][0], re.MULTILINE)
+        if len(dispositions) != 1 or dispositions[0].strip().casefold() in {"", "-", "none", "n/a"}:
+            raise ContextError(f"disconnected PENDING task {task_id} requires an explicit Disposition")
+
+    edges = list(initial_edges)
+    task_refs: dict[str, dict[str, dict[str, str]]] = {}
+    exists_cache: dict[tuple[str, str], bool] = {}
+    ancestry_cache: dict[tuple[str, str, str], bool] = {}
+
+    def known_commit(name: str, path: Path, sha: str) -> bool:
+        key = (name, sha)
+        if key not in exists_cache:
+            exists_cache[key] = commit_exists(path, sha)
+        return exists_cache[key]
+
+    def ordered(name: str, path: Path, older: str, newer: str) -> bool:
+        key = (name, older, newer)
+        if key not in ancestry_cache:
+            ancestry_cache[key] = is_ancestor(path, older, newer)
+        return ancestry_cache[key]
+
+    for task_id, (_, refs) in details.items():
+        task_refs[task_id] = {}
+        for item in refs:
+            name = item["repository"]
+            if name not in resolved:
+                raise ContextError(f"task {task_id} references unregistered repository {name}")
+            path = Path(resolved[name]["path"])
+            baselines = ref_tokens(item["baseline_history"], "<=")
+            starts = ref_tokens(item["start_refs"], ";")
+            for _, sha in baselines + starts:
+                if not known_commit(name, path, sha):
+                    raise ContextError(f"task {task_id} references missing commit {name}@{sha}")
+            for (_, older), (_, newer) in zip(baselines, baselines[1:]):
+                if not ordered(name, path, older, newer):
+                    raise ContextError(f"task {task_id} has unordered baseline history in {name}")
+                edges.append({"from": f"{name}:{older}", "to": f"{name}:{newer}", "kind": "baseline"})
+            for _, start in starts:
+                if baselines and not any(ordered(name, path, baseline, start) for _, baseline in baselines):
+                    raise ContextError(f"task {task_id} start ref is disconnected from its baselines in {name}")
+                for _, baseline in baselines:
+                    if ordered(name, path, baseline, start):
+                        edges.append({"from": f"{name}:{baseline}", "to": f"{name}:{start}", "kind": "task-start"})
+                        break
+            head = item["head_sha"].lower()
+            completion = item["completion_sha"].lower()
+            if head != "-":
+                if not known_commit(name, path, head):
+                    raise ContextError(f"task {task_id} references missing HEAD {name}@{head}")
+                if starts and not any(ordered(name, path, start, head) for _, start in starts):
+                    raise ContextError(f"task {task_id} HEAD is disconnected from its start refs in {name}")
+                for _, start in starts:
+                    if ordered(name, path, start, head):
+                        edges.append({"from": f"{name}:{start}", "to": f"{name}:{head}", "kind": "task-work"})
+                        break
+            if completion != "-":
+                if completion != head:
+                    raise ContextError(f"task {task_id} completion SHA must equal its final HEAD in {name}")
+                edges.append({"from": f"{name}:{completion}", "to": f"task:{task_id}", "kind": "task-completion"})
+            task_refs[task_id][name] = {"head": head, "completion": completion}
+
+    for task_id, record in records.items():
+        for dependency in record["dependencies"]:
+            for name in set(task_refs[task_id]) & set(task_refs[dependency]):
+                prior = task_refs[dependency][name]["completion"]
+                later = task_refs[task_id][name]["head"]
+                if prior == "-" or later == "-":
+                    continue
+                path = Path(resolved[name]["path"])
+                if not ordered(name, path, prior, later):
+                    raise ContextError(f"task dependency {dependency} -> {task_id} is disconnected in {name}")
+                edges.append({"from": f"task:{dependency}", "to": f"task:{task_id}", "kind": "task-dependency"})
+
+    node_names = sorted({edge[side] for edge in edges for side in ("from", "to")})
+    node_ids = {name: f"N{index}" for index, name in enumerate(node_names)}
+    lines = ["```mermaid", "flowchart LR"]
+    lines.extend(f'    {node_ids[name]}["{name}"]' for name in node_names)
+    lines.extend(f"    {node_ids[edge['from']]} -->|{edge['kind']}| {node_ids[edge['to']]}" for edge in edges)
+    lines.append("```")
+    return {"mode": "VALIDATED", "required_tasks": sorted(required), "edges": edges, "mermaid": "\n".join(lines)}
 
 
 def validate_feature_state(status_text: str, records: dict[str, dict[str, Any]]) -> None:
@@ -611,16 +1025,19 @@ def focused_document(
 
 def point_sections(document_text: str, prefix: str) -> dict[str, str]:
     heading = re.compile(
-        rf"^###[ \t]+`?({prefix}-[A-Za-z0-9][A-Za-z0-9._-]*)`?(?:[ \t]+(?:—|–|-)[ \t]+.*)?[ \t]*$",
+        rf"^(##|###)[ \t]+`?({prefix}-[A-Za-z0-9][A-Za-z0-9._-]*)`?(?:[ \t]+(?:—|–|-)[ \t]+.*)?[ \t]*$",
         re.MULTILINE,
     )
     matches = list(heading.finditer(document_text))
     sections: dict[str, str] = {}
     for match in matches:
-        point_id = match.group(1)
+        level = len(match.group(1))
+        point_id = match.group(2)
         if point_id in sections:
             raise ContextError(f"duplicate decision point in document: {point_id}")
-        next_heading = re.search(r"^#{2,3}[ \t]+", document_text[match.end() :], re.MULTILINE)
+        next_heading = re.search(
+            rf"^#{{1,{level}}}[ \t]+", document_text[match.end() :], re.MULTILINE
+        )
         end = match.end() + next_heading.start() if next_heading else len(document_text)
         sections[point_id] = document_text[match.start() : end]
     return sections
@@ -755,7 +1172,11 @@ def reject_legacy_status_table(status_text: str) -> None:
         raise ContextError("legacy task table found in STATUS.md; migrate it explicitly to TASKS.md and tasks/<id>.md")
 
 
-def build_context(feature_directory: Path, requested_task: str | None = None) -> dict[str, Any]:
+def build_context(
+    feature_directory: Path,
+    requested_task: str | None = None,
+    repo_overrides: dict[str, Path] | None = None,
+) -> dict[str, Any]:
     root = feature_directory.resolve()
     if not root.is_dir():
         raise ContextError(f"feature directory not found: {root}")
@@ -771,6 +1192,11 @@ def build_context(feature_directory: Path, requested_task: str | None = None) ->
     validate_decision_mapping(records, requirement_text, solution_text)
     validate_feature_state(status_text, records)
     type_contracts = validate_type_contracts(records, details, root)
+    registry = repository_registry(status_text)
+    repositories = resolve_repositories(root, registry, repo_overrides or {})
+    validate_shared_records(root, repositories)
+    status_edges = validate_status_repositories(status_text, root / "STATUS.md", repositories)
+    trace = validate_trace_graph(status_text, records, details, repositories, status_edges)
     task_id = selected_task_id(status_text, requested_task)
     if task_id not in records:
         raise ContextError(f"TASKS.md must contain exactly one index row for {task_id}")
@@ -785,6 +1211,8 @@ def build_context(feature_directory: Path, requested_task: str | None = None) ->
     return {
         "feature_directory": str(root),
         "feature": focused_status(status_text),
+        "repositories": repositories,
+        "trace": trace,
         "intent": {
             "requirement": focused_document(
                 requirement_text, "REQ", "CONFIRMED", requirement_ids
@@ -842,6 +1270,15 @@ def render_markdown(context: dict[str, Any]) -> str:
         "",
         *render_table(feature["pr_mr_objects"]),
         "",
+        "### Resolved repositories",
+        "",
+        *(
+            f"- {name}: {item['path']} @ {item['actual_branch']}@{item['actual_head']}"
+            for name, item in context["repositories"].items()
+        ),
+        "",
+        f"- Trace mode: {context['trace']['mode']}",
+        "",
         "## Focused intent",
         "",
         f"- Requirement document status: {context['intent']['requirement']['status']}",
@@ -851,6 +1288,7 @@ def render_markdown(context: dict[str, Any]) -> str:
         "",
         f"- Type: {task['type']}",
         f"- State: {task['state']}",
+        f"- Readiness: {task['readiness']}",
         f"- Owner: {task['owner']}",
         f"- Depends on: {task['depends_raw']}",
         f"- HEAD SHA: {task['head_raw']}",
@@ -882,7 +1320,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         if args.sync_topology:
             sync_topology(root / "TASKS.md")
-        context = build_context(root, args.task)
+        context = build_context(root, args.task, parse_repo_overrides(args.repo))
     except (ContextError, OSError) as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 1
