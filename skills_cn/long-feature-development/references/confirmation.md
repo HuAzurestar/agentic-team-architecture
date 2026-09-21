@@ -40,15 +40,17 @@ stateDiagram-v2
 
 ```mermaid
 stateDiagram-v2
-    [*] --> TODO
-    TODO --> WIP: 记录接取 refs
+    [*] --> PENDING
+    PENDING --> WIP: 依赖完成并记录 start refs
     WIP --> BLOCKED: 记录阻塞和解除条件
     BLOCKED --> WIP: 解除条件已经满足
-    WIP --> DONE: 记录点决定 commit SHA
+    WIP --> RECORDING: 点已有决定
+    RECORDING --> DONE: 记录点决定 commit SHA
+    RECORDING --> WIP: 决定记录不完整
     DONE --> WIP: 点进入 REOPENED
 ```
 
-已决定点在其决定 commit SHA 写入 `STATUS.md` 前仍保持 `WIP`。一个状态 commit 可以登记多个彼此独立的点决定 commit。
+已决定点在其决定 commit SHA 写入 task 详情且 `TASKS.md` 一致前保持 `RECORDING`。一个项目管理 commit 可以登记多个彼此独立的点决定 commit。
 
 ## 决定 Commit
 

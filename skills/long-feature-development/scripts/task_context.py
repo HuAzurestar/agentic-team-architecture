@@ -506,7 +506,7 @@ def validate_type_contract(
         for field in ({"Target SHA"} | ({"Output SHA"} if kind == "REWORK" and state == "DONE" else set())):
             validate_literal_sha(fields[field], f"task {task_id} {field}")
     if kind == "TEST" and state == "DONE":
-        for field in QUALITY_CONTRACT_FIELDS["TEST"]:
+        for field in sorted(QUALITY_CONTRACT_FIELDS["TEST"]):
             if fields[field] in {"", "-"}:
                 raise ContextError(f"DONE test task {task_id} has incomplete field: {field}")
     if kind in {"TEST", "REVIEW", "REWORK"} and state == "DONE":
