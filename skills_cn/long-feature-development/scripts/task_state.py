@@ -6,8 +6,11 @@ from __future__ import annotations
 import argparse
 import os
 import re
+import sys
 import tempfile
 from pathlib import Path
+
+sys.dont_write_bytecode = True
 
 import task_context
 

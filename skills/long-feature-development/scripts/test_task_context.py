@@ -6,7 +6,9 @@ from __future__ import annotations
 import contextlib
 import io
 import json
+import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -558,6 +560,21 @@ class TaskContextTests(unittest.TestCase):
             ])
             task_state.update(root, accepted)
             self.assertIn("Reopen reason: review found a trace gap", detail_path.read_text(encoding="utf-8"))
+
+    def test_task_state_cli_does_not_generate_bytecode_cache(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            scripts = Path(temp) / "scripts"
+            scripts.mkdir()
+            shutil.copy2(Path(task_state.__file__), scripts / "task_state.py")
+            shutil.copy2(Path(task_context.__file__), scripts / "task_context.py")
+            process = subprocess.run(
+                [sys.executable, str(scripts / "task_state.py"), "--help"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                check=False,
+            )
+            self.assertEqual(process.returncode, 0, process.stderr.decode(errors="replace"))
+            self.assertFalse((scripts / "__pycache__").exists())
 
     def test_stale_topology_fails_and_sync_repairs_it(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
