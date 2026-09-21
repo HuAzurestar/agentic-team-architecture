@@ -372,7 +372,11 @@ def h2_section(text: str, headings: tuple[str, ...]) -> str:
 
 
 def metadata_value(section: str, keys: set[str], location: str) -> str:
-    rows = unique_table(markdown_tables(section), (("Item", "Value"), ("项目", "值")), f"{location} metadata")
+    rows = unique_table(
+        markdown_tables(section),
+        (("Item", "Value"), ("Field", "Value"), ("项目", "值"), ("字段", "值")),
+        f"{location} metadata",
+    )
     values = [row[1] for row in rows if row[0] in keys]
     if len(values) != 1:
         raise ContextError(f"{location} must contain exactly one of: {', '.join(sorted(keys))}")
