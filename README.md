@@ -66,6 +66,7 @@ BG（组织单元；BG 成员 = AS、HR、CPO、CTO、COO、CKO、CRO、Assistan
 - [skills/git-collaboration](skills/git-collaboration/SKILL.md)：英文版 Git 协作 skill，用于建立、评估或实施仓库的分支、提交、PR、CI/CD 与代码评审规范。
 - [skills/long-feature-development](skills/long-feature-development/SKILL.md)：跨会话长程 feature 续接 skill，使用项目管理 Markdown 与 Git refs 恢复多仓库、多分支和 PR/MR 状态。
 - [skills_cn/git-collaboration](skills_cn/git-collaboration/SKILL.md)：中文版 Git 协作 skill。
+- [skills_cn/long-feature-development](skills_cn/long-feature-development/SKILL.md)：长程 feature 续接 skill 的中文快照，与英文版保持相同结构和执行行为。
 
 ## 云端 ↔ 本地同步与迭代规则
 
