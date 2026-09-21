@@ -230,6 +230,23 @@ class TaskContextTests(unittest.TestCase):
             self.assertIn("Requirement point: REQ-001", rendered)
             self.assertIn("Direct dependency: SOL-001", rendered)
 
+    def test_level_two_point_owns_nested_headings(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = self.make_feature(Path(temp))
+            requirement = REQUIREMENT.replace(
+                "### REQ-001 — Confirmed requirement",
+                "## REQ-001 — Confirmed requirement",
+            ).replace(
+                "Confirmed requirement.\n\n## Disposition records",
+                "### Acceptance\n\nNested point content.\n\n## Disposition records",
+            )
+            (root / "REQUIREMENT.md").write_text(requirement, encoding="utf-8")
+            context = task_context.build_context(root)
+            content = context["intent"]["requirement"]["points"][0]["content"]
+            self.assertIn("### Acceptance", content)
+            self.assertIn("Nested point content.", content)
+            self.assertNotIn("## Disposition records", content)
+
     def test_missing_or_unknown_point_selector_fails(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             root = self.make_feature(Path(temp))

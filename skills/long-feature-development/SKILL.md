@@ -20,15 +20,15 @@ This Codex skill uses a small, versioned feature record to continue development 
 └── gists/
 ```
 
-`REQUIREMENT.md`, `SOLUTION.md`, and `STATUS.md` are project-management records. `TASKS.md`, `tasks/`, and `gists/` are local agent working material by default and must not be uploaded unless the project explicitly changes that policy.
+All six entries are shared project-management records when `<Project-Manage>` is inside a Git repository. `REQUIREMENT.md`, `SOLUTION.md`, and `STATUS.md` are the primary entry; `TASKS.md`, `tasks/`, and `gists/` are short, focus-loaded trace records. Do not hide the latter three with `.gitignore`, `.git/info/exclude`, or an equivalent mechanism. Keep raw logs, large artifacts, and secrets outside this tree and store only bounded summaries and safe references.
 
 ## Initialize a feature
 
 1. Resolve `<Project-Manage>`. If the developer has not assigned a feature ID, use `NO-FEAT` when unique or `NO-FEAT-<6-char-random>` when collision is possible. Do not delay initialization to invent an official ID.
 2. Copy the four matching files from `templates/`, then copy `templates/TASK.md` once per initial task into local `tasks/<task-id>.md`.
 3. Replace or remove every angle-bracket placeholder. Keep exactly one `TASKS.md` index row and one `tasks/<task-id>.md` detail file per task; the supplied `REQ-001` and `SOL-001` point tasks are mandatory until replaced by real point IDs.
-4. Create local `gists/` only when a task needs one.
-5. Add exact, feature-scoped local exclude entries for `TASKS.md`, `tasks/`, and `gists/`; do not add a repository-wide ignore rule without authorization.
+4. Create `gists/` only when a task needs one; keep every gist bounded and trace-oriented.
+5. If `<Project-Manage>` is a Git repository, verify that `TASKS.md`, `tasks/`, and `gists/` are not ignored and add them to version control with the other feature records.
 6. Run the [task context helper](scripts/task_context.py) as `python <skill-root>/scripts/task_context.py <feature-directory>` before the first project-management commit. Fix every reported mismatch.
 7. Leave requirement and solution in `DRAFT`. Their overall states are derived from point states, never set by a global approval.
 
@@ -51,7 +51,7 @@ The project-management repository containing `STATUS.md` cannot embed the SHA of
 
 ## Confirmation boundaries
 
-- Give every decision point a stable `REQ-*` or `SOL-*` ID. A broad statement such as "approve all" never changes point state.
+- Give every decision point a stable level-two `## REQ-*` or `## SOL-*` heading. A broad statement such as "approve all" never changes point state. Level-three headings inside a point are point-local content, not new points.
 - An LLM may propose likely confirmable points only when authorized. It must then restate each exact ID and content for a second human confirmation.
 - A confirmed point is locked until a human explicitly reopens it. Preserve its content and decision history; never silently replace it.
 - A rejected point may be revised and reopened without a separate withdrawal. Reconfirmation still requires an explicit human decision.
@@ -62,11 +62,11 @@ Read [references/confirmation.md](references/confirmation.md) only when adding, 
 ## Work on one task
 
 - Tasks use only `PENDING`, `WIP`, `BLOCKED`, `RECORDING`, and `DONE`.
-- `TASKS.md` is the only task-state and dependency index. `STATUS.md` stores feature state and points to the current task; it never duplicates the task table.
+- `STATUS.md` is the primary control entry: it stores feature state, the current task/gate summary, and repository/object registries. `TASKS.md` is the only complete task-state and dependency index; STATUS never duplicates its full table.
 - Requirement, solution, development, testing, review, rework, acceptance, and gate are task types in the same `TASKS.md` table; do not create per-type state machines.
 - Give each requirement or solution point a task with the same ID. Set it to `DONE` only after its individual decision commit SHA is recorded; rejection, out-of-scope, and infeasible decisions also complete the point task.
 - On assignment, require every dependency to be `DONE`, change `PENDING` to `WIP`, record the start time, and record every relevant start ref plus current HEAD in `tasks/<task-id>.md`.
-- Read scope and completion conditions from `tasks/<task-id>.md`. Put extra local context in a gist and reference it there.
+- Read scope and completion conditions from `tasks/<task-id>.md`. Put bounded trace material in a gist and reference it there; never use a gist as an unbounded context dump.
 - Declare related intent with exactly one `- Requirement points:` and one `- Solution points:` line. Use comma-separated point IDs or `none`; missing, ambiguous, or unknown selectors are hard errors.
 - Prefix implementation commit subjects with the feature and task, for example `PIRC-23/DEV-01: add feature templates`.
 - Use one decision point per decision commit. The subject is `<feature-key>/<point-id>: <RESULT> <summary>`, where `RESULT` is `CONFIRMED`, `REJECTED`, `OUT-OF-SCOPE`, `INFEASIBLE`, or `REOPENED`.
@@ -97,7 +97,7 @@ Read [references/feature-gates.md](references/feature-gates.md) only when creati
 
 ## Context boundary
 
-Treat individually confirmed requirement points as approved intent, individually confirmed solution points as the retained implementation plan, Git as implementation state, `STATUS.md` as feature state, `TASKS.md` as the task/ref index, and `tasks/` as focused task detail. If they disagree, report the conflict; do not rewrite a decided point to hide it.
+Treat individually confirmed requirement points as approved intent, individually confirmed solution points as the retained implementation plan, Git as implementation state, `STATUS.md` as the primary feature/repository entry, `TASKS.md` as the task/ref index, and `tasks/` plus `gists/` as shared focused trace records. If they disagree, report the conflict; do not rewrite a decided point to hide it.
 
 Do not preload repository-wide documentation. Discover code context from the current task, referenced gists, actual diffs, symbols, manifests, and repository instructions.
 

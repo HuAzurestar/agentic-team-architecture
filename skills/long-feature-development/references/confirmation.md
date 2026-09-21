@@ -4,7 +4,7 @@ Read this reference only when adding, deciding, revising, or reopening a `REQ-*`
 
 ## Decision authority
 
-- A decision is actionable only when a human names the exact point ID and result.
+- A decision is actionable only when a human names the exact point ID and result. Store active points under stable level-two `## REQ-*` or `## SOL-*` headings; lower headings belong to that point.
 - "Approve all", "looks good", and similar broad replies do not decide any point.
 - A human may decide several points in one response only by enumerating every ID and result separately.
 - When authorized to infer likely decisions, the LLM lists each candidate ID and exact statement, then asks for a second confirmation. It does not update state before that response.

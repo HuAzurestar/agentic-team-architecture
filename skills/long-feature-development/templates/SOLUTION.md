@@ -16,7 +16,7 @@ This status is derived, not globally approved. Confirmed solution points are imm
 
 ## Solution points
 
-### SOL-001 — <point-title>
+## SOL-001 — <point-title>
 
 | Item | Value |
 | --- | --- |
@@ -26,21 +26,21 @@ This status is derived, not globally approved. Confirmed solution points are imm
 | Decided by | - |
 | Decided at | - |
 
-#### Approach
+### Approach
 
 One atomic solution statement.
 
-#### Affected interfaces
+### Affected interfaces
 
 - API:
 - Database:
 - Other repositories or consumers:
 
-#### Validation
+### Validation
 
 What will be checked, and what will intentionally not be checked.
 
-#### Decision history
+### Decision history
 
 - None.
 

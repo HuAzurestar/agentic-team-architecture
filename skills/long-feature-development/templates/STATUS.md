@@ -15,6 +15,15 @@ title: <feature-key> Status
 | Current gate | GATE-START | A task ID, not a second state machine |
 | Blocker | None | Include the release condition when blocked |
 
+## Repository registry
+
+Path hints are relative to the project-management repository root. A CLI mapping may override them.
+
+| Repository | Role | Remote | Path hints | Stable branch | Integration branch |
+| --- | --- | --- | --- | --- | --- |
+| `<project-manage-repo>` | project-management | `<remote>` | `.` | `<stable-branch>` | `<feature-management-branch>` |
+| `<implementation-repo>` | implementation | `<remote>` | `../<repo-directory>` | `<stable-branch>` | `<feature-branch>` |
+
 ## Working branches
 
 | Repository | Local path | Working branch | Working HEAD SHA | Current task |

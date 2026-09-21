@@ -8,6 +8,8 @@
 - Completion condition:
 - Resume action:
 - Blocker: none
+- Impact: none
+- Release condition: none
 - Gists: none
 
 ## Repository refs
@@ -20,7 +22,7 @@ Use literal observed SHAs. Separate multiple start refs with semicolons; preserv
 
 ## Attempt notes
 
-Keep only short facts needed to resume. Put verbose logs, review comments, and test output in declared gists.
+Keep only short facts needed to resume. Put bounded review/test summaries and safe external artifact references in declared gists; do not copy raw unbounded logs.
 
 ## Type contract
 

@@ -1,6 +1,6 @@
 # <feature-key> Tasks
 
-This local file is the only task-state and dependency index. Keep details in `tasks/<task-id>.md` and regenerate the graph with `task_context.py <feature-directory> --sync-topology` after changing a row.
+This shared file is the only complete task-state and dependency index. Keep short details in `tasks/<task-id>.md`. Use the controlled state writer for normal changes; `task_context.py <feature-directory> --sync-topology` is only for explicit repair or import.
 
 ## Task index
 

@@ -19,7 +19,7 @@ Why this feature is needed.
 
 ## Requirement points
 
-### REQ-001 — <point-title>
+## REQ-001 — <point-title>
 
 | Item | Value |
 | --- | --- |
@@ -28,15 +28,15 @@ Why this feature is needed.
 | Decided by | - |
 | Decided at | - |
 
-#### Statement
+### Statement
 
 One atomic requirement statement.
 
-#### Acceptance
+### Acceptance
 
 1. Observable acceptance scenario.
 
-#### Decision history
+### Decision history
 
 - None.
 
