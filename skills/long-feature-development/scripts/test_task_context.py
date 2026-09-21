@@ -52,6 +52,7 @@ TASKS = """# PIRC-23 Tasks
 | REQ-001 | Requirement | Confirm requirement | `DONE` | human | - | 2026-09-01T09:00:00Z | 2026-09-01T09:10:00Z | pm@2222222 |
 | SOL-001 | Solution | Confirm solution | `DONE` | human | REQ-001 | 2026-09-01T09:11:00Z | 2026-09-01T09:20:00Z | pm@3333333 |
 | DEV-02 | Development | Implement parser | `WIP` | codex | SOL-001 | 2026-09-01T09:21:00Z | - | app@4444444; pm@3333333 |
+| GATE-ACCEPT | Gate | Complete feature | `PENDING` | - | DEV-02 | - | - | - |
 
 ## Dependency topology
 
@@ -150,6 +151,28 @@ DETAILS = {
 | --- | --- | --- | --- | --- | --- |
 | app | task | main@1111111 <= main@2222222 | task@3333333; task@4444444 | 4444444 | - |
 | pm | feature | main@1111111 | feature@3333333 | 3333333 | - |
+""",
+    "GATE-ACCEPT": """# GATE-ACCEPT — Complete feature
+
+- Goal: Complete the feature after acceptance.
+- Requirement points: none
+- Solution points: none
+- Gists: none
+
+## Repository refs
+
+| Repository | Branch | Baseline history | Start refs | HEAD SHA | Completion SHA |
+| --- | --- | --- | --- | --- | --- |
+| pm | feature | main@1111111 | - | - | - |
+
+## Type contract
+
+| Field | Value |
+| --- | --- |
+| From phase | EXECUTING |
+| To phase | DONE |
+| Required tasks | DEV-02 |
+| Decision ref | - |
 """,
 }
 
@@ -371,6 +394,58 @@ class TaskContextTests(unittest.TestCase):
             root = self.make_feature(Path(temp), tasks=TASKS.replace("`WIP`", "`RUNNING`"), sync=False)
             with self.assertRaisesRegex(task_context.ContextError, "invalid state"):
                 task_context.build_context(root)
+
+    def test_feature_phase_and_gate_contract_are_validated(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = self.make_feature(Path(temp))
+            self.assertEqual(task_context.build_context(root, "GATE-ACCEPT")["type_contract"]["To phase"], "DONE")
+            status_path = root / "STATUS.md"
+            status_path.write_text(STATUS.replace("`EXECUTING`", "`UNKNOWN`"), encoding="utf-8")
+            with self.assertRaisesRegex(task_context.ContextError, "invalid feature phase"):
+                task_context.build_context(root)
+        with tempfile.TemporaryDirectory() as temp:
+            root = self.make_feature(Path(temp))
+            gate = root / "tasks" / "GATE-ACCEPT.md"
+            gate.write_text(gate.read_text(encoding="utf-8").replace("Required tasks | DEV-02", "Required tasks | SOL-001"), encoding="utf-8")
+            with self.assertRaisesRegex(task_context.ContextError, "must match its direct dependencies"):
+                task_context.build_context(root, "GATE-ACCEPT")
+
+    def test_acceptance_cannot_be_completed_by_agent(self) -> None:
+        record = {"id": "ACCEPT-01", "state": "DONE", "dependencies": []}
+        detail = """# ACCEPT-01 — Accept
+
+## Type contract
+
+| Field | Value |
+| --- | --- |
+| Target SHA | 1111111 |
+| Acceptance scope | Current feature |
+| Decision | CONFIRMED |
+| Decided by | Codex |
+"""
+        with self.assertRaisesRegex(task_context.ContextError, "requires a human"):
+            task_context.validate_type_contract(record, detail, {"ACCEPT-01": record})
+
+    def test_done_test_requires_honest_coverage_fields(self) -> None:
+        record = {"id": "TEST-02", "state": "DONE", "dependencies": []}
+        detail = """# TEST-02 — Test
+
+## Type contract
+
+| Field | Value |
+| --- | --- |
+| Target SHA | 1111111 |
+| Environment | local |
+| Planned checks | unit, integration |
+| Executed | unit |
+| Passed | unit |
+| Failed | - |
+| Skipped | integration |
+| Unknown | - |
+| Result gist | gists/TEST-02.md |
+"""
+        with self.assertRaisesRegex(task_context.ContextError, "incomplete field: Failed"):
+            task_context.validate_type_contract(record, detail, {"TEST-02": record})
 
     def test_cli_json_success_and_failure_exit_codes(self) -> None:
         with tempfile.TemporaryDirectory() as temp:

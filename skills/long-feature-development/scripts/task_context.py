@@ -37,6 +37,18 @@ STATE_STYLE = {
     "RECORDING": "recording",
     "DONE": "done",
 }
+ALLOWED_PHASES = {"PLANNING", "EXECUTING", "RELEASING", "DONE"}
+ALLOWED_CONDITIONS = {"ACTIVE", "BLOCKED", "WAITING_HUMAN", "WAITING_EXTERNAL"}
+QUALITY_CONTRACT_FIELDS = {
+    "TEST": {
+        "Target SHA", "Environment", "Planned checks", "Executed", "Passed",
+        "Failed", "Skipped", "Unknown", "Result gist",
+    },
+    "REVIEW": {"Target SHA", "Blocking findings", "Deferred findings", "Result gist"},
+    "REWORK": {"Source findings", "Target SHA", "Output SHA", "Result gist"},
+    "ACCEPT": {"Target SHA", "Acceptance scope", "Decision", "Decided by"},
+    "GATE": {"From phase", "To phase", "Required tasks", "Decision ref"},
+}
 
 
 class ContextError(ValueError):
@@ -428,6 +440,102 @@ def focused_status(status_text: str) -> dict[str, Any]:
     }
 
 
+def validate_feature_state(status_text: str, records: dict[str, dict[str, Any]]) -> None:
+    rows = unique_table(
+        markdown_tables(status_text),
+        (("Item", "Current value", "Note"), ("项目", "当前值", "备注")),
+        "status-summary",
+    )
+    values = {row[0]: row[1] for row in rows}
+
+    def one_of(keys: tuple[str, ...], label: str) -> str:
+        matches = [values[key] for key in keys if key in values]
+        if len(matches) != 1:
+            raise ContextError(f"STATUS.md must contain exactly one {label} row")
+        return matches[0]
+
+    phase = one_of(("Phase", "阶段"), "Phase")
+    condition = one_of(("Condition", "条件"), "Condition")
+    current_task = one_of(("Current task", "当前任务"), "Current task")
+    current_gate = one_of(("Current gate", "当前 gate"), "Current gate")
+    next_transition = one_of(("Next transition", "下一流转"), "Next transition")
+    if phase not in ALLOWED_PHASES:
+        raise ContextError(f"STATUS.md has invalid feature phase: {phase!r}")
+    if condition not in ALLOWED_CONDITIONS:
+        raise ContextError(f"STATUS.md has invalid feature condition: {condition!r}")
+    if current_task not in records:
+        raise ContextError(f"STATUS.md current task is absent from TASKS.md: {current_task}")
+    if current_gate not in records or not current_gate.startswith("GATE-"):
+        raise ContextError(f"STATUS.md current gate is not a GATE task: {current_gate}")
+    if records[current_gate]["type"].casefold() != "gate":
+        raise ContextError(f"STATUS.md current gate has non-Gate type: {current_gate}")
+    if next_transition != current_gate:
+        raise ContextError("STATUS.md Next transition and Current gate must name the same gate task")
+    if condition == "ACTIVE" and records[current_task]["state"] not in {"WIP", "RECORDING"}:
+        raise ContextError("ACTIVE feature requires the current task to be WIP or RECORDING")
+
+
+def type_contract_fields(detail: str, task_id: str) -> dict[str, str]:
+    section = h2_section(detail, ("Type contract", "类型合同"))
+    rows = unique_table(
+        markdown_tables(section),
+        (("Field", "Value"), ("字段", "值")),
+        f"{task_id} type-contract",
+    )
+    result: dict[str, str] = {}
+    for field, value in rows:
+        if field in result:
+            raise ContextError(f"task {task_id} type contract repeats field: {field}")
+        result[field] = value
+    return result
+
+
+def validate_type_contract(
+    record: dict[str, Any], detail: str, records: dict[str, dict[str, Any]]
+) -> dict[str, str] | None:
+    task_id = record["id"]
+    kind = next((prefix for prefix in QUALITY_CONTRACT_FIELDS if task_id.startswith(prefix + "-")), None)
+    if kind is None:
+        return None
+    fields = type_contract_fields(detail, task_id)
+    missing = sorted(QUALITY_CONTRACT_FIELDS[kind] - set(fields))
+    if missing:
+        raise ContextError(f"task {task_id} type contract is missing fields: {', '.join(missing)}")
+    state = record["state"]
+    if kind in {"TEST", "REVIEW", "REWORK", "ACCEPT"} and state != "PENDING":
+        for field in ({"Target SHA"} | ({"Output SHA"} if kind == "REWORK" and state == "DONE" else set())):
+            validate_literal_sha(fields[field], f"task {task_id} {field}")
+    if kind == "TEST" and state == "DONE":
+        for field in QUALITY_CONTRACT_FIELDS["TEST"]:
+            if fields[field] in {"", "-"}:
+                raise ContextError(f"DONE test task {task_id} has incomplete field: {field}")
+    if kind in {"TEST", "REVIEW", "REWORK"} and state == "DONE":
+        result_gist = fields["Result gist"]
+        if not result_gist.startswith("gists/"):
+            raise ContextError(f"DONE task {task_id} must record a result gist under gists/")
+    if kind == "ACCEPT":
+        decision = fields["Decision"]
+        if state == "DONE" and decision not in {"CONFIRMED", "REJECTED", "REWORK"}:
+            raise ContextError(f"DONE acceptance task {task_id} has invalid Decision: {decision}")
+        if state != "DONE" and decision != "WAITING":
+            raise ContextError(f"unfinished acceptance task {task_id} must keep Decision as WAITING")
+        if state == "DONE" and fields["Decided by"].casefold() in {"-", "agent", "codex", "llm"}:
+            raise ContextError(f"DONE acceptance task {task_id} requires a human Decided by value")
+    if kind == "GATE":
+        required = parse_dependencies(fields["Required tasks"], task_id)
+        if set(required) != set(record["dependencies"]):
+            raise ContextError(f"gate {task_id} Required tasks must match its direct dependencies")
+        for field in ("From phase", "To phase"):
+            if fields[field] not in ALLOWED_PHASES:
+                raise ContextError(f"gate {task_id} has invalid {field}: {fields[field]}")
+        decision_ref = fields["Decision ref"]
+        if state == "DONE":
+            validate_literal_sha(decision_ref, f"gate {task_id} Decision ref")
+        elif decision_ref != "-":
+            raise ContextError(f"unfinished gate {task_id} cannot have Decision ref")
+    return fields
+
+
 def point_selectors(detail: str, label: str, aliases: tuple[str, ...]) -> list[str]:
     names = "|".join(re.escape(alias) for alias in aliases)
     matches = re.findall(rf"^- (?:{names})[:：][ \t]*(.+?)[ \t]*$", detail, re.MULTILINE)
@@ -618,6 +726,7 @@ def build_context(feature_directory: Path, requested_task: str | None = None) ->
     validate_topology(tasks_text, records)
     details = validate_task_files(root, records)
     validate_decision_mapping(records, requirement_text, solution_text)
+    validate_feature_state(status_text, records)
     task_id = selected_task_id(status_text, requested_task)
     if task_id not in records:
         raise ContextError(f"TASKS.md must contain exactly one index row for {task_id}")
@@ -628,6 +737,15 @@ def build_context(feature_directory: Path, requested_task: str | None = None) ->
     solution_ids = point_selectors(
         detail, "Solution points", ("Solution points", "方案点")
     )
+    type_contract = validate_type_contract(records[task_id], detail, records)
+    gists = declared_gists(detail, root)
+    if type_contract is not None and "Result gist" in type_contract:
+        result_gist = type_contract["Result gist"]
+        declared_paths = {gist["path"] for gist in gists}
+        if result_gist != "none" and result_gist not in declared_paths:
+            raise ContextError(
+                f"task {task_id} Result gist is not declared by its Gists field: {result_gist}"
+            )
     return {
         "feature_directory": str(root),
         "feature": focused_status(status_text),
@@ -642,12 +760,13 @@ def build_context(feature_directory: Path, requested_task: str | None = None) ->
         "task": records[task_id],
         "task_detail": detail,
         "repository_refs": repository_refs,
+        "type_contract": type_contract,
         "dependencies": [
             {"task": records[dep], "task_detail": details[dep][0]}
             for dep in records[task_id]["dependencies"]
         ],
         "topology": mermaid_topology(records),
-        "gists": declared_gists(detail, root),
+        "gists": gists,
     }
 
 

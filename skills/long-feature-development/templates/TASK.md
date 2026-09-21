@@ -21,3 +21,13 @@ Use literal observed SHAs. Separate multiple start refs with semicolons; preserv
 ## Attempt notes
 
 Keep only short facts needed to resume. Put verbose logs, review comments, and test output in declared gists.
+
+## Type contract
+
+Development tasks may remove this section. For `TEST-*`, `REVIEW-*`, `REWORK-*`, `ACCEPT-*`, and `GATE-*`, replace the rows with the exact fields required by `references/task-contracts.md`.
+
+| Field | Value |
+| --- | --- |
+| Contract | `<task-type>` |
+| Target SHA | - |
+| Result gist | none |

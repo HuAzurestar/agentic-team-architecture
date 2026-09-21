@@ -77,6 +77,10 @@ Read [references/confirmation.md](references/confirmation.md) only when adding, 
 
 Read [references/transitions.md](references/transitions.md) only when changing task state or the feature's next transition.
 
+Read [references/task-contracts.md](references/task-contracts.md) only when creating, assigning, recording, or completing a `TEST-*`, `REVIEW-*`, `REWORK-*`, `ACCEPT-*`, or `GATE-*` task. Detailed test output and review comments belong in the declared result gist, not in `STATUS.md`, `TASKS.md`, or the short task contract.
+
+Read [references/feature-gates.md](references/feature-gates.md) only when creating or executing a gate or changing feature phase/condition. A gate checks refs and dependencies; it does not replace a human acceptance decision.
+
 ## Git and forge boundary
 
 - Treat each repository independently. A feature may span several repositories.
