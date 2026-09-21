@@ -10,6 +10,7 @@
 - Blocker: none
 - Impact: none
 - Release condition: none
+- Disposition: required
 - Gists: none
 
 ## Repository refs

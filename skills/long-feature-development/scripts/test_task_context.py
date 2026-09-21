@@ -6,12 +6,38 @@ from __future__ import annotations
 import contextlib
 import io
 import json
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
 
 import task_context
 import task_state
+
+
+def git(path: Path, *args: str) -> str:
+    process = subprocess.run(
+        ["git", "-C", str(path), *args],
+        text=True,
+        encoding="utf-8",
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=True,
+    )
+    return process.stdout.strip()
+
+
+def make_git_repo(path: Path, remote: str, commits: int = 3) -> list[str]:
+    path.mkdir(parents=True)
+    subprocess.run(["git", "init", "-b", "main", str(path)], check=True, stdout=subprocess.DEVNULL)
+    git(path, "config", "user.name", "Test")
+    git(path, "config", "user.email", "test@example.invalid")
+    git(path, "remote", "add", "origin", remote)
+    result: list[str] = []
+    for index in range(commits):
+        git(path, "commit", "--allow-empty", "-m", f"commit {index}")
+        result.append(git(path, "rev-parse", "HEAD"))
+    return result
 
 
 STATUS = """# PIRC-23 Status
@@ -393,6 +419,107 @@ class TaskContextTests(unittest.TestCase):
             self.assertRegex(text, r'\["DEV-02 . Implement parser"\]:::blocked')
             records = task_context.task_records(text)
             task_context.validate_topology(text, records)
+
+    def test_repository_resolution_uses_registry_and_explicit_override(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            parent = Path(temp)
+            pm = parent / "pm"
+            app = parent / "renamed-app"
+            make_git_repo(pm, "https://example.invalid/pm.git", 1)
+            make_git_repo(app, "https://example.invalid/app.git", 1)
+            feature = pm / "project" / "PIRC-23"
+            feature.mkdir(parents=True)
+            registry = {
+                "pm": {
+                    "repository": "pm", "role": "project-management",
+                    "remote": "https://example.invalid/pm.git", "path_hints": ".",
+                    "stable_branch": "main", "integration_branch": "main",
+                },
+                "app": {
+                    "repository": "app", "role": "implementation",
+                    "remote": "https://example.invalid/app.git", "path_hints": "../missing",
+                    "stable_branch": "main", "integration_branch": "main",
+                },
+            }
+            resolved = task_context.resolve_repositories(feature, registry, {"app": app})
+            self.assertEqual(Path(resolved["pm"]["path"]), pm.resolve())
+            self.assertEqual(Path(resolved["app"]["path"]), app.resolve())
+            with self.assertRaisesRegex(task_context.ContextError, "cannot be located"):
+                task_context.resolve_repositories(feature, registry, {"app": parent / "absent"})
+            duplicate = parent / "duplicate-app"
+            make_git_repo(duplicate, "https://example.invalid/app.git", 1)
+            with self.assertRaisesRegex(task_context.ContextError, "location is ambiguous"):
+                task_context.resolve_repositories(feature, registry, {})
+
+    def test_trace_graph_rejects_missing_ancestry_and_disconnected_pending_task(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            repo = Path(temp) / "app"
+            commits = make_git_repo(repo, "https://example.invalid/app.git", 3)
+            tree = git(repo, "rev-parse", "HEAD^{tree}")
+            orphan = git(repo, "commit-tree", tree, "-m", "orphan")
+            resolved = {
+                "app": {
+                    "repository": "app", "role": "project-management",
+                    "remote": "https://example.invalid/app.git", "path_hints": ".",
+                    "stable_branch": "main", "integration_branch": "main",
+                    "path": str(repo), "actual_branch": "main", "actual_head": commits[-1],
+                }
+            }
+            records = {
+                "DEV-02": {"id": "DEV-02", "state": "WIP", "dependencies": []},
+                "GATE-ACCEPT": {"id": "GATE-ACCEPT", "state": "PENDING", "dependencies": ["DEV-02"]},
+                "ORPHAN": {"id": "ORPHAN", "state": "PENDING", "dependencies": []},
+            }
+            refs = [{
+                "repository": "app", "branch": "main",
+                "baseline_history": f"main@{commits[0]}",
+                "start_refs": f"main@{commits[1]}", "head_sha": commits[2],
+                "completion_sha": "-",
+            }]
+            details = {
+                "DEV-02": ("- Disposition: required\n", refs),
+                "GATE-ACCEPT": ("- Disposition: required\n", []),
+                "ORPHAN": ("- Disposition: -\n", []),
+            }
+            with self.assertRaisesRegex(task_context.ContextError, "explicit Disposition"):
+                task_context.validate_trace_graph(STATUS, records, details, resolved, [])
+            details["ORPHAN"] = ("- Disposition: superseded\n", [])
+            trace = task_context.validate_trace_graph(STATUS, records, details, resolved, [])
+            self.assertEqual(trace["mode"], "VALIDATED")
+            refs[0]["start_refs"] = f"main@{orphan}"
+            with self.assertRaisesRegex(task_context.ContextError, "disconnected from its baselines"):
+                task_context.validate_trace_graph(STATUS, records, details, resolved, [])
+            refs[0]["start_refs"] = f"main@{commits[1]}"
+            refs[0]["head_sha"] = "f" * 40
+            with self.assertRaisesRegex(task_context.ContextError, "missing HEAD"):
+                task_context.validate_trace_graph(STATUS, records, details, resolved, [])
+
+    def test_shared_project_records_must_be_tracked_and_not_ignored(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            repo = Path(temp) / "pm"
+            commits = make_git_repo(repo, "https://example.invalid/pm.git", 1)
+            feature = repo / "project" / "PIRC-23"
+            (feature / "tasks").mkdir(parents=True)
+            (feature / "gists").mkdir()
+            for name in ("REQUIREMENT.md", "SOLUTION.md", "STATUS.md", "TASKS.md"):
+                (feature / name).write_text(name, encoding="utf-8")
+            (feature / "tasks" / "T.md").write_text("task", encoding="utf-8")
+            resolved = {"pm": {
+                "repository": "pm", "role": "project-management", "path": str(repo),
+                "actual_branch": "main", "actual_head": commits[-1],
+            }}
+            with self.assertRaisesRegex(task_context.ContextError, "not tracked"):
+                task_context.validate_shared_records(feature, resolved)
+            git(repo, "add", "project/PIRC-23")
+            git(repo, "commit", "-m", "track feature")
+            task_context.validate_shared_records(feature, resolved)
+            ignored = feature / "gists" / "ignored.log"
+            ignored.write_text("ignored", encoding="utf-8")
+            (repo / ".git" / "info" / "exclude").write_text(
+                "project/PIRC-23/gists/ignored.log\n", encoding="utf-8"
+            )
+            with self.assertRaisesRegex(task_context.ContextError, "is ignored"):
+                task_context.validate_shared_records(feature, resolved)
 
     def test_stale_topology_fails_and_sync_repairs_it(self) -> None:
         with tempfile.TemporaryDirectory() as temp:

@@ -39,7 +39,7 @@ All six entries are shared project-management records when `<Project-Manage>` is
 ## Start or resume
 
 1. Resolve the exact `<Project-Manage>` mapping and feature ID. Stop if either is ambiguous.
-2. Run `python <skill-root>/scripts/task_context.py <feature-directory>`. Use `--task <task-id>` only when the user explicitly selects a non-current task. The command is the single recovery reader: it validates the task index and topology, then prints the feature summary and Git tables, selected task detail, direct dependency details, explicitly selected requirement/solution points, and declared gists.
+2. Run `python <skill-root>/scripts/task_context.py <feature-directory>`. Use `--task <task-id>` only when the user explicitly selects a non-current task. If a repository moved or a path hint is unavailable, pass an explicit `--repo NAME=PATH` for each override. The command is the single recovery reader: it validates the task index, topology, repository identities, real Git refs and required trace closure, then prints the focused feature/task context.
 3. From that output, verify the requirement and solution confirmation states before treating them as fixed boundaries.
 4. For every repository, separately verify the working branch/HEAD, the integration branch/SHA used for ongoing task merges, and the final PR/MR source/target refs.
 5. Mark unavailable remote state as unverified instead of guessing.
@@ -85,6 +85,9 @@ Read [references/feature-gates.md](references/feature-gates.md) only when creati
 ## Git and forge boundary
 
 - Treat each repository independently. A feature may span several repositories.
+- Resolve repositories from `STATUS.md` in this order: explicit `--repo NAME=PATH`, registered path hints relative to the project-management repository root, then sibling/workspace discovery by registered remote identity. Never trust a historical absolute working path as the locator. Missing or ambiguous matches stop recovery.
+- Verify registered stable/integration branches, observed working heads, integration opponents, PR/MR endpoints, task baseline ordering, start-to-head ancestry, completion SHAs, and dependency ancestry against the actual Git object databases. The recovery output includes a derived trace graph; missing commits or disconnected required paths are errors.
+- A pending task outside the current gate's dependency closure must declare an explicit disposition in its task detail. Do not silently abandon an old branch of work.
 - Use one feature integration branch and at most one final implementation PR/MR per affected repository.
 - Record three different refs separately:
   - **working HEAD**: the branch and SHA currently checked out for a task; only the project-management repository may use `DERIVED:HEAD` under the clean-file rule above;
