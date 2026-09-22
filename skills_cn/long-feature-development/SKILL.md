@@ -32,6 +32,8 @@ description: 从项目管理目录恢复并推进跨会话的软件 feature，�
 6. 首次项目管理 commit 前运行 `python <skill-root>/scripts/task_context.py <feature-directory>`，修复全部错误。
 7. 需求和方案整体状态由逐点状态派生，不能用全局批准设置。
 
+初始 task 的 ID、类型、依赖和 selector 由 Agent 负责；用户只提供业务意图和决定，不负责内部记账标签。
+
 ## Feature 身份
 
 `NO-FEAT` 与 `NO-FEAT-<6位随机值>` 都是有效临时 key。正式 ID 的分配时点只由开发者决定。ID 变化时，在一次项目管理变更中重命名目录、更新标题和 `STATUS.md`，把旧 key 追加到 `Previous IDs`；不得改写历史。
@@ -47,6 +49,8 @@ description: 从项目管理目录恢复并推进跨会话的软件 feature，�
 
 `task_context.py` 非零退出是硬停止。不得推断缺失的当前 task、索引行、详情、依赖、Git ref 或 gist。项目管理仓库的 working HEAD 使用 `DERIVED:HEAD`，仅当 STATUS 已跟踪、与 HEAD 一致且无本文件改动时才能派生；其余 ref 必须是实际观察到的字面 SHA。
 
+恢复命令是 Skill 内部动作，不要求用户写进 prompt。它也会检查相关 staged、unstaged 和 untracked 变化；实现仓库有残留，或本 feature 项目管理目录有残留时，在新修改前进入恢复流程。此时读取 [references/checkpoints.md](references/checkpoints.md)。
+
 ## 确认边界
 
 - 每个决定点使用稳定的二级标题 `## REQ-*` 或 `## SOL-*`；“全部批准”不能改变任何点状态，点内三级标题仍属于该点。
@@ -59,6 +63,7 @@ description: 从项目管理目录恢复并推进跨会话的软件 feature，�
 
 ## 执行一个 Task
 
+- 内部 task 由 Agent 创建和连接。正常新增使用 `scripts/task_create.py`，不得要求用户提供 task ID、依赖或 selector。只有真实业务歧义、授权边界或无法安全推导的范围才询问用户；规划时读取 [references/task-planning.md](references/task-planning.md)。
 - Task 只使用 `PENDING`、`WIP`、`BLOCKED`、`RECORDING`、`DONE`。
 - `STATUS.md` 是 feature 控制入口，保存 feature 状态、当前 task/gate 摘要和仓库/对象注册表；`TASKS.md` 是完整 task 状态与依赖的唯一来源。
 - 需求、方案、开发、测试、评审、返工、验收和 gate 使用同一张 task 表，不建立分类型状态机。
@@ -68,12 +73,13 @@ description: 从项目管理目录恢复并推进跨会话的软件 feature，�
 - 从详情读取范围和完成条件；gist 只保存有界追溯材料。每个 task 必须各有一行 `Requirement points` 和 `Solution points`。
 - 实现 commit 标题加 `<feature>/<task>:` 前缀；决定 commit 使用 `<feature>/<point>: <RESULT> <summary>`。
 - Task 可产生多个 commit；不得自动 merge 实现分支。
+- 每个连贯工作单元后、长耗时或高风险操作前、交接前，主动创建有明确文件范围的本地 checkpoint。使用 `scripts/task_checkpoint.py`，不得自动 push，不得吸收无关或敏感文件；记录或恢复 checkpoint 时读取 [references/checkpoints.md](references/checkpoints.md)。
 - 完成工作后从 `WIP` 进入 `RECORDING`，记录最终 commit 和每个仓库唯一 completion SHA，再进入 `DONE`。
 - 中断时保留 `WIP` 并更新 resume action。`BLOCKED` 只用于已接取且被具体障碍停止的 task，必须写 blocker、impact、release condition；普通依赖等待仍是 `PENDING`。
 - 正常跨文件流转依次执行：先准备 task 详情和有变化的 `STATUS.md` 当前 task/condition 字段；再运行 `task_state.py`；最后运行只读 `task_context.py` 并把项目管理文件一同提交。writer 的原子保证只覆盖 `TASKS.md` 行与 Mermaid，不覆盖其他文件；三步之间允许工作树暂时不一致，但不得提交。
 - 正常状态修改只用 `task_state.py`。`DONE -> WIP` 时必须在详情持久化非空 `Reopen reason`，并用 `--reason` 传入完全相同的文本。`task_context.py --sync-topology` 仅用于明确修复/导入；只读恢复遇到陈旧图必须失败。
 
-改变 task 状态或下一流转时读取 [references/transitions.md](references/transitions.md)。创建、接取、记录或完成质量 task 时读取 [references/task-contracts.md](references/task-contracts.md)。创建/执行 gate 或改变 feature phase/condition 时读取 [references/feature-gates.md](references/feature-gates.md)。
+改变 task 状态或下一流转时读取 [references/transitions.md](references/transitions.md)。创建、接取、记录或完成质量 task 时读取 [references/task-contracts.md](references/task-contracts.md)。创建/执行 gate 或改变 feature phase/condition 时读取 [references/feature-gates.md](references/feature-gates.md)。验收 task 还需按 [references/acceptance.md](references/acceptance.md) 创建并主动展示普通用户可理解的短验收包；不得要求用户理解 `ACCEPT-*`、point ID、合同或内部命令。
 
 ## Git 与平台边界
 
@@ -95,11 +101,13 @@ description: 从项目管理目录恢复并推进跨会话的软件 feature，�
 
 ## 结束一次运行
 
-保留可恢复状态：当前 task/state、观察到的各仓 branch/SHA、PR/MR refs、本轮 commits、准确下一动作、blocker 与解除条件。结束前重新运行当前 task 的 `task_context.py`；失败表示状态不可恢复。
+保留可恢复状态：当前 task/state、观察到的各仓 branch/SHA、PR/MR refs、本轮 commits、准确下一动作、blocker 与解除条件。结束前先 checkpoint 所有连贯且属于 Agent 的实现修改，再重新运行当前 task 的 `task_context.py`；失败表示状态不可恢复。Skill 只承诺恢复到最近一次成功 checkpoint，不虚假承诺任意断电瞬间零丢失。
 
 ## 验证本 Skill
 
 ```text
 python scripts/test_task_context.py
+python scripts/test_task_create.py
+python scripts/test_task_checkpoint.py
 python <skill-quality-reviewer>/scripts/skill-audit.py <skill-root> --format json
 ```

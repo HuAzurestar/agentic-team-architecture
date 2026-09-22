@@ -22,7 +22,7 @@ Required fields: `Source findings`, `Target SHA`, `Output SHA`, and `Result gist
 
 ## ACCEPT
 
-Required fields: `Target SHA`, `Acceptance scope`, `Decision`, and `Decided by`. The Agent may propose scope and summarize evidence, but only the developer supplies the final decision. Before that response, keep `Decision` as `WAITING` and the feature condition as `WAITING_HUMAN`.
+Required fields for newly created tasks: `Target SHA`, `Acceptance scope`, `Decision`, `Decided by`, and `Acceptance brief`. The brief is a declared `gists/` path created from `templates/ACCEPTANCE.md`; legacy completed tasks without this field remain readable. The Agent proposes scope, prepares and proactively shows the plain-language brief, but only the developer supplies the final decision. Keep `Decision` as `WAITING` through WIP. In RECORDING, persist the developer's `CONFIRMED`, `REJECTED`, or `REWORK` decision before completing refs.
 
 ## GATE
 

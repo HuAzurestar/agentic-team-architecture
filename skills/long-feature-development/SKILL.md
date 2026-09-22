@@ -32,6 +32,8 @@ All six entries are shared project-management records when `<Project-Manage>` is
 6. Run the [task context helper](scripts/task_context.py) as `python <skill-root>/scripts/task_context.py <feature-directory>` before the first project-management commit. Fix every reported mismatch.
 7. Leave requirement and solution in `DRAFT`. Their overall states are derived from point states, never set by a global approval.
 
+The Agent owns initial task IDs, types, dependencies, and selectors. The user supplies business intent and decisions, not internal bookkeeping labels.
+
 ## Feature identity
 
 `NO-FEAT` and `NO-FEAT-<6-char-random>` are valid temporary feature keys. Use six lowercase alphanumeric characters for the random suffix. The developer alone chooses when to assign an official ID; feasibility confirmation is common but not required. When the ID changes, rename the feature directory, update the document titles and `STATUS.md` feature ID in one project-management change, and append the old key to `Previous IDs`. Never rewrite old commits or remote history to hide the temporary key.
@@ -47,6 +49,8 @@ All six entries are shared project-management records when `<Project-Manage>` is
 
 Treat a nonzero `task_context.py` exit as a hard stop. Do not infer a missing current-task field, `TASKS.md` row, task detail file, dependency, Git ref, or declared gist. An old task table in `STATUS.md` is not silently migrated.
 
+The recovery command is an internal Skill action, not an instruction the user must put in a prompt. It also checks relevant staged, unstaged, and untracked changes. A dirty implementation repository, or residue inside this feature's project-management directory, enters recovery-required mode before any new edits. Read [references/checkpoints.md](references/checkpoints.md) when that happens.
+
 The project-management repository containing `STATUS.md` cannot embed the SHA of the commit that contains that same file. Its working-HEAD cell therefore uses `DERIVED:HEAD`, meaning the checked-out Git HEAD is the source of truth. Resolve it only when `STATUS.md` is tracked, matches HEAD, and has no staged or unstaged changes; otherwise stop. Every integration-opponent SHA, PR/MR SHA, task pickup ref, and task completion ref must be a literal observed SHA, never a moving branch alias.
 
 ## Confirmation boundaries
@@ -61,6 +65,7 @@ Read [references/confirmation.md](references/confirmation.md) only when adding, 
 
 ## Work on one task
 
+- The Agent creates and connects internal tasks. Use `scripts/task_create.py` for normal additions, and never ask the user to supply an internal task ID, dependency, or selector. Ask only about real business ambiguity, authorization, or unsafe-to-infer scope. Read [references/task-planning.md](references/task-planning.md) when planning new work.
 - Tasks use only `PENDING`, `WIP`, `BLOCKED`, `RECORDING`, and `DONE`.
 - `STATUS.md` is the primary control entry: it stores feature state, the current task/gate summary, and repository/object registries. `TASKS.md` is the only complete task-state and dependency index; STATUS never duplicates its full table.
 - Requirement, solution, development, testing, review, rework, acceptance, and gate are task types in the same `TASKS.md` table; do not create per-type state machines.
@@ -72,6 +77,7 @@ Read [references/confirmation.md](references/confirmation.md) only when adding, 
 - Prefix implementation commit subjects with the feature and task, for example `PIRC-23/DEV-01: add feature templates`.
 - Use one decision point per decision commit. The subject is `<feature-key>/<point-id>: <RESULT> <summary>`, where `RESULT` is `CONFIRMED`, `REJECTED`, `OUT-OF-SCOPE`, `INFEASIBLE`, or `REOPENED`.
 - A task may produce multiple commits. Do not merge implementation branches automatically.
+- Create a scoped local checkpoint after each coherent work unit, before long or risky operations, and before handoff. Use `scripts/task_checkpoint.py` with explicit Agent-owned files; never auto-push or absorb unrelated or sensitive paths. Read [references/checkpoints.md](references/checkpoints.md) before recording or recovering a checkpoint.
 - When work is complete, move `WIP` to `RECORDING`, create the final task commit or record the accepted existing commit, then write exactly one completion SHA per affected repository before moving to `DONE`.
 - On interruption, keep `WIP` and update the task detail's resume action. Use `BLOCKED` only for an assigned task stopped by a concrete obstacle; record its blocker, impact, and release condition before the state transition. Ordinary waiting on dependencies remains `PENDING`. A failed or abandoned attempt remains in history; reopening creates new start refs instead of rewriting old ones.
 - For a normal cross-file transition: first prepare the task detail and any changed `STATUS.md` current-task/condition fields, then run `task_state.py`, then run read-only `task_context.py` and commit the project-management files together. The writer's atomic guarantee covers the `TASKS.md` row plus Mermaid block, not the other files; a temporarily inconsistent working tree during these three steps is expected but must never be committed.
@@ -80,6 +86,8 @@ Read [references/confirmation.md](references/confirmation.md) only when adding, 
 Read [references/transitions.md](references/transitions.md) only when changing task state or the feature's next transition.
 
 Read [references/task-contracts.md](references/task-contracts.md) only when creating, assigning, recording, or completing a `TEST-*`, `REVIEW-*`, `REWORK-*`, `ACCEPT-*`, or `GATE-*` task. Detailed test output and review comments belong in the declared result gist, not in `STATUS.md`, `TASKS.md`, or the short task contract.
+
+For an acceptance task, create and validate the plain-language brief described in [references/acceptance.md](references/acceptance.md). When waiting for a decision, proactively show `task_context.py ... --format acceptance`; do not make the user interpret `ACCEPT-*`, point IDs, contracts, or internal commands.
 
 Read [references/feature-gates.md](references/feature-gates.md) only when creating or executing a gate or changing feature phase/condition. A gate checks refs and dependencies; it does not replace a human acceptance decision.
 
@@ -121,11 +129,15 @@ Leave a resumable state containing:
 
 Before ending, rerun `task_context.py` for the current task. A failed context check means the state is not resumable.
 
+Before that final recovery check, checkpoint every coherent owned implementation change. Unexpected power loss can recover through the last successful checkpoint; do not claim zero-loss recovery beyond that boundary.
+
 ## Validate this Skill
 
 After changing its context rules or helper, run the [context regression tests](scripts/test_task_context.py) and deterministic audit:
 
 ```text
 python scripts/test_task_context.py
+python scripts/test_task_create.py
+python scripts/test_task_checkpoint.py
 python <skill-quality-reviewer>/scripts/skill-audit.py <skill-root> --format json
 ```

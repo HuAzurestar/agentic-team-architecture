@@ -22,7 +22,7 @@
 
 ## ACCEPT
 
-必需字段：`Target SHA`、`Acceptance scope`、`Decision`、`Decided by`。Agent 可建议范围和总结证据，但最终决定只由开发者给出；此前 `Decision` 保持 `WAITING`，feature condition 为 `WAITING_HUMAN`。
+新建 task 的必需字段：`Target SHA`、`Acceptance scope`、`Decision`、`Decided by`、`Acceptance brief`。brief 是从 `templates/ACCEPTANCE.md` 创建并在 `Gists` 声明的 `gists/` 路径；缺少该字段的历史完成 task 仍可读取。Agent 提出范围、准备并主动展示自然语言 brief，但最终决定只能由 developer 提供。WIP 期间保持 `WAITING`；进入 RECORDING 后持久化 developer 的 `CONFIRMED`、`REJECTED` 或 `REWORK`，再完成 refs。
 
 ## GATE
 
