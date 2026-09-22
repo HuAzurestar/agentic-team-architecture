@@ -53,6 +53,14 @@ QUALITY_CONTRACT_FIELDS = {
     "ACCEPT": {"Target SHA", "Acceptance scope", "Decision", "Decided by"},
     "GATE": {"From phase", "To phase", "Required tasks", "Decision ref"},
 }
+ACCEPTANCE_BRIEF_HEADINGS = (
+    ("What changed", "用户可见变化"),
+    ("How to check", "如何检查"),
+    ("Evidence", "验证证据"),
+    ("Out of scope", "范围外内容"),
+    ("Known limitations", "已知限制"),
+    ("Decision options", "决定选项"),
+)
 
 
 class ContextError(ValueError):
@@ -75,7 +83,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         metavar="NAME=PATH",
         help="Override one repository location; repeat for multiple repositories",
     )
-    parser.add_argument("--format", choices=("markdown", "json"), default="markdown")
+    parser.add_argument(
+        "--format",
+        choices=("markdown", "json", "acceptance"),
+        default="markdown",
+        help="Use acceptance for a short user-facing acceptance packet",
+    )
     parser.add_argument(
         "--sync-topology",
         action="store_true",
@@ -617,6 +630,41 @@ def validate_shared_records(feature_root: Path, resolved: dict[str, dict[str, An
             raise ContextError(f"shared project-management record is not tracked: {relative}")
 
 
+def repository_changes(path: Path) -> list[str]:
+    process = subprocess.run(
+        ["git", "-C", str(path), "status", "--porcelain=v1", "--untracked-files=all"],
+        text=True,
+        encoding="utf-8",
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=True,
+    )
+    return [line for line in process.stdout.splitlines() if line]
+
+
+def validate_recovery_cleanliness(
+    feature_root: Path, resolved: dict[str, dict[str, Any]]
+) -> None:
+    """Stop recovery before new work when a relevant repository has residue."""
+    for name, item in resolved.items():
+        path = Path(item["path"])
+        changes = repository_changes(path)
+        if item.get("role") == "project-management":
+            relative_feature = feature_root.relative_to(path).as_posix().rstrip("/") + "/"
+            changes = [
+                line
+                for line in changes
+                if line[3:].replace("\\", "/").lstrip('"').startswith(relative_feature)
+            ]
+        if changes:
+            preview = ", ".join(line[3:] for line in changes[:5])
+            suffix = "" if len(changes) <= 5 else f" (+{len(changes) - 5} more)"
+            raise ContextError(
+                f"recovery required: repository {name} has uncheckpointed changes: "
+                f"{preview}{suffix}"
+            )
+
+
 def commit_exists(path: Path, sha: str) -> bool:
     return bool(run_git(path, "rev-parse", "--verify", f"{sha}^{{commit}}", check=False))
 
@@ -946,10 +994,14 @@ def validate_type_contract(
         decision = fields["Decision"]
         if state == "DONE" and decision not in {"CONFIRMED", "REJECTED", "REWORK"}:
             raise ContextError(f"DONE acceptance task {task_id} has invalid Decision: {decision}")
-        if state != "DONE" and decision != "WAITING":
+        if state in {"PENDING", "WIP", "BLOCKED"} and decision != "WAITING":
             raise ContextError(f"unfinished acceptance task {task_id} must keep Decision as WAITING")
+        if state == "RECORDING" and decision not in {"WAITING", "CONFIRMED", "REJECTED", "REWORK"}:
+            raise ContextError(f"RECORDING acceptance task {task_id} has invalid Decision: {decision}")
         if state == "DONE" and fields["Decided by"].casefold() in {"-", "agent", "codex", "llm"}:
             raise ContextError(f"DONE acceptance task {task_id} requires a human Decided by value")
+        if "Acceptance brief" in fields and state != "PENDING" and fields["Acceptance brief"] == "-":
+            raise ContextError(f"active acceptance task {task_id} requires an Acceptance brief")
     if kind == "GATE":
         required = parse_dependencies(fields["Required tasks"], task_id)
         if set(required) != set(record["dependencies"]):
@@ -1142,6 +1194,14 @@ def declared_gists(detail: str, feature_root: Path) -> list[dict[str, str]]:
     ]
 
 
+def validate_acceptance_brief(text: str, path: str) -> None:
+    for aliases in ACCEPTANCE_BRIEF_HEADINGS:
+        section = h2_section(text, aliases)
+        body = re.sub(r"^##[^\n]*\n", "", section, count=1).strip()
+        if not body or body in {"-", "none", "None", "无", "无。"}:
+            raise ContextError(f"acceptance brief {path} has an empty section: {aliases[0]}")
+
+
 def validate_type_contracts(
     records: dict[str, dict[str, Any]],
     details: dict[str, tuple[str, list[dict[str, str]]]],
@@ -1153,16 +1213,24 @@ def validate_type_contracts(
         if contract is None:
             continue
         contracts[task_id] = contract
-        if "Result gist" not in contract:
-            continue
-        result_gist = contract["Result gist"]
         declared_paths = {
             normalized for normalized, _ in declared_gist_paths(details[task_id][0], root)
         }
-        if result_gist != "none" and result_gist not in declared_paths:
-            raise ContextError(
-                f"task {task_id} Result gist is not declared by its Gists field: {result_gist}"
-            )
+        if "Result gist" in contract:
+            result_gist = contract["Result gist"]
+            if result_gist != "none" and result_gist not in declared_paths:
+                raise ContextError(
+                    f"task {task_id} Result gist is not declared by its Gists field: {result_gist}"
+                )
+        if task_id.startswith("ACCEPT-") and "Acceptance brief" in contract:
+            brief = contract["Acceptance brief"]
+            if brief == "-":
+                continue
+            if brief not in declared_paths:
+                raise ContextError(
+                    f"task {task_id} Acceptance brief is not declared by its Gists field: {brief}"
+                )
+            validate_acceptance_brief(read_utf8(root / brief), brief)
     return contracts
 
 
@@ -1198,6 +1266,7 @@ def build_context(
     registry = repository_registry(status_text)
     repositories = resolve_repositories(root, registry, repo_overrides or {})
     validate_shared_records(root, repositories)
+    validate_recovery_cleanliness(root, repositories)
     status_edges = validate_status_repositories(status_text, root / "STATUS.md", repositories)
     trace = validate_trace_graph(status_text, records, details, repositories, status_edges)
     task_id = selected_task_id(status_text, requested_task)
@@ -1211,6 +1280,11 @@ def build_context(
         detail, "Solution points", ("Solution points", "方案点")
     )
     gists = declared_gists(detail, root)
+    selected_contract = type_contracts.get(task_id)
+    acceptance_brief = None
+    if selected_contract and selected_contract.get("Acceptance brief") not in {None, "-"}:
+        brief_path = selected_contract["Acceptance brief"]
+        acceptance_brief = {"path": brief_path, "content": read_utf8(root / brief_path)}
     return {
         "feature_directory": str(root),
         "feature": focused_status(status_text),
@@ -1227,7 +1301,8 @@ def build_context(
         "task": records[task_id],
         "task_detail": detail,
         "repository_refs": repository_refs,
-        "type_contract": type_contracts.get(task_id),
+        "type_contract": selected_contract,
+        "acceptance_brief": acceptance_brief,
         "dependencies": [
             {"task": records[dep], "task_detail": details[dep][0]}
             for dep in records[task_id]["dependencies"]
@@ -1317,6 +1392,15 @@ def render_markdown(context: dict[str, Any]) -> str:
     return "\n".join(parts).rstrip() + "\n"
 
 
+def render_acceptance(context: dict[str, Any]) -> str:
+    if not context["task"]["id"].startswith("ACCEPT-"):
+        raise ContextError("acceptance format requires an ACCEPT task")
+    brief = context.get("acceptance_brief")
+    if brief is None:
+        raise ContextError("acceptance packet is not ready yet")
+    return brief["content"].rstrip() + "\n"
+
+
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
     root = Path(args.feature_directory).resolve()
@@ -1329,6 +1413,12 @@ def main(argv: list[str] | None = None) -> int:
         return 1
     if args.format == "json":
         print(json.dumps(context, ensure_ascii=False, indent=2))
+    elif args.format == "acceptance":
+        try:
+            print(render_acceptance(context), end="")
+        except ContextError as exc:
+            print(f"ERROR: {exc}", file=sys.stderr)
+            return 1
     else:
         print(render_markdown(context), end="")
     return 0

@@ -774,6 +774,84 @@ class TaskContextTests(unittest.TestCase):
                 self.assertEqual(task_context.main([str(root), "--task", "UNKNOWN"]), 1)
             self.assertIn("ERROR:", stderr.getvalue())
 
+    def test_recording_acceptance_can_persist_human_decision(self) -> None:
+        detail = """# ACCEPT-01 — Accept
+
+## Type contract
+
+| Field | Value |
+| --- | --- |
+| Target SHA | 1111111 |
+| Acceptance scope | Current feature |
+| Decision | REWORK |
+| Decided by | developer |
+"""
+        recording = {"id": "ACCEPT-01", "state": "RECORDING", "dependencies": []}
+        fields = task_context.validate_type_contract(recording, detail, {"ACCEPT-01": recording})
+        self.assertEqual(fields["Decision"], "REWORK")
+        wip = {**recording, "state": "WIP"}
+        with self.assertRaisesRegex(task_context.ContextError, "must keep Decision as WAITING"):
+            task_context.validate_type_contract(wip, detail, {"ACCEPT-01": wip})
+
+    def test_acceptance_brief_is_complete_and_renders_without_internal_trace(self) -> None:
+        brief = """# Acceptance
+
+## What changed
+Visible behavior.
+
+## How to check
+Run one check.
+
+## Evidence
+Tests passed.
+
+## Out of scope
+Deployment.
+
+## Known limitations
+None known.
+
+## Decision options
+Accept or request changes.
+"""
+        task_context.validate_acceptance_brief(brief, "gists/acceptance.md")
+        rendered = task_context.render_acceptance({
+            "task": {"id": "ACCEPT-03"},
+            "acceptance_brief": {"path": "gists/acceptance.md", "content": brief},
+        })
+        self.assertEqual(rendered, brief)
+        self.assertNotIn("ACCEPT-03", rendered)
+        with self.assertRaisesRegex(task_context.ContextError, "Known limitations"):
+            task_context.validate_acceptance_brief(
+                brief.replace("None known.", "-"), "gists/acceptance.md"
+            )
+
+    def test_recovery_cleanliness_scopes_management_and_blocks_implementation(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            parent = Path(temp)
+            pm = parent / "pm"
+            app = parent / "app"
+            make_git_repo(pm, "https://example.invalid/pm.git", 1)
+            make_git_repo(app, "https://example.invalid/app.git", 1)
+            feature = pm / "project" / "PIRC-23"
+            feature.mkdir(parents=True)
+            resolved = {
+                "pm": {"role": "project-management", "path": str(pm)},
+                "app": {"role": "implementation", "path": str(app)},
+            }
+            unrelated = pm / "project" / "PIRC-14" / "TASKS.md"
+            unrelated.parent.mkdir(parents=True)
+            unrelated.write_text("unrelated", encoding="utf-8")
+            task_context.validate_recovery_cleanliness(feature, resolved)
+            relevant = feature / "STATUS.md"
+            relevant.write_text("residue", encoding="utf-8")
+            with self.assertRaisesRegex(task_context.ContextError, "recovery required"):
+                task_context.validate_recovery_cleanliness(feature, resolved)
+            relevant.unlink()
+            (app / "unfinished.py").write_text("unfinished", encoding="utf-8")
+            with self.assertRaisesRegex(task_context.ContextError, "repository app"):
+                task_context.validate_recovery_cleanliness(feature, resolved)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
