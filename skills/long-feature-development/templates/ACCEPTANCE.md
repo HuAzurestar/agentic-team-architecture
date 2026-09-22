@@ -1,27 +1,27 @@
-# 验收说明
+# Acceptance brief
 
-目标版本：`<target-sha-or-version>`
+Target version: `<target-sha-or-version>`
 
-## 用户可见变化
+## What changed
 
-<用普通语言说明本轮完成了什么，以及用户会看到什么不同。>
+<Explain in plain language what was completed and what the user will notice.>
 
-## 如何检查
+## How to check
 
-<列出少量可执行步骤和每一步的预期结果。>
+<List a few executable checks and the expected result of each one.>
 
-## 验证证据
+## Evidence
 
-<概述测试、评审和其他关键证据；详细日志仍留在内部追溯记录。>
+<Summarize tests, reviews, and other key evidence. Keep detailed logs in the internal trace records.>
 
-## 范围外内容
+## Out of scope
 
-<说明本次没有包含什么。>
+<State what this change does not include.>
 
-## 已知限制
+## Known limitations
 
-<说明仍存在的限制；若没有，明确写“未发现已知限制”。>
+<State any remaining limitations. If there are none, say "No known limitations found.">
 
-## 决定选项
+## Decision options
 
-请直接回复以下任一自然语言决定：接受当前结果；需要修改，并说明期望；暂不决定，并说明还想检查什么。
+Reply in natural language with one of these decisions: accept the current result; request changes and describe what you expect; defer the decision and say what else you want to inspect.

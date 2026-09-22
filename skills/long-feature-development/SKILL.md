@@ -133,7 +133,7 @@ Before that final recovery check, checkpoint every coherent owned implementation
 
 ## Validate this Skill
 
-After changing its context rules or helper, run the [context regression tests](scripts/test_task_context.py) and deterministic audit:
+After changing task orchestration, recovery, or checkpoint behavior, run the [context regression tests](scripts/test_task_context.py), [task creation tests](scripts/test_task_create.py), [checkpoint tests](scripts/test_task_checkpoint.py), and deterministic audit:
 
 ```text
 python scripts/test_task_context.py

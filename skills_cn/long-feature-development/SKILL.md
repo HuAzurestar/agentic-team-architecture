@@ -29,7 +29,7 @@ description: 从项目管理目录恢复并推进跨会话的软件 feature，�
 3. 替换或删除尖括号占位符。每个 task 恰有一个索引行和一个详情文件；真实点 ID 替换前保留 `REQ-001`、`SOL-001`。
 4. 仅在 task 需要时创建 gist；内容必须有界且只用于追溯。
 5. 若项目管理目录受 Git 管理，确认 `TASKS.md`、`tasks/`、`gists/` 未被忽略，并与其他 feature 记录一同纳入版本控制。
-6. 首次项目管理 commit 前运行 `python <skill-root>/scripts/task_context.py <feature-directory>`，修复全部错误。
+6. 首次项目管理 commit 前运行[恢复脚本](scripts/task_context.py)：`python <skill-root>/scripts/task_context.py <feature-directory>`，修复全部错误。
 7. 需求和方案整体状态由逐点状态派生，不能用全局批准设置。
 
 初始 task 的 ID、类型、依赖和 selector 由 Agent 负责；用户只提供业务意图和决定，不负责内部记账标签。
@@ -104,6 +104,8 @@ description: 从项目管理目录恢复并推进跨会话的软件 feature，�
 保留可恢复状态：当前 task/state、观察到的各仓 branch/SHA、PR/MR refs、本轮 commits、准确下一动作、blocker 与解除条件。结束前先 checkpoint 所有连贯且属于 Agent 的实现修改，再重新运行当前 task 的 `task_context.py`；失败表示状态不可恢复。Skill 只承诺恢复到最近一次成功 checkpoint，不虚假承诺任意断电瞬间零丢失。
 
 ## 验证本 Skill
+
+修改 task 编排、恢复或 checkpoint 行为后，运行[上下文回归测试](scripts/test_task_context.py)、[task 创建测试](scripts/test_task_create.py)、[checkpoint 测试](scripts/test_task_checkpoint.py)和确定性审计：
 
 ```text
 python scripts/test_task_context.py
