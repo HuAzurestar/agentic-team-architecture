@@ -38,6 +38,16 @@ class BundleTest(unittest.TestCase):
     def save_manifest(self, value: dict) -> None:
         (self.bundle / "manifest.json").write_text(json.dumps(value), encoding="utf-8")
 
+    def rewrite_case(self, case_id: str, change) -> None:
+        target = self.bundle / "cases" / f"{case_id.lower()}.json"
+        case = json.loads(target.read_text(encoding="utf-8"))
+        change(case)
+        target.write_text(json.dumps(case), encoding="utf-8")
+        value = self.manifest()
+        entry = next(item for item in value["files"] if item["case_id"] == case_id)
+        entry["sha256"] = hashlib.sha256(target.read_bytes()).hexdigest()
+        self.save_manifest(value)
+
     def test_all_23_cases_pass(self) -> None:
         code, result = self.check_bundle()
         self.assertEqual(code, 0)
@@ -60,14 +70,19 @@ class BundleTest(unittest.TestCase):
         self.assertFalse(result["valid"])
 
     def test_changed_condition_with_valid_hash_is_semantic_failure(self) -> None:
-        target = self.bundle / "cases/c2-01.json"
-        case = json.loads(target.read_text(encoding="utf-8"))
-        case["current_source_key"] = case["expected_source_key"]
-        target.write_text(json.dumps(case), encoding="utf-8")
-        value = self.manifest()
-        entry = next(item for item in value["files"] if item["case_id"] == "C2-01")
-        entry["sha256"] = hashlib.sha256(target.read_bytes()).hexdigest()
-        self.save_manifest(value)
+        self.rewrite_case("C2-01", lambda case: case.update(current_source_key=case["expected_source_key"]))
+        code, result = self.check_bundle()
+        self.assertEqual(code, 3)
+        self.assertEqual(result["failures"][0]["field"], "expected_result")
+
+    def test_c1_check_without_evidence_is_rejected(self) -> None:
+        self.rewrite_case("C1-01", lambda case: case["review"]["checks"][0].pop("evidence", None))
+        code, result = self.check_bundle()
+        self.assertEqual(code, 3)
+        self.assertEqual(result["failures"][0]["field"], "expected_result")
+
+    def test_c3_context_different_from_source_is_rejected(self) -> None:
+        self.rewrite_case("C3-01", lambda case: case["context"].update(intent={"unrelated": "different source"}))
         code, result = self.check_bundle()
         self.assertEqual(code, 3)
         self.assertEqual(result["failures"][0]["field"], "expected_result")
