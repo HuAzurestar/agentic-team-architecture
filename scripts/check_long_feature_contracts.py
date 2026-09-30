@@ -58,28 +58,100 @@ def digest(path: Path) -> tuple[str, int]:
 
 
 def evaluate_c1(case: dict) -> str:
+    scope = case.get("source_scope")
+    if not isinstance(scope, dict) or any(not scope.get(key) for key in ("environment", "project", "document_ref")):
+        return "INVALID_DOCUMENT"
+    points = case.get("points")
+    if not isinstance(points, list) or not points:
+        return "INVALID_DOCUMENT"
+    point_ids = [point.get("id") for point in points if isinstance(point, dict)]
+    if len(point_ids) != len(points) or len(set(point_ids)) != len(points):
+        return "INVALID_DOCUMENT"
+    for point in points:
+        if not point.get("text") or point.get("state") not in {"PROPOSED", "REOPENED", "CONFIRMED", "REJECTED", "OUT-OF-SCOPE", "INFEASIBLE"}:
+            return "INVALID_DOCUMENT"
+        if point["state"] not in {"PROPOSED", "REOPENED"} and any(not point.get(key) for key in ("decided_by", "decided_at", "decision_history")):
+            return "INVALID_DOCUMENT"
     tasks = case.get("tasks", [])
     ids = [task.get("id") for task in tasks if isinstance(task, dict)]
     if not ids or len(ids) != len(tasks) or len(ids) != len(set(ids)):
         return "INVALID_DOCUMENT"
-    if any(ref not in case.get("available_evidence", []) for ref in case.get("declared_evidence", [])):
+    task_index = {task["id"]: task for task in tasks}
+    if any(task.get("state") not in {"PENDING", "WIP", "BLOCKED", "RECORDING", "DONE"} or not isinstance(task.get("depends_on"), list) for task in tasks):
+        return "INVALID_DOCUMENT"
+    if any(dependency not in task_index for task in tasks for dependency in task["depends_on"]):
+        return "INVALID_DOCUMENT"
+    remaining = {task_id: set(task_index[task_id]["depends_on"]) for task_id in ids}
+    dependents: dict[str, list[str]] = {task_id: [] for task_id in ids}
+    for task_id, dependencies in remaining.items():
+        for dependency in dependencies:
+            dependents[dependency].append(task_id)
+    ready = [task_id for task_id, dependencies in remaining.items() if not dependencies]
+    resolved = 0
+    while ready:
+        completed = ready.pop()
+        resolved += 1
+        for dependent in dependents[completed]:
+            remaining[dependent].remove(completed)
+            if not remaining[dependent]:
+                ready.append(dependent)
+    if resolved != len(ids):
+        return "INVALID_DOCUMENT"
+    available = case.get("available_evidence", [])
+    if any(ref not in available for ref in case.get("declared_evidence", [])):
         return "MISSING_EVIDENCE"
     review = case.get("review", {})
+    if not isinstance(review, dict) or any(not review.get(key) for key in ("report_id", "attempt", "reviewer", "target_repo", "scope", "source_refs")):
+        return "INVALID_DOCUMENT"
     if review.get("target_sha") != case.get("candidate_sha"):
         return "STALE_EVIDENCE"
     findings = review.get("findings", [])
-    if len({f.get("finding_id") for f in findings}) != len(findings):
+    if not isinstance(findings, list):
         return "INVALID_DOCUMENT"
+    unique_findings: dict[str, dict] = {}
+    for item in findings:
+        if not isinstance(item, dict) or not item.get("finding_id") or item.get("severity") not in {"P0", "P1", "P2"}:
+            return "INVALID_DOCUMENT"
+        if not item.get("description") or not item.get("affected_scope") or not item.get("evidence"):
+            return "MISSING_EVIDENCE"
+        prior = unique_findings.setdefault(item["finding_id"], item)
+        if prior != item:
+            return "INVALID_DOCUMENT"
+        if item["evidence"].split("#", 1)[0] not in available:
+            return "MISSING_EVIDENCE"
     checks = review.get("checks", [])
-    if not checks or any(item.get("result") not in {"PASS", "FAIL", "UNKNOWN", "NOT-RUN", "N/A"} for item in checks):
+    if not isinstance(checks, list) or not checks or any(not isinstance(item, dict) for item in checks):
+        return "INVALID_DOCUMENT"
+    if len({item.get("check_id") for item in checks}) != len(checks):
+        return "INVALID_DOCUMENT"
+    if any(not item.get("check_id") or not item.get("requirement_or_case") or item.get("result") not in {"PASS", "FAIL", "UNKNOWN", "NOT-RUN", "N/A"} for item in checks):
         return "INVALID_DOCUMENT"
     if any(item.get("result") == "N/A" and not item.get("reason") for item in checks):
         return "INVALID_DOCUMENT"
+    for item in checks:
+        if item["result"] != "N/A":
+            refs = item.get("evidence")
+            if not isinstance(refs, list) or not refs or any(not isinstance(ref, str) or ref.split("#", 1)[0] not in available for ref in refs):
+                return "MISSING_EVIDENCE"
+        if item["result"] == "FAIL" and not item.get("finding_ids"):
+            return "INVALID_DOCUMENT"
+        if any(finding_id not in unique_findings for finding_id in item.get("finding_ids", [])):
+            return "INVALID_DOCUMENT"
     if not any(item.get("result") != "N/A" for item in checks):
         return "INVALID_DOCUMENT"
-    blocking = any(f.get("severity") in {"P0", "P1"} and not f.get("closed_for_candidate", False) for f in findings)
+    counts = {
+        "all": sum(item["result"] != "N/A" for item in checks),
+        "pass": sum(item["result"] == "PASS" for item in checks),
+        "findings_total": len(unique_findings),
+        "open_by_severity": {level: sum(f["severity"] == level and not f.get("closed_for_candidate", False) for f in unique_findings.values()) for level in ("P0", "P1", "P2")},
+    }
+    if case.get("expected_counts") != counts:
+        return "COUNT_MISMATCH"
+    blocking = any(f.get("severity") in {"P0", "P1"} and not f.get("closed_for_candidate", False) for f in unique_findings.values())
     if case.get("request_rework") and review.get("report_done") and case.get("request_acceptance") and blocking:
         return "REWORK_READY_ACCEPT_BLOCKED"
+    if case.get("request_acceptance") and any(point["state"] != "CONFIRMED" for point in points):
+        return "ACCEPT_BLOCKED"
     if case.get("request_acceptance") and blocking:
         return "ACCEPT_BLOCKED"
     if case.get("request_rework") and not review.get("report_done"):
@@ -126,7 +198,7 @@ def evaluate_c3(case: dict) -> str:
         return "SOURCE_SET_CHANGED"
     if case.get("recorded_sha") != case.get("actual_sha"):
         return "STALE_REF"
-    if not case.get("same_source") or not case.get("profile_matches", True):
+    if not case.get("authoritative_source_ref") or case.get("authoritative_source_ref") != case.get("checkout_source_ref"):
         return "SOURCE_CHECKOUT_MISMATCH"
     if case.get("stage") == "source":
         return "SOURCE_ONLY"
@@ -143,6 +215,11 @@ def evaluate_c3(case: dict) -> str:
         return "MISSING_FIELD"
     if context.get("trace") != "VALIDATED":
         return "INVALID_ENVELOPE"
+    source_facts = case.get("source_facts")
+    if not isinstance(source_facts, dict) or any(key not in source_facts for key in REQUIRED_CONTEXT) or source_facts.get("sources") != case["sources"]:
+        return "MISSING_FIELD"
+    if any(context[key] != source_facts[key] for key in REQUIRED_CONTEXT) or not case.get("profile_matches", True):
+        return "PROFILE_PROJECTION_MISMATCH"
     return "VALID_FALLBACK" if not case.get("service_available", True) else "VALID"
 
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import copy
 import hashlib
 import json
 from pathlib import Path
@@ -13,22 +14,36 @@ SHA_B = "b" * 40
 
 
 def c1_base(case_id: str) -> dict:
+    finding = {
+        "finding_id": "F-1", "severity": "P1", "closed_for_candidate": False,
+        "description": "blocking discrepancy", "affected_scope": "BEACON-1/DEV-01",
+        "evidence": "review/attempt-1.md#finding-1",
+    }
     return {
         "case_id": case_id,
         "feature": "BEACON-1",
-        "tasks": [{"id": "DEV-01", "state": "DONE"}, {"id": "REVIEW-01", "state": "DONE"}],
+        "source_scope": {"environment": "staging", "project": "BEACON-1", "document_ref": "beacon-api@" + SHA_A + ":project/BEACON-1"},
+        "points": [
+            {"id": "REQ-001", "text": "Review before acceptance", "state": "CONFIRMED", "decided_by": "project owner", "decided_at": "2026-09-29", "decision_history": ["approved at source ref"]},
+            {"id": "SOL-001", "text": "Record evidence per check", "state": "PROPOSED"},
+        ],
+        "tasks": [{"id": "DEV-01", "state": "DONE", "depends_on": []}, {"id": "REVIEW-01", "state": "DONE", "depends_on": ["DEV-01"]}],
         "declared_evidence": ["review/attempt-1.md"],
         "available_evidence": ["review/attempt-1.md"],
         "candidate_sha": SHA_A,
         "review": {
+            "report_id": "R-1", "attempt": "1", "reviewer": "independent reviewer",
+            "target_repo": "beacon-api", "scope": "BEACON-1 F01",
+            "source_refs": ["beacon-api@" + SHA_A],
             "target_sha": SHA_A,
             "report_done": True,
             "checks": [
-                {"check_id": "CHK-1", "result": "PASS", "reason": ""},
-                {"check_id": "CHK-2", "result": "FAIL", "reason": "open finding"},
+                {"check_id": "CHK-1", "requirement_or_case": "REQ-001", "result": "PASS", "evidence": ["review/attempt-1.md#check-1"], "finding_ids": [], "reason": ""},
+                {"check_id": "CHK-2", "requirement_or_case": "SOL-001", "result": "FAIL", "evidence": ["review/attempt-1.md#check-2"], "finding_ids": ["F-1"], "reason": "open finding"},
             ],
-            "findings": [{"finding_id": "F-1", "severity": "P1", "closed_for_candidate": False}],
+            "findings": [finding, copy.deepcopy(finding)],
         },
+        "expected_counts": {"all": 2, "pass": 1, "findings_total": 1, "open_by_severity": {"P0": 0, "P1": 1, "P2": 0}},
         "request_acceptance": True,
         "request_rework": True,
     }
@@ -50,11 +65,12 @@ def c2_base(case_id: str, operation: str = "update") -> dict:
 
 
 def c3_base(case_id: str) -> dict:
-    return {
+    case = {
         "case_id": case_id,
         "stage": "execution",
         "valid": True,
-        "same_source": True,
+        "authoritative_source_ref": "beacon-api@" + SHA_A + ":BEACON-1",
+        "checkout_source_ref": "beacon-api@" + SHA_A + ":BEACON-1",
         "profile_matches": True,
         "recorded_sha": SHA_A,
         "actual_sha": SHA_A,
@@ -74,6 +90,9 @@ def c3_base(case_id: str) -> dict:
             "acceptance_brief": {"status": "not-applicable"},
         },
     }
+    case["source_facts"] = copy.deepcopy(case["context"])
+    case["source_facts"]["sources"] = copy.deepcopy(case["sources"])
+    return case
 
 
 def cases() -> list[tuple[str, dict, str]]:
@@ -81,7 +100,7 @@ def cases() -> list[tuple[str, dict, str]]:
     c1 = c1_base("C1-01")
     rows.append(("c1", c1, "REWORK_READY_ACCEPT_BLOCKED"))
     c1 = c1_base("C1-02")
-    c1["tasks"].append({"id": "DEV-01", "state": "WIP"})
+    c1["tasks"].append({"id": "DEV-01", "state": "WIP", "depends_on": []})
     rows.append(("c1", c1, "INVALID_DOCUMENT"))
     c1 = c1_base("C1-03")
     c1["available_evidence"] = []
@@ -146,7 +165,7 @@ def cases() -> list[tuple[str, dict, str]]:
     c3["valid"] = False
     rows.append(("c3", c3, "SOURCE_ONLY"))
     c3 = c3_base("C3-08")
-    c3["same_source"] = False
+    c3["checkout_source_ref"] = "other-checkout@" + SHA_B + ":BEACON-1"
     rows.append(("c3", c3, "SOURCE_CHECKOUT_MISMATCH"))
     c3 = c3_base("C3-09")
     c3["service_available"] = False

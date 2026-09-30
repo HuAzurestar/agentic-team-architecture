@@ -10,7 +10,7 @@
       "contract": "c1",
       "expected_result": null,
       "path": "c1.md",
-      "sha256": "93e9ba2cc5cd452de1b60c041525ce5c93a27bef22df09bef2e571a5236c4510"
+      "sha256": "b85f0ee97eac55a7096b2603ed6e613a5e78b3a1adde3b550391c21ef3465e42"
     },
     {
       "case_id": null,
@@ -24,35 +24,35 @@
       "contract": "c3",
       "expected_result": null,
       "path": "c3.md",
-      "sha256": "639b59a37d87345fe9f50689f13c591f8bc02cd16a38222e129208e86d10759c"
+      "sha256": "1c608462f0db77f3e2cf15e41b4cc396030d07e96ac5d82c9bbd7a0492e42fd5"
     },
     {
       "case_id": "C1-01",
       "contract": "c1",
       "expected_result": "REWORK_READY_ACCEPT_BLOCKED",
       "path": "cases/c1-01.json",
-      "sha256": "9d7a9921f053667ceedb20cc3d3b4a369a5fb55e7ce9216eb0f46049ff050092"
+      "sha256": "96e2465d8ee32f77cdad65ed5c1966e9b5d1e0a237a8be7b49d3751c9035ff72"
     },
     {
       "case_id": "C1-02",
       "contract": "c1",
       "expected_result": "INVALID_DOCUMENT",
       "path": "cases/c1-02.json",
-      "sha256": "aa20dfce8cd2fd9441116cdca652202175a1a84edcaf08381c00c3f13fe373eb"
+      "sha256": "4a4e5bc0e9c2def914b0ae4974b1fe10eba031ef15bd3b4d544d39e4fa50a513"
     },
     {
       "case_id": "C1-03",
       "contract": "c1",
       "expected_result": "MISSING_EVIDENCE",
       "path": "cases/c1-03.json",
-      "sha256": "eeb38a286cf596a34341f9caba5a15a27e8e992a9d4b9adffaf0eb0e73e757e3"
+      "sha256": "c31ae2677d6c9f3315fa6e2f7fb8266c0f504396bf75721f30f196804f43592e"
     },
     {
       "case_id": "C1-04",
       "contract": "c1",
       "expected_result": "STALE_EVIDENCE",
       "path": "cases/c1-04.json",
-      "sha256": "dbaba174047a6d62f7c741d875aabdc274e2e081c6135f287d1f9bb62088cc48"
+      "sha256": "5405438a87f40fee52dde4549f18abc95ba0bde3f291a5681a9e1d43881a78c4"
     },
     {
       "case_id": "C2-01",
@@ -129,63 +129,63 @@
       "contract": "c3",
       "expected_result": "VALID",
       "path": "cases/c3-01.json",
-      "sha256": "9514927bce03855d8914d6bcae62ab8807057dac5ede0be78082be91a7966d7f"
+      "sha256": "ed4618dbbcd43e9c771fbb929e926a2629ed44d98f50d335cd3ab3c43f8d24d9"
     },
     {
       "case_id": "C3-02",
       "contract": "c3",
       "expected_result": "MISSING_FIELD",
       "path": "cases/c3-02.json",
-      "sha256": "c9888812868ddabfdd3e05bab2b33d81155361eb60ba59bf0c312fad67b4fdca"
+      "sha256": "050af39b0f991dd47b1f809cd9701dc0a8eff7045175c9fdec310cc3009ad8e1"
     },
     {
       "case_id": "C3-03",
       "contract": "c3",
       "expected_result": "STALE_REF",
       "path": "cases/c3-03.json",
-      "sha256": "64fead15318f1d79e88b466e8737c748421b9120229c942b630d4e938d781ea9"
+      "sha256": "773e1aadaea45af5a8527b015bcff585d43a37eab50cdab98d957c50382209e9"
     },
     {
       "case_id": "C3-04",
       "contract": "c3",
       "expected_result": "SOURCE_SET_CHANGED",
       "path": "cases/c3-04.json",
-      "sha256": "0dc6a28a6a7886a256c91d3190ccd28c5a0b9b05095834297ef2b88fd0c08e63"
+      "sha256": "65484002bcc1bc74bc959426f1f3f997753a40ba59f5fa4db0b355e5b4517b09"
     },
     {
       "case_id": "C3-05",
       "contract": "c3",
       "expected_result": "UNSUPPORTED_FEATURE",
       "path": "cases/c3-05.json",
-      "sha256": "a6ab431ff89fa9174a723a1439cd3e2378430a3d5bd33812273da534222209b5"
+      "sha256": "ce6f527a9133072a55b5e096fbefe6d47c6537dc6ed86436742376a398567515"
     },
     {
       "case_id": "C3-06",
       "contract": "c3",
       "expected_result": "INVALID_ENVELOPE",
       "path": "cases/c3-06.json",
-      "sha256": "737b1fb759f9d7b2eab3c3dabc4b3d4c9c27437f193bb8b55032804144966ff3"
+      "sha256": "b1987ce3a4701ee7ddc902c5f84de1169b6a7ecd9f36fb41799a94e2d6e7c7d8"
     },
     {
       "case_id": "C3-07",
       "contract": "c3",
       "expected_result": "SOURCE_ONLY",
       "path": "cases/c3-07.json",
-      "sha256": "6483f4c87c62524303c9c7f4b609807240fa37c2da0e74bbc52a46c0fd098d2e"
+      "sha256": "fa26214a679c6023122209732f619bd24b032b9a760853e88e323ed1dbca9d9c"
     },
     {
       "case_id": "C3-08",
       "contract": "c3",
       "expected_result": "SOURCE_CHECKOUT_MISMATCH",
       "path": "cases/c3-08.json",
-      "sha256": "4f1ee75312161e6a2a826503469b74082e8933299daab5269bc49d76abe30ec7"
+      "sha256": "4d469733d796c9af4d05f19433b549b0d7b2ed0be52a6409cf2328cce5a4ca90"
     },
     {
       "case_id": "C3-09",
       "contract": "c3",
       "expected_result": "VALID_FALLBACK",
       "path": "cases/c3-09.json",
-      "sha256": "d86c6d975298210ea5996c503df6c853f0b83b448168f1552325f1a0abc220eb"
+      "sha256": "9009d07ce876c4bb463420d1c1c882bc409dccac5cd3b0ba08ed81fcdc6d8559"
     }
   ],
   "required_features": [

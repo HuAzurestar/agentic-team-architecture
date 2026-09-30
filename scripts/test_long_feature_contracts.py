@@ -81,6 +81,12 @@ class BundleTest(unittest.TestCase):
         self.assertEqual(code, 3)
         self.assertEqual(result["failures"][0]["field"], "expected_result")
 
+    def test_c1_dependency_cycle_is_rejected(self) -> None:
+        self.rewrite_case("C1-01", lambda case: case["tasks"][0].update(depends_on=["REVIEW-01"]))
+        code, result = self.check_bundle()
+        self.assertEqual(code, 3)
+        self.assertEqual(result["failures"][0]["field"], "expected_result")
+
     def test_c3_context_different_from_source_is_rejected(self) -> None:
         self.rewrite_case("C3-01", lambda case: case["context"].update(intent={"unrelated": "different source"}))
         code, result = self.check_bundle()
