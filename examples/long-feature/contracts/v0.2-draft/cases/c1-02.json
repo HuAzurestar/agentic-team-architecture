@@ -20,6 +20,7 @@
   "feature": "BEACON-1",
   "points": [
     {
+      "class": "ACTIVE",
       "decided_at": "2026-09-29",
       "decided_by": "project owner",
       "decision_history": [
@@ -30,6 +31,8 @@
       "text": "Review before acceptance"
     },
     {
+      "class": "ACTIVE",
+      "decision_history": [],
       "id": "SOL-001",
       "state": "PROPOSED",
       "text": "Record evidence per check"
@@ -70,6 +73,7 @@
         "description": "blocking discrepancy",
         "evidence": "review/attempt-1.md#finding-1",
         "finding_id": "F-1",
+        "resolution": "open; rework required",
         "severity": "P1"
       },
       {
@@ -78,6 +82,7 @@
         "description": "blocking discrepancy",
         "evidence": "review/attempt-1.md#finding-1",
         "finding_id": "F-1",
+        "resolution": "open; rework required",
         "severity": "P1"
       }
     ],
@@ -98,21 +103,68 @@
   },
   "tasks": [
     {
+      "completed_at": "2026-09-29",
       "depends_on": [],
+      "detail_ref": "tasks/DEV-01.md",
       "id": "DEV-01",
-      "state": "DONE"
+      "owner": "developer",
+      "point_selectors": {
+        "requirements": [
+          "REQ-001"
+        ],
+        "solutions": [
+          "SOL-001"
+        ]
+      },
+      "repository_refs": [
+        "beacon-api@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      ],
+      "started_at": "2026-09-28",
+      "state": "DONE",
+      "type": "Development"
     },
     {
+      "completed_at": "2026-09-29",
       "depends_on": [
         "DEV-01"
       ],
+      "detail_ref": "tasks/REVIEW-01.md",
       "id": "REVIEW-01",
-      "state": "DONE"
+      "owner": "independent reviewer",
+      "point_selectors": {
+        "requirements": [
+          "REQ-001"
+        ],
+        "solutions": [
+          "SOL-001"
+        ]
+      },
+      "repository_refs": [
+        "beacon-api@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      ],
+      "started_at": "2026-09-29",
+      "state": "DONE",
+      "type": "Review"
     },
     {
       "depends_on": [],
+      "detail_ref": "tasks/DEV-01.md",
       "id": "DEV-01",
-      "state": "WIP"
+      "owner": "developer",
+      "point_selectors": {
+        "requirements": [
+          "REQ-001"
+        ],
+        "solutions": [
+          "SOL-001"
+        ]
+      },
+      "repository_refs": [
+        "beacon-api@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      ],
+      "started_at": "2026-09-28",
+      "state": "WIP",
+      "type": "Development"
     }
   ]
 }

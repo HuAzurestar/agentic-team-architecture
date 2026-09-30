@@ -110,11 +110,46 @@ class BundleTest(unittest.TestCase):
         self.assertEqual(code, 3)
         self.assertEqual(result["failures"][0]["observed"], "MISSING_EVIDENCE")
 
-    def test_c1_positive_requires_point_and_task_record_fields(self) -> None:
+    def test_c1_current_candidate_recheck_can_close_finding(self) -> None:
         def change(case: dict) -> None:
-            case["points"][0].pop("class", None)
-            case["tasks"][0].pop("type", None)
+            case["points"][1].update(state="CONFIRMED", decided_by="owner", decided_at="2026-09-30", decision_history=["approved"])
+            for finding in case["review"]["findings"]:
+                finding.update(closed_for_candidate=True, resolution="fixed", recheck_ref="review/attempt-1.md#recheck-1", recheck_sha=case["candidate_sha"])
+            case["expected_counts"]["open_by_severity"]["P1"] = 0
         self.rewrite_case("C1-01", change)
+        manifest = self.manifest()
+        next(item for item in manifest["files"] if item["case_id"] == "C1-01")["expected_result"] = "VALID"
+        self.save_manifest(manifest)
+        code, result = self.check_bundle()
+        self.assertEqual(code, 0)
+        self.assertTrue(result["valid"])
+
+    def test_c1_positive_requires_point_class(self) -> None:
+        self.rewrite_case("C1-01", lambda case: case["points"][0].pop("class", None))
+        code, result = self.check_bundle()
+        self.assertEqual(code, 3)
+        self.assertEqual(result["failures"][0]["observed"], "INVALID_DOCUMENT")
+
+    def test_c1_positive_requires_task_type(self) -> None:
+        self.rewrite_case("C1-01", lambda case: case["tasks"][0].pop("type", None))
+        code, result = self.check_bundle()
+        self.assertEqual(code, 3)
+        self.assertEqual(result["failures"][0]["observed"], "INVALID_DOCUMENT")
+
+    def test_c1_positive_requires_task_owner(self) -> None:
+        self.rewrite_case("C1-01", lambda case: case["tasks"][0].pop("owner", None))
+        code, result = self.check_bundle()
+        self.assertEqual(code, 3)
+        self.assertEqual(result["failures"][0]["observed"], "INVALID_DOCUMENT")
+
+    def test_c1_positive_requires_task_repository_refs(self) -> None:
+        self.rewrite_case("C1-01", lambda case: case["tasks"][0].pop("repository_refs", None))
+        code, result = self.check_bundle()
+        self.assertEqual(code, 3)
+        self.assertEqual(result["failures"][0]["observed"], "INVALID_DOCUMENT")
+
+    def test_c1_positive_requires_task_point_selectors(self) -> None:
+        self.rewrite_case("C1-01", lambda case: case["tasks"][0].pop("point_selectors", None))
         code, result = self.check_bundle()
         self.assertEqual(code, 3)
         self.assertEqual(result["failures"][0]["observed"], "INVALID_DOCUMENT")

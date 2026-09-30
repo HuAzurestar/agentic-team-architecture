@@ -22,8 +22,30 @@
       "evidence.md"
     ],
     "intent": {
-      "requirement": "REQ-001",
-      "solution": "SOL-001"
+      "requirements": [
+        {
+          "decided_at": "2026-09-29",
+          "decided_by": "project owner",
+          "decision_history": [
+            "approved at source ref"
+          ],
+          "id": "REQ-001",
+          "original_text": "Review before acceptance",
+          "state": "CONFIRMED"
+        }
+      ],
+      "solutions": [
+        {
+          "decided_at": "2026-09-29",
+          "decided_by": "project owner",
+          "decision_history": [
+            "approved at source ref"
+          ],
+          "id": "SOL-001",
+          "original_text": "Record evidence per check",
+          "state": "CONFIRMED"
+        }
+      ]
     },
     "refs": [
       "beacon-api@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"

@@ -5,10 +5,14 @@
   "current_selection": "one",
   "current_source_key": "route:A",
   "expected_content": "one\n",
+  "expected_index": "index:rev-1",
   "expected_selection": "one",
   "expected_source_key": "route:A",
   "lock_serialized": true,
   "operation": "update",
+  "parent_ref": "beacon-api:project/BEACON-1",
   "preview_alive": true,
-  "rebind_during_write": true
+  "preview_id": "preview:BEACON-1:1",
+  "rebind_during_write": true,
+  "target_id": "DOC-01"
 }

@@ -5,9 +5,13 @@
   "current_selection": "one",
   "current_source_key": "route:A",
   "expected_content": "one\n",
+  "expected_index": "index:rev-1",
   "expected_selection": "one",
   "expected_source_key": "route:A",
   "mapping_changed": true,
   "operation": "list",
-  "preview_alive": true
+  "parent_ref": "beacon-api:project/BEACON-1",
+  "preview_alive": true,
+  "preview_id": "preview:BEACON-1:1",
+  "target_id": "DOC-01"
 }

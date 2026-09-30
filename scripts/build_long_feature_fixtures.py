@@ -17,17 +17,20 @@ def c1_base(case_id: str) -> dict:
     finding = {
         "finding_id": "F-1", "severity": "P1", "closed_for_candidate": False,
         "description": "blocking discrepancy", "affected_scope": "BEACON-1/DEV-01",
-        "evidence": "review/attempt-1.md#finding-1",
+        "evidence": "review/attempt-1.md#finding-1", "resolution": "open; rework required",
     }
     return {
         "case_id": case_id,
         "feature": "BEACON-1",
         "source_scope": {"environment": "staging", "project": "BEACON-1", "document_ref": "beacon-api@" + SHA_A + ":project/BEACON-1"},
         "points": [
-            {"id": "REQ-001", "text": "Review before acceptance", "state": "CONFIRMED", "decided_by": "project owner", "decided_at": "2026-09-29", "decision_history": ["approved at source ref"]},
-            {"id": "SOL-001", "text": "Record evidence per check", "state": "PROPOSED"},
+            {"id": "REQ-001", "class": "ACTIVE", "text": "Review before acceptance", "state": "CONFIRMED", "decided_by": "project owner", "decided_at": "2026-09-29", "decision_history": ["approved at source ref"]},
+            {"id": "SOL-001", "class": "ACTIVE", "text": "Record evidence per check", "state": "PROPOSED", "decision_history": []},
         ],
-        "tasks": [{"id": "DEV-01", "state": "DONE", "depends_on": []}, {"id": "REVIEW-01", "state": "DONE", "depends_on": ["DEV-01"]}],
+        "tasks": [
+            {"id": "DEV-01", "type": "Development", "state": "DONE", "depends_on": [], "detail_ref": "tasks/DEV-01.md", "owner": "developer", "started_at": "2026-09-28", "completed_at": "2026-09-29", "repository_refs": ["beacon-api@" + SHA_A], "point_selectors": {"requirements": ["REQ-001"], "solutions": ["SOL-001"]}},
+            {"id": "REVIEW-01", "type": "Review", "state": "DONE", "depends_on": ["DEV-01"], "detail_ref": "tasks/REVIEW-01.md", "owner": "independent reviewer", "started_at": "2026-09-29", "completed_at": "2026-09-29", "repository_refs": ["beacon-api@" + SHA_A], "point_selectors": {"requirements": ["REQ-001"], "solutions": ["SOL-001"]}},
+        ],
         "declared_evidence": ["review/attempt-1.md"],
         "available_evidence": ["review/attempt-1.md"],
         "candidate_sha": SHA_A,
@@ -60,7 +63,11 @@ def c2_base(case_id: str, operation: str = "update") -> dict:
         "current_content": "one\n",
         "expected_selection": "one",
         "current_selection": "one",
+        "preview_id": "preview:BEACON-1:1",
         "preview_alive": True,
+        "parent_ref": "beacon-api:project/BEACON-1",
+        "target_id": "DOC-01",
+        "expected_index": "index:rev-1",
     }
 
 
@@ -80,7 +87,10 @@ def c3_base(case_id: str) -> dict:
             "feature": {"id": "BEACON-1", "phase": "EXECUTING"},
             "task": {"id": "DEV-01", "state": "WIP"},
             "task_detail": {"blocker": "none", "resume_action": "continue"},
-            "intent": {"requirement": "REQ-001", "solution": "SOL-001"},
+            "intent": {
+                "requirements": [{"id": "REQ-001", "original_text": "Review before acceptance", "state": "CONFIRMED", "decided_by": "project owner", "decided_at": "2026-09-29", "decision_history": ["approved at source ref"]}],
+                "solutions": [{"id": "SOL-001", "original_text": "Record evidence per check", "state": "CONFIRMED", "decided_by": "project owner", "decided_at": "2026-09-29", "decision_history": ["approved at source ref"]}],
+            },
             "repositories": [{"id": "beacon-api", "sha": SHA_A}],
             "refs": ["beacon-api@" + SHA_A],
             "dependencies": ["GATE-START"],
@@ -100,7 +110,10 @@ def cases() -> list[tuple[str, dict, str]]:
     c1 = c1_base("C1-01")
     rows.append(("c1", c1, "REWORK_READY_ACCEPT_BLOCKED"))
     c1 = c1_base("C1-02")
-    c1["tasks"].append({"id": "DEV-01", "state": "WIP", "depends_on": []})
+    duplicate = copy.deepcopy(c1["tasks"][0])
+    duplicate["state"] = "WIP"
+    duplicate.pop("completed_at")
+    c1["tasks"].append(duplicate)
     rows.append(("c1", c1, "INVALID_DOCUMENT"))
     c1 = c1_base("C1-03")
     c1["available_evidence"] = []

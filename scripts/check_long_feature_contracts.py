@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import re
 import sys
 from pathlib import Path, PurePosixPath
 
@@ -19,14 +20,39 @@ REQUIRED_CONTEXT = (
     "feature", "task", "task_detail", "intent", "repositories", "refs",
     "dependencies", "trace", "gists", "type_contract", "acceptance_brief",
 )
+FULL_REPO_REF = re.compile(r"^[^@\s]+@[0-9a-f]{40}(?::[^\s]+)?$")
 
 
 class BundleError(Exception):
     pass
 
 
-def fail(case_id: str | None, field: str, expected: object, observed: object) -> dict:
-    return {"case_id": case_id, "field": field, "expected": expected, "observed": observed}
+def fail(case_id: str | None, field: str, expected: object, observed: object, path: str | None = None) -> dict:
+    result = {"case_id": case_id, "field": field, "expected": expected, "observed": observed}
+    if path is not None:
+        result["path"] = path
+    return result
+
+
+def nonempty_string(value: object) -> bool:
+    return isinstance(value, str) and bool(value.strip())
+
+
+def valid_intent(intent: object) -> bool:
+    if not isinstance(intent, dict):
+        return False
+    for group in ("requirements", "solutions"):
+        points = intent.get(group)
+        if not isinstance(points, list) or not points:
+            return False
+        for point in points:
+            if not isinstance(point, dict) or any(not nonempty_string(point.get(key)) for key in ("id", "original_text", "state")):
+                return False
+            if point["state"] not in {"PROPOSED", "REOPENED", "CONFIRMED", "REJECTED", "OUT-OF-SCOPE", "INFEASIBLE"}:
+                return False
+            if point["state"] not in {"PROPOSED", "REOPENED"} and any(not point.get(key) for key in ("decided_by", "decided_at", "decision_history")):
+                return False
+    return True
 
 
 def safe_file(root: Path, relative: object) -> Path:
@@ -68,7 +94,7 @@ def evaluate_c1(case: dict) -> str:
     if len(point_ids) != len(points) or len(set(point_ids)) != len(points):
         return "INVALID_DOCUMENT"
     for point in points:
-        if not point.get("text") or point.get("state") not in {"PROPOSED", "REOPENED", "CONFIRMED", "REJECTED", "OUT-OF-SCOPE", "INFEASIBLE"}:
+        if not nonempty_string(point.get("text")) or point.get("class") not in {"ACTIVE", "DEFERRED"} or point.get("state") not in {"PROPOSED", "REOPENED", "CONFIRMED", "REJECTED", "OUT-OF-SCOPE", "INFEASIBLE"}:
             return "INVALID_DOCUMENT"
         if point["state"] not in {"PROPOSED", "REOPENED"} and any(not point.get(key) for key in ("decided_by", "decided_at", "decision_history")):
             return "INVALID_DOCUMENT"
@@ -79,6 +105,23 @@ def evaluate_c1(case: dict) -> str:
     task_index = {task["id"]: task for task in tasks}
     if any(task.get("state") not in {"PENDING", "WIP", "BLOCKED", "RECORDING", "DONE"} or not isinstance(task.get("depends_on"), list) for task in tasks):
         return "INVALID_DOCUMENT"
+    for task in tasks:
+        if not nonempty_string(task.get("type")) or not nonempty_string(task.get("detail_ref")):
+            return "INVALID_DOCUMENT"
+        if task["state"] != "PENDING" and any(not nonempty_string(task.get(key)) for key in ("owner", "started_at")):
+            return "INVALID_DOCUMENT"
+        if task["state"] == "DONE" and not nonempty_string(task.get("completed_at")):
+            return "INVALID_DOCUMENT"
+        refs = task.get("repository_refs")
+        if not isinstance(refs, list) or not refs or any(not isinstance(ref, str) or FULL_REPO_REF.fullmatch(ref) is None for ref in refs):
+            return "INVALID_DOCUMENT"
+        selectors = task.get("point_selectors")
+        if not isinstance(selectors, dict) or set(selectors) != {"requirements", "solutions"}:
+            return "INVALID_DOCUMENT"
+        for group, prefix in (("requirements", "REQ-"), ("solutions", "SOL-")):
+            selected = selectors[group]
+            if not isinstance(selected, list) or any(not isinstance(point_id, str) or not point_id.startswith(prefix) or point_id not in point_ids for point_id in selected):
+                return "INVALID_DOCUMENT"
     if any(dependency not in task_index for task in tasks for dependency in task["depends_on"]):
         return "INVALID_DOCUMENT"
     remaining = {task_id: set(task_index[task_id]["depends_on"]) for task_id in ids}
@@ -103,6 +146,8 @@ def evaluate_c1(case: dict) -> str:
     review = case.get("review", {})
     if not isinstance(review, dict) or any(not review.get(key) for key in ("report_id", "attempt", "reviewer", "target_repo", "scope", "source_refs")):
         return "INVALID_DOCUMENT"
+    if not isinstance(review.get("report_done"), bool) or not isinstance(case.get("request_acceptance"), bool) or not isinstance(case.get("request_rework"), bool):
+        return "INVALID_DOCUMENT"
     if review.get("target_sha") != case.get("candidate_sha"):
         return "STALE_EVIDENCE"
     findings = review.get("findings", [])
@@ -112,13 +157,17 @@ def evaluate_c1(case: dict) -> str:
     for item in findings:
         if not isinstance(item, dict) or not item.get("finding_id") or item.get("severity") not in {"P0", "P1", "P2"}:
             return "INVALID_DOCUMENT"
-        if not item.get("description") or not item.get("affected_scope") or not item.get("evidence"):
+        if not item.get("description") or not item.get("affected_scope") or not item.get("evidence") or not nonempty_string(item.get("resolution")):
             return "MISSING_EVIDENCE"
         prior = unique_findings.setdefault(item["finding_id"], item)
         if prior != item:
             return "INVALID_DOCUMENT"
         if item["evidence"].split("#", 1)[0] not in available:
             return "MISSING_EVIDENCE"
+        if item.get("closed_for_candidate"):
+            recheck_ref = item.get("recheck_ref")
+            if not nonempty_string(recheck_ref) or recheck_ref.split("#", 1)[0] not in available or item.get("recheck_sha") != case.get("candidate_sha"):
+                return "MISSING_EVIDENCE"
     checks = review.get("checks", [])
     if not isinstance(checks, list) or not checks or any(not isinstance(item, dict) for item in checks):
         return "INVALID_DOCUMENT"
@@ -148,6 +197,8 @@ def evaluate_c1(case: dict) -> str:
     if case.get("expected_counts") != counts:
         return "COUNT_MISMATCH"
     blocking = any(f.get("severity") in {"P0", "P1"} and not f.get("closed_for_candidate", False) for f in unique_findings.values())
+    if case.get("request_acceptance") and not review.get("report_done"):
+        return "ACCEPT_BLOCKED"
     if case.get("request_rework") and review.get("report_done") and case.get("request_acceptance") and blocking:
         return "REWORK_READY_ACCEPT_BLOCKED"
     if case.get("request_acceptance") and any(point["state"] != "CONFIRMED" for point in points):
@@ -164,11 +215,21 @@ def evaluate_c2(case: dict) -> str:
     if operation == "list":
         return "CURSOR_INVALID" if case.get("mapping_changed") else "VALID"
     if operation == "config_write":
+        if "expected_config" not in case or "current_config" not in case or not isinstance(case["expected_config"], (dict, str)) or not isinstance(case["current_config"], (dict, str)):
+            return "MISSING_CONDITION"
         return "CONFIG_CONFLICT" if case.get("expected_config") != case.get("current_config") else "SAVED"
     if operation not in {"update", "create", "preview_apply"}:
         return "UNSUPPORTED_OPERATION"
     if not case.get("conditional_write"):
         return "READ_ONLY"
+    if any(not nonempty_string(case.get(key)) for key in ("expected_source_key", "current_source_key")):
+        return "MISSING_CONDITION"
+    if operation == "update" and any(key not in case or not isinstance(case[key], str) for key in ("expected_content", "current_content")):
+        return "MISSING_CONDITION"
+    if operation == "create" and any(not nonempty_string(case.get(key)) for key in ("parent_ref", "target_id", "expected_index")):
+        return "MISSING_CONDITION"
+    if operation == "preview_apply" and (not nonempty_string(case.get("preview_id")) or any(not isinstance(case.get(key), str) for key in ("expected_selection", "current_selection"))):
+        return "MISSING_CONDITION"
     if case.get("expected_source_key") != case.get("current_source_key"):
         return "SOURCE_CHANGED"
     if case.get("rebind_during_write") and not case.get("lock_serialized"):
@@ -201,7 +262,7 @@ def evaluate_c3(case: dict) -> str:
     if not case.get("authoritative_source_ref") or case.get("authoritative_source_ref") != case.get("checkout_source_ref"):
         return "SOURCE_CHECKOUT_MISMATCH"
     if case.get("stage") == "source":
-        return "SOURCE_ONLY"
+        return "SOURCE_ONLY" if case.get("valid") is False else "INVALID_ENVELOPE"
     if case.get("stage") != "execution" or case.get("valid") is not True:
         return "INVALID_ENVELOPE"
     if not case.get("service_available", True) and not case.get("fallback_same_source"):
@@ -211,12 +272,14 @@ def evaluate_c3(case: dict) -> str:
         return "INVALID_ENVELOPE"
     if any(key not in context or context[key] in (None, "", [], {}) for key in REQUIRED_CONTEXT):
         return "MISSING_FIELD"
+    if not valid_intent(context.get("intent")):
+        return "MISSING_FIELD"
     if not isinstance(context.get("task_detail"), dict) or "blocker" not in context["task_detail"]:
         return "MISSING_FIELD"
     if context.get("trace") != "VALIDATED":
         return "INVALID_ENVELOPE"
     source_facts = case.get("source_facts")
-    if not isinstance(source_facts, dict) or any(key not in source_facts for key in REQUIRED_CONTEXT) or source_facts.get("sources") != case["sources"]:
+    if not isinstance(source_facts, dict) or any(key not in source_facts for key in REQUIRED_CONTEXT) or source_facts.get("sources") != case["sources"] or not valid_intent(source_facts.get("intent")):
         return "MISSING_FIELD"
     if any(context[key] != source_facts[key] for key in REQUIRED_CONTEXT) or not case.get("profile_matches", True):
         return "PROFILE_PROJECTION_MISMATCH"
@@ -262,7 +325,7 @@ def validate(root: Path) -> tuple[dict, int]:
         if total > MAX_TOTAL:
             raise BundleError("bundle exceeds 64 MiB")
         if entry.get("sha256") != actual_hash:
-            failures.append(fail(entry.get("case_id"), "sha256", entry.get("sha256"), actual_hash))
+            failures.append(fail(entry.get("case_id"), "sha256", entry.get("sha256"), actual_hash, relative))
             continue
         case_id = entry.get("case_id")
         if case_id is None:
@@ -275,13 +338,13 @@ def validate(root: Path) -> tuple[dict, int]:
             raise BundleError(f"contract/case mismatch: {case_id}")
         data = json.loads(path.read_text(encoding="utf-8"))
         if not isinstance(data, dict) or data.get("case_id") != case_id:
-            failures.append(fail(case_id, "case_id", case_id, data.get("case_id") if isinstance(data, dict) else None))
+            failures.append(fail(case_id, "case_id", case_id, data.get("case_id") if isinstance(data, dict) else None, relative))
             continue
         observed = {"c1": evaluate_c1, "c2": evaluate_c2, "c3": evaluate_c3}[contract](data)
         expected = entry.get("expected_result")
         checked += 1
         if observed != expected:
-            failures.append(fail(case_id, "expected_result", expected, observed))
+            failures.append(fail(case_id, "expected_result", expected, observed, relative))
     if len(seen_cases) != 23 or any(not {f"{name.upper()}-{i:02}" for i in range(1, count + 1)}.issubset(seen_cases) for name, count in (("c1", 4), ("c2", 10), ("c3", 9))):
         failures.append(fail(None, "case_ids", "C1-01..04, C2-01..10, C3-01..09", sorted(seen_cases)))
     for name in VERSIONS:
