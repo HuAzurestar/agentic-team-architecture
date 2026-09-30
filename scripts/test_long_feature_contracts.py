@@ -124,6 +124,24 @@ class BundleTest(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertTrue(result["valid"])
 
+    def test_c1_unknown_check_cannot_allow_acceptance(self) -> None:
+        def change(case: dict) -> None:
+            case["points"][1].update(state="CONFIRMED", decided_by="owner", decided_at="2026-09-30", decision_history=["approved"])
+            case["review"]["findings"] = []
+            case["review"]["checks"] = [{"check_id": "CHK-1", "requirement_or_case": "REQ-001", "result": "UNKNOWN", "evidence": ["review/attempt-1.md#check-1"], "finding_ids": [], "reason": "not verified"}]
+            case["expected_counts"] = {"all": 1, "pass": 0, "findings_total": 0, "open_by_severity": {"P0": 0, "P1": 0, "P2": 0}}
+            case["request_rework"] = False
+        self.rewrite_case("C1-01", change)
+        code, result = self.check_bundle()
+        self.assertEqual(code, 3)
+        self.assertEqual(result["failures"][0]["observed"], "ACCEPT_BLOCKED")
+
+    def test_c1_review_requires_independent_context(self) -> None:
+        self.rewrite_case("C1-01", lambda case: case["review"].pop("independent_context", None))
+        code, result = self.check_bundle()
+        self.assertEqual(code, 3)
+        self.assertEqual(result["failures"][0]["observed"], "INVALID_DOCUMENT")
+
     def test_c1_positive_requires_point_class(self) -> None:
         self.rewrite_case("C1-01", lambda case: case["points"][0].pop("class", None))
         code, result = self.check_bundle()
@@ -162,6 +180,24 @@ class BundleTest(unittest.TestCase):
 
     def test_c2_missing_source_or_content_condition_is_rejected(self) -> None:
         self.rewrite_case("C2-03", lambda case: (case.pop("expected_source_key", None), case.pop("current_source_key", None), case.pop("expected_content", None), case.pop("current_content", None)))
+        code, result = self.check_bundle()
+        self.assertEqual(code, 3)
+        self.assertEqual(result["failures"][0]["observed"], "MISSING_CONDITION")
+
+    def test_c2_create_requires_observed_absence(self) -> None:
+        self.rewrite_case("C2-09", lambda case: case.pop("target_exists", None))
+        code, result = self.check_bundle()
+        self.assertEqual(code, 3)
+        self.assertEqual(result["failures"][0]["observed"], "MISSING_CONDITION")
+
+    def test_c2_update_requires_document_ref(self) -> None:
+        self.rewrite_case("C2-03", lambda case: case.pop("ref", None))
+        code, result = self.check_bundle()
+        self.assertEqual(code, 3)
+        self.assertEqual(result["failures"][0]["observed"], "MISSING_CONDITION")
+
+    def test_c2_preview_apply_requires_document_ref(self) -> None:
+        self.rewrite_case("C2-05", lambda case: case.pop("ref", None))
         code, result = self.check_bundle()
         self.assertEqual(code, 3)
         self.assertEqual(result["failures"][0]["observed"], "MISSING_CONDITION")
