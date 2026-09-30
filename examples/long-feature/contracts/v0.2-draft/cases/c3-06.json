@@ -1,0 +1,12 @@
+{
+  "actual_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "case_id": "C3-06",
+  "context": null,
+  "profile_matches": true,
+  "recorded_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "same_source": true,
+  "service_available": true,
+  "sources": [],
+  "stage": "execution",
+  "valid": true
+}

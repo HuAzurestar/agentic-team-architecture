@@ -1,0 +1,12 @@
+{
+  "case_id": "C2-05",
+  "conditional_write": true,
+  "current_content": "one\nchanged outside selection\n",
+  "current_selection": "one",
+  "current_source_key": "route:A",
+  "expected_content": "one\n",
+  "expected_selection": "one",
+  "expected_source_key": "route:A",
+  "operation": "preview_apply",
+  "preview_alive": true
+}

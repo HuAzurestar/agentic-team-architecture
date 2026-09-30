@@ -1,0 +1,13 @@
+{
+  "case_id": "C2-10",
+  "conditional_write": true,
+  "current_content": "one\n",
+  "current_selection": "one",
+  "current_source_key": "route:A",
+  "expected_content": "one\n",
+  "expected_selection": "one",
+  "expected_source_key": "route:A",
+  "mapping_changed": true,
+  "operation": "list",
+  "preview_alive": true
+}

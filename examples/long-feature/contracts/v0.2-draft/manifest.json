@@ -1,0 +1,197 @@
+{
+  "contracts": {
+    "c1": "c1/0.1",
+    "c2": "c2/0.1",
+    "c3": "c3/0.1"
+  },
+  "files": [
+    {
+      "case_id": null,
+      "contract": "c1",
+      "expected_result": null,
+      "path": "c1.md",
+      "sha256": "93e9ba2cc5cd452de1b60c041525ce5c93a27bef22df09bef2e571a5236c4510"
+    },
+    {
+      "case_id": null,
+      "contract": "c2",
+      "expected_result": null,
+      "path": "c2.md",
+      "sha256": "38faacecca4f79776ad107deaaa13249611a357924bacf9c9efcb0234231dc98"
+    },
+    {
+      "case_id": null,
+      "contract": "c3",
+      "expected_result": null,
+      "path": "c3.md",
+      "sha256": "639b59a37d87345fe9f50689f13c591f8bc02cd16a38222e129208e86d10759c"
+    },
+    {
+      "case_id": "C1-01",
+      "contract": "c1",
+      "expected_result": "REWORK_READY_ACCEPT_BLOCKED",
+      "path": "cases/c1-01.json",
+      "sha256": "9d7a9921f053667ceedb20cc3d3b4a369a5fb55e7ce9216eb0f46049ff050092"
+    },
+    {
+      "case_id": "C1-02",
+      "contract": "c1",
+      "expected_result": "INVALID_DOCUMENT",
+      "path": "cases/c1-02.json",
+      "sha256": "aa20dfce8cd2fd9441116cdca652202175a1a84edcaf08381c00c3f13fe373eb"
+    },
+    {
+      "case_id": "C1-03",
+      "contract": "c1",
+      "expected_result": "MISSING_EVIDENCE",
+      "path": "cases/c1-03.json",
+      "sha256": "eeb38a286cf596a34341f9caba5a15a27e8e992a9d4b9adffaf0eb0e73e757e3"
+    },
+    {
+      "case_id": "C1-04",
+      "contract": "c1",
+      "expected_result": "STALE_EVIDENCE",
+      "path": "cases/c1-04.json",
+      "sha256": "dbaba174047a6d62f7c741d875aabdc274e2e081c6135f287d1f9bb62088cc48"
+    },
+    {
+      "case_id": "C2-01",
+      "contract": "c2",
+      "expected_result": "SOURCE_CHANGED",
+      "path": "cases/c2-01.json",
+      "sha256": "211144b1eab72153fb430ee5f56dea1580c62b757788b9c564a58f843eb936a0"
+    },
+    {
+      "case_id": "C2-02",
+      "contract": "c2",
+      "expected_result": "CONFIG_CONFLICT",
+      "path": "cases/c2-02.json",
+      "sha256": "e7765c6037a0fb4afd3255879f90293785fa0184782e026a10d204c45e8a60d2"
+    },
+    {
+      "case_id": "C2-03",
+      "contract": "c2",
+      "expected_result": "SAVED",
+      "path": "cases/c2-03.json",
+      "sha256": "ff8114d279d881457437a96809f84ee2a84bfde06a7ca3370b9a6a571d6f4896"
+    },
+    {
+      "case_id": "C2-04",
+      "contract": "c2",
+      "expected_result": "UNKNOWN",
+      "path": "cases/c2-04.json",
+      "sha256": "b8e168dc1305006b3951b84bd4774037e6b66b9aef23b2b58e398e6fb6b5815d"
+    },
+    {
+      "case_id": "C2-05",
+      "contract": "c2",
+      "expected_result": "SAVED",
+      "path": "cases/c2-05.json",
+      "sha256": "2ddf9a6ea9b7e3eea0f2db21782c3ace145974c5b50f8b7bf52156fbd91c360a"
+    },
+    {
+      "case_id": "C2-06",
+      "contract": "c2",
+      "expected_result": "PREVIEW_EXPIRED",
+      "path": "cases/c2-06.json",
+      "sha256": "81734078762683e35d09922232ac8e2c22a84d51bf8d58fb649f2de8faeefc52"
+    },
+    {
+      "case_id": "C2-07",
+      "contract": "c2",
+      "expected_result": "READ_ONLY",
+      "path": "cases/c2-07.json",
+      "sha256": "9927b53d4364cf9521a74492a62dc208e92966eee46d8a4261b2882a47701775"
+    },
+    {
+      "case_id": "C2-08",
+      "contract": "c2",
+      "expected_result": "SOURCE_CHANGED",
+      "path": "cases/c2-08.json",
+      "sha256": "2bc3876c62f39ba0f02cf157fcec1ddb3377f0b13b8dbe3030287c4655e4820f"
+    },
+    {
+      "case_id": "C2-09",
+      "contract": "c2",
+      "expected_result": "PARTIAL",
+      "path": "cases/c2-09.json",
+      "sha256": "f2a0d6353746e75d8df5b0b94698a8846a1dce44c03daae1b494e24106a0fbc4"
+    },
+    {
+      "case_id": "C2-10",
+      "contract": "c2",
+      "expected_result": "CURSOR_INVALID",
+      "path": "cases/c2-10.json",
+      "sha256": "119b00360dd214bfb876d41daf855f8ceb9bf7dc1b2861e8d353cf5f1c112644"
+    },
+    {
+      "case_id": "C3-01",
+      "contract": "c3",
+      "expected_result": "VALID",
+      "path": "cases/c3-01.json",
+      "sha256": "9514927bce03855d8914d6bcae62ab8807057dac5ede0be78082be91a7966d7f"
+    },
+    {
+      "case_id": "C3-02",
+      "contract": "c3",
+      "expected_result": "MISSING_FIELD",
+      "path": "cases/c3-02.json",
+      "sha256": "c9888812868ddabfdd3e05bab2b33d81155361eb60ba59bf0c312fad67b4fdca"
+    },
+    {
+      "case_id": "C3-03",
+      "contract": "c3",
+      "expected_result": "STALE_REF",
+      "path": "cases/c3-03.json",
+      "sha256": "64fead15318f1d79e88b466e8737c748421b9120229c942b630d4e938d781ea9"
+    },
+    {
+      "case_id": "C3-04",
+      "contract": "c3",
+      "expected_result": "SOURCE_SET_CHANGED",
+      "path": "cases/c3-04.json",
+      "sha256": "0dc6a28a6a7886a256c91d3190ccd28c5a0b9b05095834297ef2b88fd0c08e63"
+    },
+    {
+      "case_id": "C3-05",
+      "contract": "c3",
+      "expected_result": "UNSUPPORTED_FEATURE",
+      "path": "cases/c3-05.json",
+      "sha256": "a6ab431ff89fa9174a723a1439cd3e2378430a3d5bd33812273da534222209b5"
+    },
+    {
+      "case_id": "C3-06",
+      "contract": "c3",
+      "expected_result": "INVALID_ENVELOPE",
+      "path": "cases/c3-06.json",
+      "sha256": "737b1fb759f9d7b2eab3c3dabc4b3d4c9c27437f193bb8b55032804144966ff3"
+    },
+    {
+      "case_id": "C3-07",
+      "contract": "c3",
+      "expected_result": "SOURCE_ONLY",
+      "path": "cases/c3-07.json",
+      "sha256": "6483f4c87c62524303c9c7f4b609807240fa37c2da0e74bbc52a46c0fd098d2e"
+    },
+    {
+      "case_id": "C3-08",
+      "contract": "c3",
+      "expected_result": "SOURCE_CHECKOUT_MISMATCH",
+      "path": "cases/c3-08.json",
+      "sha256": "4f1ee75312161e6a2a826503469b74082e8933299daab5269bc49d76abe30ec7"
+    },
+    {
+      "case_id": "C3-09",
+      "contract": "c3",
+      "expected_result": "VALID_FALLBACK",
+      "path": "cases/c3-09.json",
+      "sha256": "d86c6d975298210ea5996c503df6c853f0b83b448168f1552325f1a0abc220eb"
+    }
+  ],
+  "required_features": [
+    "c1",
+    "c2",
+    "c3"
+  ],
+  "schema_version": "contract-fixtures/0.1"
+}

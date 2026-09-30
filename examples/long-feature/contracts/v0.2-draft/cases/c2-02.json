@@ -1,0 +1,14 @@
+{
+  "case_id": "C2-02",
+  "conditional_write": true,
+  "current_config": "new",
+  "current_content": "one\n",
+  "current_selection": "one",
+  "current_source_key": "route:A",
+  "expected_config": "old",
+  "expected_content": "one\n",
+  "expected_selection": "one",
+  "expected_source_key": "route:A",
+  "operation": "config_write",
+  "preview_alive": true
+}

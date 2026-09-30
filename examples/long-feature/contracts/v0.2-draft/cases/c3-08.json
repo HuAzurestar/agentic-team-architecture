@@ -1,0 +1,54 @@
+{
+  "actual_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "case_id": "C3-08",
+  "context": {
+    "acceptance_brief": {
+      "status": "not-applicable"
+    },
+    "dependencies": [
+      "GATE-START"
+    ],
+    "feature": {
+      "id": "BEACON-1",
+      "phase": "EXECUTING"
+    },
+    "gists": [
+      "evidence.md"
+    ],
+    "intent": {
+      "requirement": "REQ-001",
+      "solution": "SOL-001"
+    },
+    "refs": [
+      "beacon-api@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    ],
+    "repositories": [
+      {
+        "id": "beacon-api",
+        "sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      }
+    ],
+    "task": {
+      "id": "DEV-01",
+      "state": "WIP"
+    },
+    "task_detail": {
+      "blocker": "none",
+      "resume_action": "continue"
+    },
+    "trace": "VALIDATED",
+    "type_contract": {
+      "kind": "development"
+    }
+  },
+  "profile_matches": true,
+  "recorded_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "same_source": false,
+  "service_available": true,
+  "sources": [
+    "BEACON-1/STATUS.md",
+    "BEACON-1/TASKS.md"
+  ],
+  "stage": "execution",
+  "valid": true
+}

@@ -1,0 +1,50 @@
+{
+  "available_evidence": [
+    "review/attempt-1.md"
+  ],
+  "candidate_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "case_id": "C1-02",
+  "declared_evidence": [
+    "review/attempt-1.md"
+  ],
+  "feature": "BEACON-1",
+  "request_acceptance": true,
+  "request_rework": true,
+  "review": {
+    "checks": [
+      {
+        "check_id": "CHK-1",
+        "reason": "",
+        "result": "PASS"
+      },
+      {
+        "check_id": "CHK-2",
+        "reason": "open finding",
+        "result": "FAIL"
+      }
+    ],
+    "findings": [
+      {
+        "closed_for_candidate": false,
+        "finding_id": "F-1",
+        "severity": "P1"
+      }
+    ],
+    "report_done": true,
+    "target_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "tasks": [
+    {
+      "id": "DEV-01",
+      "state": "DONE"
+    },
+    {
+      "id": "REVIEW-01",
+      "state": "DONE"
+    },
+    {
+      "id": "DEV-01",
+      "state": "WIP"
+    }
+  ]
+}

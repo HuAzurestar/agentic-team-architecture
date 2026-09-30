@@ -1,0 +1,17 @@
+{
+  "case_id": "C2-09",
+  "conditional_write": true,
+  "current_content": "one\n",
+  "current_selection": "one",
+  "current_source_key": "route:A",
+  "expected_content": "one\n",
+  "expected_selection": "one",
+  "expected_source_key": "route:A",
+  "known_effects": [
+    "file_created",
+    "index_update_failed"
+  ],
+  "known_partial": true,
+  "operation": "create",
+  "preview_alive": true
+}
