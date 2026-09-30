@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import shutil
 import subprocess
 import sys
@@ -57,6 +58,19 @@ class BundleTest(unittest.TestCase):
         code, result = self.check_bundle()
         self.assertEqual(code, 4)
         self.assertFalse(result["valid"])
+
+    def test_changed_condition_with_valid_hash_is_semantic_failure(self) -> None:
+        target = self.bundle / "cases/c2-01.json"
+        case = json.loads(target.read_text(encoding="utf-8"))
+        case["current_source_key"] = case["expected_source_key"]
+        target.write_text(json.dumps(case), encoding="utf-8")
+        value = self.manifest()
+        entry = next(item for item in value["files"] if item["case_id"] == "C2-01")
+        entry["sha256"] = hashlib.sha256(target.read_bytes()).hexdigest()
+        self.save_manifest(value)
+        code, result = self.check_bundle()
+        self.assertEqual(code, 3)
+        self.assertEqual(result["failures"][0]["field"], "expected_result")
 
     def test_duplicate_case_id_is_rejected(self) -> None:
         value = self.manifest()
