@@ -14,5 +14,7 @@
   "preview_alive": true,
   "preview_id": "preview:BEACON-1:1",
   "rebind_during_write": true,
+  "ref": "beacon-binding:DOC-01",
+  "target_exists": false,
   "target_id": "DOC-01"
 }

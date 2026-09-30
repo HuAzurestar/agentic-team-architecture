@@ -17,5 +17,7 @@
   "parent_ref": "beacon-api:project/BEACON-1",
   "preview_alive": true,
   "preview_id": "preview:BEACON-1:1",
+  "ref": "beacon-binding:DOC-01",
+  "target_exists": false,
   "target_id": "DOC-01"
 }

@@ -36,6 +36,7 @@ def c1_base(case_id: str) -> dict:
         "candidate_sha": SHA_A,
         "review": {
             "report_id": "R-1", "attempt": "1", "reviewer": "independent reviewer",
+            "independent_context": "separate read-only review session against source refs",
             "target_repo": "beacon-api", "scope": "BEACON-1 F01",
             "source_refs": ["beacon-api@" + SHA_A],
             "target_sha": SHA_A,
@@ -56,6 +57,7 @@ def c2_base(case_id: str, operation: str = "update") -> dict:
     return {
         "case_id": case_id,
         "operation": operation,
+        "ref": "beacon-binding:DOC-01",
         "conditional_write": True,
         "expected_source_key": "route:A",
         "current_source_key": "route:A",
@@ -67,6 +69,7 @@ def c2_base(case_id: str, operation: str = "update") -> dict:
         "preview_alive": True,
         "parent_ref": "beacon-api:project/BEACON-1",
         "target_id": "DOC-01",
+        "target_exists": False,
         "expected_index": "index:rev-1",
     }
 

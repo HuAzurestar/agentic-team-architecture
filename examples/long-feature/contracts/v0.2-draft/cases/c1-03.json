@@ -84,6 +84,7 @@
         "severity": "P1"
       }
     ],
+    "independent_context": "separate read-only review session against source refs",
     "report_done": true,
     "report_id": "R-1",
     "reviewer": "independent reviewer",

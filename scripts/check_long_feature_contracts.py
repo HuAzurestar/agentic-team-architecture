@@ -144,7 +144,7 @@ def evaluate_c1(case: dict) -> str:
     if any(ref not in available for ref in case.get("declared_evidence", [])):
         return "MISSING_EVIDENCE"
     review = case.get("review", {})
-    if not isinstance(review, dict) or any(not review.get(key) for key in ("report_id", "attempt", "reviewer", "target_repo", "scope", "source_refs")):
+    if not isinstance(review, dict) or any(not nonempty_string(review.get(key)) for key in ("report_id", "attempt", "reviewer", "independent_context", "target_repo", "scope")) or not review.get("source_refs"):
         return "INVALID_DOCUMENT"
     if not isinstance(review.get("report_done"), bool) or not isinstance(case.get("request_acceptance"), bool) or not isinstance(case.get("request_rework"), bool):
         return "INVALID_DOCUMENT"
@@ -205,6 +205,8 @@ def evaluate_c1(case: dict) -> str:
         return "ACCEPT_BLOCKED"
     if case.get("request_acceptance") and blocking:
         return "ACCEPT_BLOCKED"
+    if case.get("request_acceptance") and any(item["result"] not in {"PASS", "N/A"} for item in checks):
+        return "ACCEPT_BLOCKED"
     if case.get("request_rework") and not review.get("report_done"):
         return "REWORK_WAITING_REPORT"
     return "VALID"
@@ -224,9 +226,11 @@ def evaluate_c2(case: dict) -> str:
         return "READ_ONLY"
     if any(not nonempty_string(case.get(key)) for key in ("expected_source_key", "current_source_key")):
         return "MISSING_CONDITION"
+    if operation in {"update", "preview_apply"} and not nonempty_string(case.get("ref")):
+        return "MISSING_CONDITION"
     if operation == "update" and any(key not in case or not isinstance(case[key], str) for key in ("expected_content", "current_content")):
         return "MISSING_CONDITION"
-    if operation == "create" and any(not nonempty_string(case.get(key)) for key in ("parent_ref", "target_id", "expected_index")):
+    if operation == "create" and (any(not nonempty_string(case.get(key)) for key in ("parent_ref", "target_id", "expected_index")) or not isinstance(case.get("target_exists"), bool)):
         return "MISSING_CONDITION"
     if operation == "preview_apply" and (not nonempty_string(case.get("preview_id")) or any(not isinstance(case.get(key), str) for key in ("expected_selection", "current_selection"))):
         return "MISSING_CONDITION"

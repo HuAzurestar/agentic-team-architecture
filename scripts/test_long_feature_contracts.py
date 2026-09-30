@@ -116,6 +116,8 @@ class BundleTest(unittest.TestCase):
             for finding in case["review"]["findings"]:
                 finding.update(closed_for_candidate=True, resolution="fixed", recheck_ref="review/attempt-1.md#recheck-1", recheck_sha=case["candidate_sha"])
             case["expected_counts"]["open_by_severity"]["P1"] = 0
+            case["review"]["checks"][1].update(result="PASS", reason="current candidate rechecked")
+            case["expected_counts"]["pass"] = 2
         self.rewrite_case("C1-01", change)
         manifest = self.manifest()
         next(item for item in manifest["files"] if item["case_id"] == "C1-01")["expected_result"] = "VALID"
