@@ -87,11 +87,77 @@ class BundleTest(unittest.TestCase):
         self.assertEqual(code, 3)
         self.assertEqual(result["failures"][0]["field"], "expected_result")
 
+    def test_c1_incomplete_report_cannot_allow_acceptance(self) -> None:
+        def change(case: dict) -> None:
+            case["points"][1].update(state="CONFIRMED", decided_by="owner", decided_at="2026-09-30", decision_history=["approved"])
+            case["review"].update(report_done=False, findings=[])
+            case["review"]["checks"][1].update(result="PASS", finding_ids=[], reason="")
+            case["expected_counts"] = {"all": 2, "pass": 2, "findings_total": 0, "open_by_severity": {"P0": 0, "P1": 0, "P2": 0}}
+            case["request_rework"] = False
+        self.rewrite_case("C1-01", change)
+        code, result = self.check_bundle()
+        self.assertEqual(code, 3)
+        self.assertEqual(result["failures"][0]["observed"], "ACCEPT_BLOCKED")
+
+    def test_c1_closure_without_current_candidate_recheck_is_rejected(self) -> None:
+        def change(case: dict) -> None:
+            case["points"][1].update(state="CONFIRMED", decided_by="owner", decided_at="2026-09-30", decision_history=["approved"])
+            for finding in case["review"]["findings"]:
+                finding["closed_for_candidate"] = True
+            case["expected_counts"]["open_by_severity"]["P1"] = 0
+        self.rewrite_case("C1-01", change)
+        code, result = self.check_bundle()
+        self.assertEqual(code, 3)
+        self.assertEqual(result["failures"][0]["observed"], "MISSING_EVIDENCE")
+
+    def test_c1_positive_requires_point_and_task_record_fields(self) -> None:
+        def change(case: dict) -> None:
+            case["points"][0].pop("class", None)
+            case["tasks"][0].pop("type", None)
+        self.rewrite_case("C1-01", change)
+        code, result = self.check_bundle()
+        self.assertEqual(code, 3)
+        self.assertEqual(result["failures"][0]["observed"], "INVALID_DOCUMENT")
+
+    def test_c2_missing_config_condition_is_rejected(self) -> None:
+        self.rewrite_case("C2-02", lambda case: (case.pop("expected_config", None), case.pop("current_config", None)))
+        code, result = self.check_bundle()
+        self.assertEqual(code, 3)
+        self.assertEqual(result["failures"][0]["observed"], "MISSING_CONDITION")
+
+    def test_c2_missing_source_or_content_condition_is_rejected(self) -> None:
+        self.rewrite_case("C2-03", lambda case: (case.pop("expected_source_key", None), case.pop("current_source_key", None), case.pop("expected_content", None), case.pop("current_content", None)))
+        code, result = self.check_bundle()
+        self.assertEqual(code, 3)
+        self.assertEqual(result["failures"][0]["observed"], "MISSING_CONDITION")
+
     def test_c3_context_different_from_source_is_rejected(self) -> None:
         self.rewrite_case("C3-01", lambda case: case["context"].update(intent={"unrelated": "different source"}))
         code, result = self.check_bundle()
         self.assertEqual(code, 3)
         self.assertEqual(result["failures"][0]["field"], "expected_result")
+
+    def test_c3_execution_intent_requires_originals_and_decisions(self) -> None:
+        def change(case: dict) -> None:
+            case["context"]["intent"] = {"requirement": "REQ-001", "solution": "SOL-001"}
+            case["source_facts"]["intent"] = dict(case["context"]["intent"])
+        self.rewrite_case("C3-01", change)
+        code, result = self.check_bundle()
+        self.assertEqual(code, 3)
+        self.assertEqual(result["failures"][0]["observed"], "MISSING_FIELD")
+
+    def test_c3_source_stage_cannot_claim_execution_valid(self) -> None:
+        self.rewrite_case("C3-07", lambda case: case.update(valid=True))
+        code, result = self.check_bundle()
+        self.assertEqual(code, 3)
+        self.assertEqual(result["failures"][0]["observed"], "INVALID_ENVELOPE")
+
+    def test_spec_hash_failure_identifies_path(self) -> None:
+        target = self.bundle / "c1.md"
+        target.write_bytes(target.read_bytes() + b" ")
+        code, result = self.check_bundle()
+        self.assertEqual(code, 3)
+        self.assertEqual(result["failures"][0]["path"], "c1.md")
 
     def test_duplicate_case_id_is_rejected(self) -> None:
         value = self.manifest()
