@@ -5,10 +5,12 @@ from __future__ import annotations
 
 import argparse
 from collections import deque
+from dataclasses import dataclass
 import json
 import re
 import subprocess
 import sys
+import time
 from pathlib import Path, PurePosixPath
 from typing import Any
 
@@ -86,10 +88,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     )
     parser.add_argument(
         "--format",
-        choices=("markdown", "json", "acceptance"),
+        choices=("markdown", "json", "acceptance", "envelope"),
         default="markdown",
         help="Use acceptance for a short user-facing acceptance packet",
     )
+    parser.add_argument("--context-schema", default="lfd-context-v1",
+                        help="Structured context schema; unknown versions are rejected")
     parser.add_argument(
         "--sync-topology",
         action="store_true",
@@ -391,19 +395,22 @@ def task_detail(root: Path, record: dict[str, Any], *, text: str | None = None) 
     return text, refs
 
 
-def validate_task_files(root: Path, records: dict[str, dict[str, Any]]) -> dict[str, tuple[str, list[dict[str, str]]]]:
+def validate_task_files(root: Path, records: dict[str, dict[str, Any]], *, documents: Any = None) -> dict[str, tuple[str, list[dict[str, str]]]]:
     task_root = root / "tasks"
-    if not task_root.is_dir():
+    if documents is None and not task_root.is_dir():
         raise ContextError("required directory is missing: tasks")
     indexed = {f"{task_id}.md" for task_id in records}
-    actual = {path.name for path in task_root.glob("*.md")}
+    actual = ({PurePosixPath(path).name for path in documents.task_paths} if documents is not None
+              else {path.name for path in task_root.glob("*.md")})
     missing = sorted(indexed - actual)
     extra = sorted(actual - indexed)
     if missing:
         raise ContextError("tasks/ is missing detail files: " + ", ".join(missing))
     if extra:
         raise ContextError("tasks/ has detail files absent from TASKS.md: " + ", ".join(extra))
-    return {task_id: task_detail(root, record) for task_id, record in records.items()}
+    return {task_id: task_detail(root, record, text=documents.read(f"tasks/{task_id}.md")
+                                if documents is not None else None)
+            for task_id, record in records.items()}
 
 
 def h2_section(text: str, headings: tuple[str, ...]) -> str:
@@ -1149,7 +1156,7 @@ def validate_decision_mapping(records: dict[str, dict[str, Any]], requirement_te
             raise ContextError(f"confirmed solution point {point_id} references unconfirmed requirements: " + ", ".join(invalid))
 
 
-def declared_gist_paths(detail: str, feature_root: Path) -> list[tuple[str, Path]]:
+def declared_gist_names(detail: str) -> list[str]:
     declarations = re.findall(r"^- Gists[:：][ \t]*(.+?)[ \t]*$", detail, re.MULTILINE)
     if len(declarations) != 1:
         raise ContextError("task detail must contain exactly one '- Gists:' declaration")
@@ -1159,8 +1166,7 @@ def declared_gist_paths(detail: str, feature_root: Path) -> list[tuple[str, Path
     values = [value.strip().strip("`") for value in raw.split(",")]
     if not values or any(not value for value in values):
         raise ContextError("Gists must be 'none' or a comma-separated path list")
-    gist_root = (feature_root / "gists").resolve()
-    result: list[tuple[str, Path]] = []
+    result: list[str] = []
     seen: set[str] = set()
     for value in values:
         if "\\" in value:
@@ -1174,21 +1180,35 @@ def declared_gist_paths(detail: str, feature_root: Path) -> list[tuple[str, Path
         if normalized in seen:
             raise ContextError(f"gist path is declared more than once: {normalized}")
         seen.add(normalized)
+        result.append(normalized)
+    return result
+
+
+def declared_gist_paths(detail: str, feature_root: Path, *, documents: Any = None) -> list[tuple[str, Path]]:
+    result: list[tuple[str, Path]] = []
+    gist_root = (feature_root / "gists").resolve() if documents is None else feature_root / "gists"
+    for normalized in declared_gist_names(detail):
+        relative = PurePosixPath(normalized)
+        if documents is not None:
+            if normalized not in documents.records:
+                raise ContextError(f"declared gist is missing: {normalized}")
+            result.append((normalized, feature_root / Path(*relative.parts)))
+            continue
         path = (feature_root / Path(*relative.parts)).resolve()
         try:
             path.relative_to(gist_root)
         except ValueError as exc:
-            raise ContextError(f"gist path escapes gists/: {value}") from exc
+            raise ContextError(f"gist path escapes gists/: {normalized}") from exc
         if not path.is_file():
             raise ContextError(f"declared gist is missing: {normalized}")
         result.append((normalized, path))
     return result
 
 
-def declared_gists(detail: str, feature_root: Path) -> list[dict[str, str]]:
+def declared_gists(detail: str, feature_root: Path, *, documents: Any = None) -> list[dict[str, str]]:
     return [
-        {"path": normalized, "content": read_utf8(path)}
-        for normalized, path in declared_gist_paths(detail, feature_root)
+        {"path": normalized, "content": documents.read(normalized) if documents is not None else read_utf8(path)}
+        for normalized, path in declared_gist_paths(detail, feature_root, documents=documents)
     ]
 
 
@@ -1204,6 +1224,7 @@ def validate_type_contracts(
     records: dict[str, dict[str, Any]],
     details: dict[str, tuple[str, list[dict[str, str]]]],
     root: Path,
+    *, documents: Any = None,
 ) -> dict[str, dict[str, str]]:
     contracts: dict[str, dict[str, str]] = {}
     for task_id, record in records.items():
@@ -1212,7 +1233,7 @@ def validate_type_contracts(
             continue
         contracts[task_id] = contract
         declared_paths = {
-            normalized for normalized, _ in declared_gist_paths(details[task_id][0], root)
+            normalized for normalized, _ in declared_gist_paths(details[task_id][0], root, documents=documents)
         }
         if "Result gist" in contract:
             result_gist = contract["Result gist"]
@@ -1228,7 +1249,7 @@ def validate_type_contracts(
                 raise ContextError(
                     f"task {task_id} Acceptance brief is not declared by its Gists field: {brief}"
                 )
-            validate_acceptance_brief(read_utf8(root / brief), brief)
+            validate_acceptance_brief(documents.read(brief) if documents is not None else read_utf8(root / brief), brief)
     return contracts
 
 
@@ -1241,24 +1262,59 @@ def reject_legacy_status_table(status_text: str) -> None:
         raise ContextError("legacy task table found in STATUS.md; migrate it explicitly to TASKS.md and tasks/<id>.md")
 
 
-def build_context(
-    feature_directory: Path,
-    requested_task: str | None = None,
-    repo_overrides: dict[str, Path] | None = None,
-    *,
-    include_selection: bool = False,
-) -> dict[str, Any]:
-    root = feature_directory.resolve()
-    if not root.is_dir():
-        raise ContextError(f"feature directory not found: {root}")
-    requirement_text = read_utf8(root / "REQUIREMENT.md")
-    solution_text = read_utf8(root / "SOLUTION.md")
-    status_text = read_utf8(root / "STATUS.md")
-    tasks_text = read_utf8(root / "TASKS.md")
+@dataclass(frozen=True)
+class ValidatedFeature:
+    documents: Any
+    records: dict[str, dict[str, Any]]
+    details: dict[str, tuple[str, list[dict[str, str]]]]
+    type_contracts: dict[str, dict[str, str]]
+    repositories: dict[str, dict[str, Any]]
+    trace: dict[str, Any]
+
+
+class LocalGitProbe:
+    """Host-selected local authority, never supplied by the document provider."""
+    def __init__(self, root: Path, repo_overrides: dict[str, Path] | None = None):
+        self.root = root.resolve()
+        self.repo_overrides = repo_overrides or {}
+
+    def validate(self, documents: Any, records: dict, details: dict) -> tuple[dict, dict]:
+        from context_loader import LocalMarkdownLoader, LoaderError, enumerate_tasks
+        if self.root != documents.root:
+            raise LoaderError("SOURCE_MISMATCH", "Git authority root differs from the document root")
+        local = LocalMarkdownLoader(self.root)
+        if set(enumerate_tasks(local)) != set(documents.task_paths):
+            raise LoaderError("INCOMPLETE_CONTEXT", "local task membership differs from loaded documents")
+        for name, record in documents.records.items():
+            if local.read(name).content_digest != record.content_digest:
+                raise LoaderError("SOURCE_MISMATCH", "loader content differs from the authoritative local checkout")
+        status_text = documents.read("STATUS.md")
+        registry = repository_registry(status_text)
+        repositories = resolve_repositories(self.root, registry, self.repo_overrides)
+        validate_shared_records(self.root, repositories)
+        validate_recovery_cleanliness(self.root, repositories)
+        status_edges = validate_status_repositories(status_text, self.root / "STATUS.md", repositories)
+        trace = validate_trace_graph(status_text, records, details, repositories, status_edges)
+        local.finish()
+        return repositories, trace
+
+
+def validate_feature(documents: Any, git_probe: LocalGitProbe, *, include_selection: bool = False) -> ValidatedFeature:
+    from context_loader import SCHEMA, MAX_COMPUTE_SECONDS, LoaderError
+    if documents.context_schema != SCHEMA:
+        raise LoaderError("UNSUPPORTED_SCHEMA", "unsupported context schema")
+    if documents.read_set.complete is not True:
+        raise LoaderError("INCOMPLETE_CONTEXT", "document read set is incomplete")
+    start_cpu = time.process_time()
+    root = documents.root
+    requirement_text = documents.read("REQUIREMENT.md")
+    solution_text = documents.read("SOLUTION.md")
+    status_text = documents.read("STATUS.md")
+    tasks_text = documents.read("TASKS.md")
     reject_legacy_status_table(status_text)
     records = task_records(tasks_text)
-    if include_selection and (len(records) > 10_000 or
-                              sum(len(record["dependencies"]) for record in records.values()) > 30_000):
+    if (len(records) > 10_000 or
+            sum(len(record["dependencies"]) for record in records.values()) > 30_000):
         raise ContextError("RESOURCE_LIMIT: selection graph exceeds 10000 tasks or 30000 edges")
     try:
         validate_dependency_graph(records)
@@ -1267,16 +1323,30 @@ def build_context(
             raise ContextError("INVALID_GRAPH: " + str(exc)) from exc
         raise
     validate_topology(tasks_text, records)
-    details = validate_task_files(root, records)
+    details = validate_task_files(root, records, documents=documents)
     validate_decision_mapping(records, requirement_text, solution_text)
     validate_feature_state(status_text, records)
-    type_contracts = validate_type_contracts(records, details, root)
-    registry = repository_registry(status_text)
-    repositories = resolve_repositories(root, registry, repo_overrides or {})
-    validate_shared_records(root, repositories)
-    validate_recovery_cleanliness(root, repositories)
-    status_edges = validate_status_repositories(status_text, root / "STATUS.md", repositories)
-    trace = validate_trace_graph(status_text, records, details, repositories, status_edges)
+    # Check every declaration, not just the focused task or quality task subset.
+    for detail, _ in details.values():
+        declared_gist_paths(detail, root, documents=documents)
+    type_contracts = validate_type_contracts(records, details, root, documents=documents)
+    if time.process_time() - start_cpu > MAX_COMPUTE_SECONDS:
+        raise LoaderError("RESOURCE_LIMIT", "document validation computation budget exceeded")
+    repositories, trace = git_probe.validate(documents, records, details)
+    return ValidatedFeature(documents, records, details, type_contracts, repositories, trace)
+
+
+def focus_context(validated: ValidatedFeature, requested_task: str | None = None, *,
+                  include_selection: bool = False, structured: bool = False) -> dict[str, Any]:
+    """Project already validated documents without file, Git or network access."""
+    documents = validated.documents
+    root = documents.root
+    requirement_text = documents.read("REQUIREMENT.md")
+    solution_text = documents.read("SOLUTION.md")
+    status_text = documents.read("STATUS.md")
+    records, details = validated.records, validated.details
+    type_contracts = validated.type_contracts
+    repositories, trace = validated.repositories, validated.trace
     task_id = selected_task_id(status_text, requested_task)
     if task_id not in records:
         raise ContextError(f"TASKS.md must contain exactly one index row for {task_id}")
@@ -1287,12 +1357,12 @@ def build_context(
     solution_ids = point_selectors(
         detail, "Solution points", ("Solution points", "方案点")
     )
-    gists = declared_gists(detail, root)
+    gists = declared_gists(detail, root, documents=documents)
     selected_contract = type_contracts.get(task_id)
     acceptance_brief = None
     if selected_contract and selected_contract.get("Acceptance brief") not in {None, "-"}:
         brief_path = selected_contract["Acceptance brief"]
-        acceptance_brief = {"path": brief_path, "content": read_utf8(root / brief_path)}
+        acceptance_brief = {"path": brief_path, "content": documents.read(brief_path)}
     result = {
         "feature_directory": str(root),
         "feature": focused_status(status_text),
@@ -1336,7 +1406,42 @@ def build_context(
                     r"^- Release condition[:：][ \t]*(.+?)[ \t]*$", details[key][0], re.MULTILINE)), ""),
             } for key, record in records.items()],
         }
+    if structured:
+        included_tasks = {task_id, *records[task_id]["dependencies"]}
+        included_documents = {"STATUS.md", "TASKS.md", "REQUIREMENT.md", "SOLUTION.md",
+                              *(f"tasks/{key}.md" for key in included_tasks),
+                              *(gist["path"] for gist in gists)}
+        if acceptance_brief:
+            included_documents.add(acceptance_brief["path"])
+        result["context_schema"] = documents.context_schema
+        result["disclosure"] = {
+            "tasks": {"total": len(records), "included": len(included_tasks),
+                      "omitted": len(records) - len(included_tasks)},
+            "documents": {"total": len(documents.records), "included": len(included_documents),
+                          "omitted": len(documents.records) - len(included_documents)},
+            "total_bytes": documents.read_set.total_bytes,
+            "complete_validation": True,
+        }
     return result
+
+
+def build_context(feature_directory: Path, requested_task: str | None = None,
+                  repo_overrides: dict[str, Path] | None = None, *,
+                  include_selection: bool = False, structured: bool = False) -> dict[str, Any]:
+    from context_loader import LocalMarkdownLoader, LoaderError, load_feature
+    root = feature_directory.resolve()
+    if not root.is_dir():
+        raise ContextError(f"feature directory not found: {root}")
+    try:
+        documents = load_feature(LocalMarkdownLoader(root))
+        validated = validate_feature(documents, LocalGitProbe(root, repo_overrides),
+                                     include_selection=include_selection)
+        return focus_context(validated, requested_task, include_selection=include_selection,
+                             structured=structured)
+    except LoaderError as exc:
+        error = ContextError(str(exc))
+        error.code = exc.code
+        raise error from exc
 
 
 def render_table(table: dict[str, Any]) -> list[str]:
@@ -1432,13 +1537,26 @@ def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
     root = Path(args.feature_directory).resolve()
     try:
+        if args.context_schema != "lfd-context-v1":
+            error = ContextError("unsupported context schema")
+            error.code = "UNSUPPORTED_SCHEMA"
+            raise error
         if args.sync_topology:
             sync_topology(root / "TASKS.md")
-        context = build_context(root, args.task, parse_repo_overrides(args.repo))
+        context = build_context(root, args.task, parse_repo_overrides(args.repo),
+                                structured=args.format == "envelope")
     except (ContextError, OSError) as exc:
+        if args.format == "envelope":
+            code = getattr(exc, "code", "INVALID_CONTEXT")
+            print(json.dumps({"ok": False, "code": code, "diagnostics": [{"code": code}],
+                              "complete": False}, ensure_ascii=True))
+            return 2
         print(f"ERROR: {exc}", file=sys.stderr)
         return 1
-    if args.format == "json":
+    if args.format == "envelope":
+        print(json.dumps({"ok": True, "code": "OK", "diagnostics": [], "complete": True,
+                          "context": context}, ensure_ascii=False, indent=2))
+    elif args.format == "json":
         print(json.dumps(context, ensure_ascii=False, indent=2))
     elif args.format == "acceptance":
         try:
