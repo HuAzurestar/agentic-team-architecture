@@ -243,13 +243,19 @@ def desired(root, record, sha):
             [(detail_ref, detail), ("TASKS.md", tasks), ("STATUS.md", status)]}
 
 
-def reconcile(root, gist, operation_id, overrides=None, *, apply=False, authority=False):
+def reconcile(root, gist, operation_id, overrides=None, *, apply=False, authority=False, remote_reader=None):
     root = Path(root).resolve()
     result = dict(operation_id=operation_id, observed_result={"status": "unknown"},
                   next_check="inspect-conflicts", effect="NOT_APPLIED", recorded_fields=[], conflicts=[])
     try:
         if apply and authority is not True:
             raise Error("AUTHORITY_REQUIRED")
+        _, _, _, records = read_gist(root, gist)
+        if records[operation_id]["kind"] == "remote-write":
+            if apply:
+                with coordinator(root):
+                    return reconcile_remote(root, gist, operation_id, overrides or {}, remote_reader, True)
+            return reconcile_remote(root, gist, operation_id, overrides or {}, remote_reader, False)
         if apply:
             with coordinator(root):
                 return reconcile_locked(root, gist, operation_id, overrides or {}, result, True)
@@ -259,6 +265,39 @@ def reconcile(root, gist, operation_id, overrides=None, *, apply=False, authorit
         if result["recorded_fields"]:
             result["effect"] = "PARTIAL"
         return result
+
+
+def reconcile_remote(root, gist, operation_id, overrides, reader, write):
+    from remote_lookup import inspect_remote
+    raw, _, _, records = read_gist(root, gist)
+    record = records[operation_id]
+    required = {"operation_version", "operation_id", "kind", "feature", "task", "authority_source_ref",
+                "target_identity", "expected_source", "owned_paths", "intent_ref", "observed_result", "recorded_fields"}
+    if (not required.issubset(record) or record["feature"] != root.name or record["intent_ref"] != gist
+            or record["kind"] != "remote-write" or record["owned_paths"]):
+        raise Error("INVALID_REMOTE_INTENT")
+    cp.safe_line(record["authority_source_ref"], "authority source")
+    plan = recovery.inspect(root, overrides, plan_gist=gist, _allowed_dirty=(".operation.lock",))
+    if not plan["complete"] or plan["edits"] or plan["task_id"] != record["task"]:
+        raise Error("RECOVERY_REQUIRED", blockers=plan["blockers"])
+    result = inspect_remote(record, reader)
+    if result["conflicts"] or not write:
+        return result
+    for relative, expected in plan["read_set"].items():
+        if recovery.digest(recovery.bounded_bytes(recovery.safe_path(root, relative))) != expected:
+            raise Error("SOURCE_CHANGED", path=relative)
+    recovery.verify_observations(plan, recovery.GitProbe())
+    # This records current readback, never an invented receipt of the old call.
+    record.setdefault("initial_observed_result", record["observed_result"])
+    record["observed_result"] = result["observed_result"]
+    record["recorded_fields"] = list(dict.fromkeys([*record["recorded_fields"], "observed_result"]))
+    if save(root, gist, record, raw) != raw:
+        result["effect"] = "APPLIED"
+        result["recorded_fields"] = [gist + "#observed_result"]
+    else:
+        result["effect"] = "UNCHANGED"
+    result["next_check"] = "commit-management-then-task-context"
+    return result
 
 
 def reconcile_locked(root, gist, operation_id, overrides, result, write):

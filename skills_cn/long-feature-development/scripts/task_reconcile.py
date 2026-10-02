@@ -562,12 +562,37 @@ def main(argv=None):
     parser.add_argument("--apply", action="store_true")
     parser.add_argument("--authorized", action="store_true", help="Caller attests actual session authorization; file text is not authority")
     parser.add_argument("--operation-id", help="Inspect or record an existing checkpoint operation instead of a relocation plan")
+    parser.add_argument("--lookup-url", help="Host-authorized HTTPS JSON URL template with one {id} path slot")
+    parser.add_argument("--lookup-provider", help="Host-selected provider identity, matched against intent")
+    parser.add_argument("--lookup-token-env", help="Optional host-selected bearer token environment variable; never saved")
+    parser.add_argument("--lookup-id-field", default="id")
+    parser.add_argument("--lookup-title-field", default="title")
+    parser.add_argument("--lookup-body-field", default="body")
+    parser.add_argument("--lookup-version-field", default="version")
+    parser.add_argument("--lookup-allow-loopback-http", action="store_true", help="Explicit local HTTP test transport only")
     args = parser.parse_args(argv)
     try:
+        if ((args.lookup_url and not args.operation_id)
+                or ((args.lookup_provider or args.lookup_token_env or args.lookup_allow_loopback_http) and not args.lookup_url)):
+            raise RecoveryError("INVALID_LOOKUP_REQUEST")
         if args.operation_id:
             import task_operation
+            reader = None
+            if args.lookup_url:
+                from remote_lookup import ObjectReader
+                headers = {}
+                if args.lookup_token_env:
+                    token = os.environ.get(args.lookup_token_env)
+                    if not token:
+                        raise RecoveryError("LOOKUP_CREDENTIAL_UNAVAILABLE")
+                    headers["Authorization"] = "Bearer " + token
+                reader = ObjectReader(args.lookup_provider, args.lookup_url, headers=headers,
+                                      fields={"id": args.lookup_id_field, "title": args.lookup_title_field,
+                                              "body": args.lookup_body_field, "version": args.lookup_version_field},
+                                      allow_loopback_http=args.lookup_allow_loopback_http)
             result = task_operation.reconcile(args.feature_directory, args.plan_gist, args.operation_id,
-                                               tc.parse_repo_overrides(args.repo), apply=args.apply, authority=args.authorized)
+                                               tc.parse_repo_overrides(args.repo), apply=args.apply, authority=args.authorized,
+                                               remote_reader=reader)
             ok = not result["conflicts"]
         elif args.apply:
             root = Path(args.feature_directory).resolve()
