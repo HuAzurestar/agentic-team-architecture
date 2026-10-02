@@ -195,6 +195,29 @@ class LoaderTests(unittest.TestCase):
         with patch.object(cl, 'MAX_BYTES', 5):
             self.error('RESOURCE_LIMIT', lambda: cl.LocalMarkdownLoader(self.root).read('TASKS.md'))
 
+    def test_small_file_read_does_not_allocate_whole_feature_budget(self):
+        requested = []
+        original = Path.open
+
+        class ObservedStream:
+            def __init__(self, stream):
+                self.stream = stream
+            def __enter__(self):
+                self.stream.__enter__()
+                return self
+            def __exit__(self, *args):
+                return self.stream.__exit__(*args)
+            def fileno(self):
+                return self.stream.fileno()
+            def read(self, count):
+                requested.append(count)
+                return self.stream.read(count)
+
+        with patch.object(Path, 'open', lambda path, *args, **kwargs:
+                          ObservedStream(original(path, *args, **kwargs))):
+            record = cl.LocalMarkdownLoader(self.root).read('gists/parser.md')
+        self.assertEqual(requested, [record.byte_count + 1])
+
     def test_unknown_schema_rejected(self):
         documents = replace(cl.load_feature(cl.LocalMarkdownLoader(self.root)),
                             context_schema='lfd-context-v999')

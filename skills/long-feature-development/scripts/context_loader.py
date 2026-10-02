@@ -178,7 +178,10 @@ class LocalMarkdownLoader:
             opened = os.fstat(stream.fileno())
             if (opened.st_dev, opened.st_ino) != (info.st_dev, info.st_ino):
                 raise LoaderError("SOURCE_CHANGED", "document identity changed while opening")
-            content = stream.read(allowance + 1)
+            # Do not reserve the entire remaining feature budget for each tiny
+            # document. One byte beyond the observed size detects growth; the
+            # post-read stat checks below reject concurrent changes.
+            content = stream.read(min(allowance, opened.st_size) + 1)
             after = os.fstat(stream.fileno())
         self._path(name)
         if len(content) > allowance:
