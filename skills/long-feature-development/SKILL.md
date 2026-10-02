@@ -120,6 +120,8 @@ Read [references/feature-gates.md](references/feature-gates.md) only when creati
 
 ## Context boundary
 
+For an interrupted review with declared source materials, use the optional recovery branch in [checkpoints](references/checkpoints.md). The [review reference helper](scripts/review_resume.py) and [real Git/process tests](scripts/test_review_resume.py) restore attempt/target-bound references; they do not assess quality or grant acceptance.
+
 The [local document loader](scripts/context_loader.py) reads complete raw task and declared-gist sources before validation. `task_context.py` separates full validation with the host-selected local Git probe from focused projection; a comparison loader cannot replace local repository facts. When changing this boundary, run the [loader and actual-Git regressions](scripts/test_context_loader.py) as well as the existing context tests. Structured envelope output uses `lfd-context-v1`; default CLI output remains compatible. This interface does not supply review-breakpoint recovery by itself.
 
 For next-action selection after recovery, read [references/selection.md](references/selection.md). The [pure core/CLI](scripts/task_next.py) uses a [strict-reader adapter](scripts/selection_context.py); validate with [core tests](scripts/test_task_next.py) and [real Git/CLI tests](scripts/test_selection_context.py). Selection never grants execution authority or changes task state.

@@ -1270,6 +1270,7 @@ class ValidatedFeature:
     type_contracts: dict[str, dict[str, str]]
     repositories: dict[str, dict[str, Any]]
     trace: dict[str, Any]
+    review_recovery: dict[str, Any]
 
 
 class LocalGitProbe:
@@ -1278,7 +1279,7 @@ class LocalGitProbe:
         self.root = root.resolve()
         self.repo_overrides = repo_overrides or {}
 
-    def validate(self, documents: Any, records: dict, details: dict) -> tuple[dict, dict]:
+    def validate(self, documents: Any, records: dict, details: dict) -> tuple[dict, dict, dict]:
         from context_loader import LocalMarkdownLoader, LoaderError, enumerate_tasks
         if self.root != documents.root:
             raise LoaderError("SOURCE_MISMATCH", "Git authority root differs from the document root")
@@ -1295,8 +1296,14 @@ class LocalGitProbe:
         validate_recovery_cleanliness(self.root, repositories)
         status_edges = validate_status_repositories(status_text, self.root / "STATUS.md", repositories)
         trace = validate_trace_graph(status_text, records, details, repositories, status_edges)
+        from review_resume import recover
+        reviews = {}
+        for task_id, (detail, _) in details.items():
+            resumed = recover(documents, detail, records, repositories, commit_exists)
+            if resumed is not None:
+                reviews[task_id] = resumed
         local.finish()
-        return repositories, trace
+        return repositories, trace, reviews
 
 
 def validate_feature(documents: Any, git_probe: LocalGitProbe, *, include_selection: bool = False) -> ValidatedFeature:
@@ -1332,8 +1339,8 @@ def validate_feature(documents: Any, git_probe: LocalGitProbe, *, include_select
     type_contracts = validate_type_contracts(records, details, root, documents=documents)
     if time.process_time() - start_cpu > MAX_COMPUTE_SECONDS:
         raise LoaderError("RESOURCE_LIMIT", "document validation computation budget exceeded")
-    repositories, trace = git_probe.validate(documents, records, details)
-    return ValidatedFeature(documents, records, details, type_contracts, repositories, trace)
+    repositories, trace, reviews = git_probe.validate(documents, records, details)
+    return ValidatedFeature(documents, records, details, type_contracts, repositories, trace, reviews)
 
 
 def focus_context(validated: ValidatedFeature, requested_task: str | None = None, *,
@@ -1388,6 +1395,8 @@ def focus_context(validated: ValidatedFeature, requested_task: str | None = None
         "topology": mermaid_topology(records),
         "gists": gists,
     }
+    if task_id in validated.review_recovery:
+        result['review_recovery'] = validated.review_recovery[task_id]
     if include_selection:
         # Project the very records/contracts that passed the full validator above.
         # The adapter binds these to source bytes and actual refs; this label alone
@@ -1521,6 +1530,14 @@ def render_markdown(context: dict[str, Any]) -> str:
         )
     for gist in context["gists"]:
         parts.extend(("", f"## Gist: {gist['path']}", "", gist["content"].rstrip()))
+    if 'review_recovery' in context:
+        review = context['review_recovery']
+        parts.extend(('', '## Review recovery', '',
+                      f"- Current candidate: {json.dumps(review['target_refs'], sort_keys=True)}",
+                      f"- Attempt: {review['attempt_id']}",
+                      f"- Report: {review['report_ref']['path']}",
+                      f"- Next action: {review['next_review_action']}",
+                      '- Quality assessment: not performed; no acceptance or closure granted.'))
     return "\n".join(parts).rstrip() + "\n"
 
 
@@ -1534,6 +1551,7 @@ def render_acceptance(context: dict[str, Any]) -> str:
 
 
 def main(argv: list[str] | None = None) -> int:
+    started = time.monotonic()
     args = parse_args(argv)
     root = Path(args.feature_directory).resolve()
     try:
@@ -1546,6 +1564,10 @@ def main(argv: list[str] | None = None) -> int:
         context = build_context(root, args.task, parse_repo_overrides(args.repo),
                                 structured=args.format == "envelope")
     except (ContextError, OSError) as exc:
+        code = getattr(exc, 'code', 'INVALID_CONTEXT')
+        if code in {'STALE_REVIEW', 'EVIDENCE_MISSING', 'REVIEW_SUMMARY_MISMATCH', 'INVALID_REVIEW_REFERENCE'}:
+            print(json.dumps({'event': 'review.resume', 'error_code': code,
+                              'elapsed_ms': round((time.monotonic() - started) * 1000)}), file=sys.stderr)
         if args.format == "envelope":
             code = getattr(exc, "code", "INVALID_CONTEXT")
             print(json.dumps({"ok": False, "code": code, "diagnostics": [{"code": code}],
@@ -1553,6 +1575,11 @@ def main(argv: list[str] | None = None) -> int:
             return 2
         print(f"ERROR: {exc}", file=sys.stderr)
         return 1
+    if 'review_recovery' in context:
+        review = context['review_recovery']
+        print(json.dumps({'event': 'review.resume', 'source': review['report_ref']['sha256'],
+                          'open_count': len(review['open_findings']), 'error_code': None,
+                          'elapsed_ms': round((time.monotonic() - started) * 1000)}), file=sys.stderr)
     if args.format == "envelope":
         print(json.dumps({"ok": True, "code": "OK", "diagnostics": [], "complete": True,
                           "context": context}, ensure_ascii=False, indent=2))
