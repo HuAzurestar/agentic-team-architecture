@@ -342,6 +342,25 @@ class RecoveryTests(unittest.TestCase):
         self.assertEqual(proc.returncode, 2)
         self.assertFalse(json.loads(proc.stdout)["complete"])
 
+    def test_cli_inspect_envelope_contains_plan_and_bounded_event(self):
+        self.move_app()
+        proc = subprocess.run([sys.executable, str(Path(recovery.__file__)), str(self.root),
+                               "--repo", f"pm={self.pm}", "--repo", f"app={self.app}",
+                               "--plan-gist", self.plan_ref], capture_output=True, text=True)
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        result = json.loads(proc.stdout)
+        self.assertTrue(result["complete"])
+        self.assertEqual(result["event"]["name"], "reconcile.inspect")
+        self.assertTrue(result["plan"]["comparisons"][-1]["edges"])
+
+    def test_expired_total_budget_cannot_offer_a_plan(self):
+        probe = recovery.GitProbe()
+        probe.deadline = 0
+        plan = self.inspect(_git=probe)
+        self.assertFalse(plan["complete"])
+        self.assertEqual(plan["edits"], [])
+        self.assertEqual(plan["blockers"][0]["code"], "RESOURCE_LIMIT")
+
 
 if __name__ == "__main__":
     unittest.main()

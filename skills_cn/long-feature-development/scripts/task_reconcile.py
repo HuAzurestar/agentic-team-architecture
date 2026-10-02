@@ -103,10 +103,14 @@ class GitProbe:
     def __init__(self):
         self.deadline = time.monotonic() + 60
 
-    def run(self, path, *args, check=True):
+    def remaining(self):
         remaining = self.deadline - time.monotonic()
         if remaining <= 0:
             raise RecoveryError("RESOURCE_LIMIT", resource="elapsed_seconds")
+        return remaining
+
+    def run(self, path, *args, check=True):
+        remaining = self.remaining()
         try:
             result = subprocess.run(["git", "--no-optional-locks", "-C", str(path), *args], capture_output=True,
                                     timeout=min(10, remaining))
@@ -408,8 +412,8 @@ def inspect(feature, repo_overrides=None, *, plan_gist, _originals=None, _allowe
         candidate_details = dict(details)
         candidate_details[task_id] = tc.task_detail(root, candidate_records[task_id],
                                                    text=proposed.get(detail_path, current_detail))
-        tc.validate_trace_graph(proposed.get("STATUS.md", status), candidate_records, candidate_details, resolved, [], git_probe=git)
-        plan["comparisons"].append(dict(kind="task_trace", result="VALID", task_count=len(records)))
+        trace = tc.validate_trace_graph(proposed.get("STATUS.md", status), candidate_records, candidate_details, resolved, [], git_probe=git)
+        plan["comparisons"].append(dict(kind="task_trace", result="VALID", task_count=len(records), edges=trace["edges"]))
         plan["read_set"] = {p: digest(raw) for p, raw in documents.raw.items()}
         for p, raw in documents.raw.items():
             actual = bounded_bytes(safe_path(root, p))
@@ -420,6 +424,7 @@ def inspect(feature, repo_overrides=None, *, plan_gist, _originals=None, _allowe
         plan["next_action"] = "record-plan-then-authorized-apply" if plan["edits"] else "task-context"
         if len(json.dumps(plan).encode()) > MAX_PLAN_BYTES:
             raise RecoveryError("RESOURCE_LIMIT", resource="plan_bytes")
+        git.remaining()
     except (RecoveryError, tc.ContextError, OSError, UnicodeError, ValueError) as exc:
         plan["complete"] = False
         plan["edits"] = []
@@ -536,6 +541,7 @@ def apply(plan, authority=False):
             else:
                 raise RecoveryError("CONTENT_CONFLICT", path=relative)
         verify_observations(plan, git)
+        git.remaining()
         result["effect"] = "APPLIED" if result["applied_files"] else "UNCHANGED"
         result["next_action"] = "commit-management-then-task-context"
     except (RecoveryError, KeyError, TypeError, ValueError, OSError) as exc:
@@ -548,6 +554,7 @@ def apply(plan, authority=False):
 
 
 def main(argv=None):
+    started = time.monotonic()
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("feature_directory")
     parser.add_argument("--repo", action="append", default=[])
@@ -564,8 +571,11 @@ def main(argv=None):
             result = apply(plan, args.authorized)
             ok = not result["conflicts"]
         else:
-            result = inspect(args.feature_directory, tc.parse_repo_overrides(args.repo), plan_gist=args.plan_gist)
-            ok = result["complete"]
+            plan = inspect(args.feature_directory, tc.parse_repo_overrides(args.repo), plan_gist=args.plan_gist)
+            result = dict(plan=plan, blockers=plan["blockers"], complete=plan["complete"])
+            ok = plan["complete"]
+        result["event"] = dict(name="reconcile." + ("apply" if args.apply and ok else "inspect" if not args.apply else "conflict"),
+                               elapsed_ms=round((time.monotonic() - started) * 1000))
         print(json.dumps(result, ensure_ascii=False))
         return 0 if ok else 2
     except (RecoveryError, ValueError, OSError):
