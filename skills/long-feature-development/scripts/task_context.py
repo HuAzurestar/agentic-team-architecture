@@ -343,10 +343,10 @@ def validate_ref_list(raw: str, separator: str, location: str) -> None:
             raise ContextError(f"{location} has invalid ref: {token!r}")
 
 
-def task_detail(root: Path, record: dict[str, Any]) -> tuple[str, list[dict[str, str]]]:
+def task_detail(root: Path, record: dict[str, Any], *, text: str | None = None) -> tuple[str, list[dict[str, str]]]:
     task_id = record["id"]
     path = root / "tasks" / f"{task_id}.md"
-    text = read_utf8(path)
+    text = read_utf8(path) if text is None else text
     title = re.findall(r"^#[ \t]+`?([^` \t]+)`?[ \t]+(?:—|–|-)[ \t]+(.+?)[ \t]*$", text, re.MULTILINE)
     if len(title) != 1 or title[0][0] != task_id:
         raise ContextError(f"tasks/{task_id}.md must have exactly one matching level-one task heading")
@@ -805,6 +805,7 @@ def validate_trace_graph(
     details: dict[str, tuple[str, list[dict[str, str]]]],
     resolved: dict[str, dict[str, Any]],
     initial_edges: list[dict[str, str]],
+    git_probe: Any = None,
 ) -> dict[str, Any]:
     if not resolved:
         return {"mode": "LEGACY-UNVERIFIED", "edges": [], "mermaid": ""}
@@ -832,13 +833,13 @@ def validate_trace_graph(
     def known_commit(name: str, path: Path, sha: str) -> bool:
         key = (name, sha)
         if key not in exists_cache:
-            exists_cache[key] = commit_exists(path, sha)
+            exists_cache[key] = (git_probe.commit_exists(path, sha) if git_probe else commit_exists(path, sha))
         return exists_cache[key]
 
     def ordered(name: str, path: Path, older: str, newer: str) -> bool:
         key = (name, older, newer)
         if key not in ancestry_cache:
-            ancestry_cache[key] = is_ancestor(path, older, newer)
+            ancestry_cache[key] = (git_probe.is_ancestor(path, older, newer) if git_probe else is_ancestor(path, older, newer))
         return ancestry_cache[key]
 
     for task_id, (_, refs) in details.items():

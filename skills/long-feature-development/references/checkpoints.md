@@ -24,3 +24,5 @@ When recovery stops:
 4. rerun recovery before making new changes.
 
 The guarantee is recovery to the most recent successful local checkpoint. Zero loss at an arbitrary power-cut instant requires host, editor, filesystem, or daemon support and must not be promised by this Skill.
+
+For relocation, branch identity and integration-observation mismatches, use the read-only plan and scoped apply described in [reconciliation](reconciliation.md). Commit the resulting management records before rerunning strict recovery. A partial apply is not permission to overwrite a third version or repeat a successful external operation.

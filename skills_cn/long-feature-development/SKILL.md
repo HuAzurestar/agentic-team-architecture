@@ -57,6 +57,8 @@ helper 只取[用途提示](references/prompts.md)中的共同节与当前用途
 
 恢复命令是 Skill 内部动作，不要求用户写进 prompt。它也会检查相关 staged、unstaged 和 untracked 变化；实现仓库有残留，或本 feature 项目管理目录有残留时，在新修改前进入恢复流程。此时读取 [references/checkpoints.md](references/checkpoints.md)。
 
+已知工作目录迁移、任务分支改变或集成观察漂移时，先读[迁移与对账](references/reconciliation.md)，按只读 inspect、记录计划、已有授权范围内 apply 的顺序修复。该流程不绕过上述严格恢复检查，也不授权合并或产品接受。
+
 ## 确认边界
 
 - 每个决定点使用稳定的二级标题 `## REQ-*` 或 `## SOL-*`；“全部批准”不能改变任何点状态，点内三级标题仍属于该点。
