@@ -7,6 +7,12 @@ description: Help Codex resume and advance a multi-session software feature from
 
 This Codex skill uses a small, versioned feature record to continue development without relying on previous chat history. The project chooses the concrete path represented by `<Project-Manage>`; never assume MPA or another fixed repository.
 
+## Select the current purpose
+
+The helper reads only the common section and the chosen section of [purpose prompts](references/prompts.md). For background/provider mutations, first read [capability boundaries](references/capability-boundaries.md); this reader does not supply a write engine.
+
+Choose one purpose: `requirement`, `solution`, `development`, `review`, or `delivery`. Run `python <skill-root>/scripts/context.py --task-ref <feature-directory> --purpose <purpose>` for its prompt and common constraints. Optional environment material is selected through exact heading paths; read [context selection](references/context-selection.md) only when using background. The [background template](templates/BACKGROUND.md) is optional. A complete selection does not replace the task/Git recovery check below. Install a pinned version or upgrade/roll back using [Skill-only installation](references/installation.md); no SMMD or UI is required.
+
 ## Required feature layout
 
 ```text

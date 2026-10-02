@@ -7,6 +7,12 @@ description: 从项目管理目录恢复并推进跨会话的软件 feature，�
 
 本 Skill 使用小型、版本化的 feature 记录续接开发，不依赖旧聊天。项目自行决定 `<Project-Manage>` 的实际路径；不得假定为 MPA 或其他固定仓库。
 
+## 选择当前用途
+
+helper 只取[用途提示](references/prompts.md)中的共同节与当前用途节。修改背景/provider 前先读[能力边界](references/capability-boundaries.md)；只读入口不提供写入引擎。
+
+从 `requirement`、`solution`、`development`、`review`、`delivery` 中选一个，运行 `python <skill-root>/scripts/context.py --task-ref <feature-directory> --purpose <purpose>`，只取该用途与共同约束。需要背景时再读[上下文选段](references/context-selection.md)，用精确标题路径读取；[背景模板](templates/BACKGROUND.md)可选。选段完整不代替下述任务/Git恢复校验。按[独立安装](references/installation.md)安装固定版本、升级或回退，无需 SMMD/UI。
+
 ## 必需结构
 
 ```text
