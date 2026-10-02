@@ -228,6 +228,34 @@ class OperationTests(unittest.TestCase):
         op.save(self.root, self.plan_ref, record, raw)
         self.assertEqual(self.recover(apply=True, authority=True)["conflicts"][0]["code"], "COMMIT_CONTENT_MISMATCH")
 
+    def test_actual_process_exit_after_commit_keeps_inspectable_lock_and_intent(self):
+        self.change()
+        command = (
+            "import sys, os; sys.dont_write_bytecode = True; "
+            "sys.path.insert(0, " + repr(str(Path(op.__file__).parent)) + "); "
+            "import task_checkpoint as cp, task_operation as op; "
+            "op.interruption_point = lambda name: os._exit(70) if name == 'after-commit' else None; "
+            "cp.checkpoint(cp.parse_args(sys.argv[1:]))"
+        )
+        values = [str(self.root), "DEV-02", "app", "--include", "owned.py",
+                  "--summary", "durable work", "--resume-action", "Run focused verification",
+                  "--repo", f"pm={self.pm}", "--repo", f"app={self.app}",
+                  "--operation-gist", self.plan_ref, "--authority-source-ref", "session:test-user-request"]
+        process = subprocess.Popen([sys.executable, "-c", command, *values], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        stdout, stderr = process.communicate(timeout=30)
+        self.assertEqual(process.returncode, 70, (stdout, stderr))
+        sha = git(self.app, "rev-parse", "HEAD")
+        self.assertNotEqual(sha, self.app_head)
+        lock = self.root / ".operation.lock"
+        self.assertEqual(json.loads(lock.read_bytes())["owner_pid"], process.pid)
+        self.assertEqual(self.recover(apply=True, authority=True)["conflicts"][0]["code"], "COORDINATOR_BUSY")
+        # Explicit fixture-owner recovery only after the actual child is terminal.
+        self.assertEqual(process.poll(), 70)
+        lock.unlink()
+        self.assertEqual(self.recover(apply=True, authority=True)["effect"], "APPLIED")
+        self.assertEqual(git(self.app, "rev-parse", "HEAD"), sha)
+        self.assertEqual(self.recover(apply=True, authority=True)["effect"], "UNCHANGED")
+
 
 if __name__ == "__main__":
     unittest.main()

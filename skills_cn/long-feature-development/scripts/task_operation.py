@@ -28,7 +28,7 @@ def interruption_point(name):
 @contextmanager
 def coordinator(root):
     path = root / ".operation.lock"
-    marker = str(uuid.uuid4()).encode()
+    marker = json.dumps({"coordinator_id": str(uuid.uuid4()), "owner_pid": os.getpid()}).encode()
     try:
         with path.open("xb") as stream:
             stream.write(marker)
@@ -251,6 +251,12 @@ def reconcile(root, gist, operation_id, overrides=None, *, apply=False, authorit
         if apply and authority is not True:
             raise Error("AUTHORITY_REQUIRED")
         _, _, _, records = read_gist(root, gist)
+        if records[operation_id]["kind"] in {"save", "record"}:
+            import file_operation
+            if apply:
+                with coordinator(root):
+                    return file_operation.reconcile(root, gist, operation_id, overrides or {}, True)
+            return file_operation.reconcile(root, gist, operation_id, overrides or {}, False)
         if records[operation_id]["kind"] == "remote-write":
             if apply:
                 with coordinator(root):
