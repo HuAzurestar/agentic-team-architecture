@@ -57,6 +57,8 @@ Treat a nonzero `task_context.py` exit as a hard stop. Do not infer a missing cu
 
 For verified workspace relocation or integration-observation drift, read [reconciliation](references/reconciliation.md) and use its read-only inspector before a scoped repair. This repairs the recorded facts under existing session authority; it does not bypass the strict recovery check or authorize Git side effects.
 
+For a checkpoint interrupted between commit and bookkeeping, read [operation recovery](references/operations.md). Preserve the successful commit; reconcile its recorded intent before any retry.
+
 The recovery command is an internal Skill action, not an instruction the user must put in a prompt. It also checks relevant staged, unstaged, and untracked changes. A dirty implementation repository, or residue inside this feature's project-management directory, enters recovery-required mode before any new edits. Read [references/checkpoints.md](references/checkpoints.md) when that happens.
 
 The project-management repository containing `STATUS.md` cannot embed the SHA of the commit that contains that same file. Its working-HEAD cell therefore uses `DERIVED:HEAD`, meaning the checked-out Git HEAD is the source of truth. Resolve it only when `STATUS.md` is tracked, matches HEAD, and has no staged or unstaged changes; otherwise stop. Every integration-opponent SHA, PR/MR SHA, task pickup ref, and task completion ref must be a literal observed SHA, never a moving branch alias.

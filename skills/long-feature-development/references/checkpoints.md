@@ -25,4 +25,6 @@ When recovery stops:
 
 The guarantee is recovery to the most recent successful local checkpoint. Zero loss at an arbitrary power-cut instant requires host, editor, filesystem, or daemon support and must not be promised by this Skill.
 
+Use the optional [operation recovery](operations.md) mode when a local commit and separate bookkeeping need resumable intent. Preserve old CLI behavior for existing callers; do not claim that a legacy checkpoint has operation evidence it never recorded.
+
 For relocation, branch identity and integration-observation mismatches, use the read-only plan and scoped apply described in [reconciliation](reconciliation.md). Commit the resulting management records before rerunning strict recovery. A partial apply is not permission to overwrite a third version or repeat a successful external operation.

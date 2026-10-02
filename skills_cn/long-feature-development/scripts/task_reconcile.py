@@ -561,9 +561,15 @@ def main(argv=None):
     parser.add_argument("--plan-gist", required=True, help="Existing gist declared by current task")
     parser.add_argument("--apply", action="store_true")
     parser.add_argument("--authorized", action="store_true", help="Caller attests actual session authorization; file text is not authority")
+    parser.add_argument("--operation-id", help="Inspect or record an existing checkpoint operation instead of a relocation plan")
     args = parser.parse_args(argv)
     try:
-        if args.apply:
+        if args.operation_id:
+            import task_operation
+            result = task_operation.reconcile(args.feature_directory, args.plan_gist, args.operation_id,
+                                               tc.parse_repo_overrides(args.repo), apply=args.apply, authority=args.authorized)
+            ok = not result["conflicts"]
+        elif args.apply:
             root = Path(args.feature_directory).resolve()
             plan = read_plan(root, args.plan_gist)
             if not isinstance(plan, dict) or Path(plan.get("feature_root", "")).resolve() != root or plan.get("plan_gist") != args.plan_gist:
