@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+from collections import deque
 import json
 import re
 import subprocess
@@ -245,23 +246,22 @@ def validate_dependency_graph(records: dict[str, dict[str, Any]]) -> None:
         if missing:
             raise ContextError(f"task {task_id} has unknown dependencies: {', '.join(missing)}")
 
-    visiting: set[str] = set()
-    visited: set[str] = set()
-
-    def visit(task_id: str, trail: list[str]) -> None:
-        if task_id in visiting:
-            start = trail.index(task_id)
-            raise ContextError("task dependency cycle: " + " -> ".join(trail[start:] + [task_id]))
-        if task_id in visited:
-            return
-        visiting.add(task_id)
-        for dependency in records[task_id]["dependencies"]:
-            visit(dependency, trail + [dependency])
-        visiting.remove(task_id)
-        visited.add(task_id)
-
-    for task_id in records:
-        visit(task_id, [task_id])
+    dependents: dict[str, list[str]] = {key: [] for key in records}
+    degrees = {key: len(record["dependencies"]) for key, record in records.items()}
+    for key, record in records.items():
+        for dependency in record["dependencies"]:
+            dependents[dependency].append(key)
+    queue = deque(key for key, degree in degrees.items() if degree == 0)
+    visited = 0
+    while queue:
+        key = queue.popleft()
+        visited += 1
+        for child in dependents[key]:
+            degrees[child] -= 1
+            if degrees[child] == 0:
+                queue.append(child)
+    if visited != len(records):
+        raise ContextError("task dependency cycle: " + ", ".join(key for key in records if degrees[key]))
 
     for task_id, record in records.items():
         if record["state"] != "PENDING":
@@ -506,7 +506,7 @@ def parse_repo_overrides(values: list[str]) -> dict[str, Path]:
 
 def run_git(path: Path, *arguments: str, check: bool = True) -> str:
     process = subprocess.run(
-        ["git", "-C", str(path), *arguments],
+        ["git", "--no-optional-locks", "-C", str(path), *arguments],
         text=True,
         encoding="utf-8",
         errors="replace",
@@ -521,7 +521,7 @@ def run_git(path: Path, *arguments: str, check: bool = True) -> str:
 
 def git_succeeds(path: Path, *arguments: str) -> bool:
     return subprocess.run(
-        ["git", "-C", str(path), *arguments],
+        ["git", "--no-optional-locks", "-C", str(path), *arguments],
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
     ).returncode == 0
@@ -787,15 +787,12 @@ def validate_status_repositories(
 
 def required_task_ids(records: dict[str, dict[str, Any]], target: str) -> set[str]:
     required: set[str] = set()
-
-    def visit(task_id: str) -> None:
-        if task_id in required:
-            return
-        required.add(task_id)
-        for dependency in records[task_id]["dependencies"]:
-            visit(dependency)
-
-    visit(target)
+    queue = deque([target])
+    while queue:
+        task_id = queue.popleft()
+        if task_id not in required:
+            required.add(task_id)
+            queue.extend(records[task_id]["dependencies"])
     return required
 
 
@@ -1248,6 +1245,8 @@ def build_context(
     feature_directory: Path,
     requested_task: str | None = None,
     repo_overrides: dict[str, Path] | None = None,
+    *,
+    include_selection: bool = False,
 ) -> dict[str, Any]:
     root = feature_directory.resolve()
     if not root.is_dir():
@@ -1258,7 +1257,15 @@ def build_context(
     tasks_text = read_utf8(root / "TASKS.md")
     reject_legacy_status_table(status_text)
     records = task_records(tasks_text)
-    validate_dependency_graph(records)
+    if include_selection and (len(records) > 10_000 or
+                              sum(len(record["dependencies"]) for record in records.values()) > 30_000):
+        raise ContextError("RESOURCE_LIMIT: selection graph exceeds 10000 tasks or 30000 edges")
+    try:
+        validate_dependency_graph(records)
+    except ContextError as exc:
+        if include_selection:
+            raise ContextError("INVALID_GRAPH: " + str(exc)) from exc
+        raise
     validate_topology(tasks_text, records)
     details = validate_task_files(root, records)
     validate_decision_mapping(records, requirement_text, solution_text)
@@ -1286,7 +1293,7 @@ def build_context(
     if selected_contract and selected_contract.get("Acceptance brief") not in {None, "-"}:
         brief_path = selected_contract["Acceptance brief"]
         acceptance_brief = {"path": brief_path, "content": read_utf8(root / brief_path)}
-    return {
+    result = {
         "feature_directory": str(root),
         "feature": focused_status(status_text),
         "repositories": repositories,
@@ -1311,6 +1318,25 @@ def build_context(
         "topology": mermaid_topology(records),
         "gists": gists,
     }
+    if include_selection:
+        # Project the very records/contracts that passed the full validator above.
+        # The adapter binds these to source bytes and actual refs; this label alone
+        # is not a validation credential and the default output stays unchanged.
+        summary = {row["item"]: row["value"] for row in result["feature"]["summary"]}
+        result["selection"] = {
+            "current_task": selected_task_id(status_text, None),
+            "current_gate": summary.get("Current gate", summary.get("当前 gate")),
+            "tasks": [{
+                "id": key, "state": record["state"],
+                "kind": {"TEST": "Test", "REVIEW": "Review", "REWORK": "Rework",
+                         "ACCEPT": "Acceptance", "GATE": "Gate"}.get(key.split("-")[0], record["type"]),
+                "dependencies": record["dependencies"],
+                "contract": type_contracts.get(key, {}),
+                "release_condition": next(iter(re.findall(
+                    r"^- Release condition[:：][ \t]*(.+?)[ \t]*$", details[key][0], re.MULTILINE)), ""),
+            } for key, record in records.items()],
+        }
+    return result
 
 
 def render_table(table: dict[str, Any]) -> list[str]:

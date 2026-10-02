@@ -105,7 +105,7 @@ helper 只取[用途提示](references/prompts.md)中的共同节与当前用途
 
 ## 上下文边界
 
-恢复后选择下一动作时，阅读 [references/selection.md](references/selection.md)。[纯函数核心](scripts/task_next.py)和[行为测试](scripts/test_task_next.py)已提供，严格读取器/CLI 适配尚待接入；选择结果不授予执行权限，也不修改任务状态。
+恢复后选择下一动作时，阅读 [references/selection.md](references/selection.md)。[纯函数核心/CLI](scripts/task_next.py)通过[严格读取适配器](scripts/selection_context.py)恢复；运行[核心测试](scripts/test_task_next.py)及[真实 Git/CLI 测试](scripts/test_selection_context.py)验证。选择结果不授予执行权限，也不修改任务状态。
 
 逐点确认的需求是批准意图，逐点确认的方案是保留实施计划，Git 是实现状态，`STATUS.md` 是 feature/仓库入口，`TASKS.md` 是 task/ref 索引，`tasks/` 与 `gists/` 是共享聚焦追溯。冲突时报告，不得改写已决定点掩盖冲突。
 

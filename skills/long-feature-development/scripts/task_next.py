@@ -242,7 +242,8 @@ def _candidate(task, action, records, required, authorization, observations):
 
 
 def _select(validated_context: ValidatedContext, authorization: Authorization,
-            observed_gate_evidence: ObservedGateEvidence, start: float) -> NextAction:
+            observed_gate_evidence: ObservedGateEvidence, start: float,
+            metrics: list[int]) -> NextAction:
     """Return at most one suggestion, never permission or a task-state mutation.
 
     Whole-graph validation runs before choosing even the current task. Inputs must
@@ -259,6 +260,7 @@ def _select(validated_context: ValidatedContext, authorization: Authorization,
             return NextAction("repair-plan", None, "STALE_INPUT")
         current = records[context.current_task]
         if current.state in {"WIP", "RECORDING", "BLOCKED"}:
+            metrics[0] = 1
             if any(records[dep].state != "DONE" for dep in current.dependencies):
                 return NextAction("repair-plan", current.id, "ACTIVE_DEPENDENCY_UNFINISHED")
             result = _candidate(current, "resume", records, required, authorization,
@@ -282,6 +284,7 @@ def _select(validated_context: ValidatedContext, authorization: Authorization,
                 (priority if isinstance(grant, Grant) and grant.operation in PRIORITY
                  else ordinary).append(task)
         first_diagnostic = None
+        metrics[0] = len(priority) + len(ordinary)
         for task in (*priority, *ordinary):
             _check_time(start)
             result = _candidate(task, "assign", records, required, authorization,
@@ -298,6 +301,7 @@ def _select(validated_context: ValidatedContext, authorization: Authorization,
             _check_time(start)
             if any(records[dep].state != "DONE" for dep in task.dependencies):
                 continue
+            metrics[0] += 1
             result = _candidate(task, "resume", records, required, authorization,
                                 observed_gate_evidence)
             if result.action == "resume":
@@ -321,9 +325,24 @@ def _select(validated_context: ValidatedContext, authorization: Authorization,
 def select_next(validated_context: ValidatedContext, authorization: Authorization,
                 observed_gate_evidence: ObservedGateEvidence) -> NextAction:
     """Pure suggestion from validated records and separately supplied host facts."""
+    return select_with_metrics(validated_context, authorization, observed_gate_evidence)[0]
+
+
+def select_with_metrics(validated_context: ValidatedContext, authorization: Authorization,
+                        observed_gate_evidence: ObservedGateEvidence) -> tuple[NextAction, int, float]:
+    """Same single traversal, with candidate count and elapsed milliseconds for CLI events."""
     start = time.monotonic()
-    result = _select(validated_context, authorization, observed_gate_evidence, start)
+    metrics = [0]
+    result = _select(validated_context, authorization, observed_gate_evidence, start, metrics)
     # Apply the deadline also to early diagnostic and blocked-resume exits.
-    if time.monotonic() - start >= MAX_SECONDS:
-        return NextAction("repair-plan", None, "RESOURCE_LIMIT")
-    return result
+    elapsed = time.monotonic() - start
+    if elapsed >= MAX_SECONDS:
+        result = NextAction("repair-plan", None, "RESOURCE_LIMIT")
+    return result, metrics[0], round(elapsed * 1000, 3)
+
+
+if __name__ == "__main__":
+    import sys
+    sys.dont_write_bytecode = True
+    from selection_context import main
+    raise SystemExit(main())

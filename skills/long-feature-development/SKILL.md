@@ -120,7 +120,7 @@ Read [references/feature-gates.md](references/feature-gates.md) only when creati
 
 ## Context boundary
 
-For next-action selection after recovery, read [references/selection.md](references/selection.md). The [pure core](scripts/task_next.py) and [behavioral tests](scripts/test_task_next.py) are available; the strict-reader/CLI adapter is pending. Selection never grants execution authority or changes task state.
+For next-action selection after recovery, read [references/selection.md](references/selection.md). The [pure core/CLI](scripts/task_next.py) uses a [strict-reader adapter](scripts/selection_context.py); validate with [core tests](scripts/test_task_next.py) and [real Git/CLI tests](scripts/test_selection_context.py). Selection never grants execution authority or changes task state.
 
 Treat individually confirmed requirement points as approved intent, individually confirmed solution points as the retained implementation plan, Git as implementation state, `STATUS.md` as the primary feature/repository entry, `TASKS.md` as the task/ref index, and `tasks/` plus `gists/` as shared focused trace records. If they disagree, report the conflict; do not rewrite a decided point to hide it.
 

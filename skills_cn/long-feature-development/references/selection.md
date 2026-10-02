@@ -5,10 +5,26 @@ neither execution permission nor a second task-state writer.
 
 ## Implementation boundary
 
-The pure API in [task_next.py](../scripts/task_next.py) is implemented. The
-strict-reader projection, CLI, read-set binding and selector.result event adapter
-are not yet integrated. Do not construct a "validated" JSON file or replace
-task_context with this core. Continue strict recovery and the existing writer.
+The pure API is in [task_next.py](../scripts/task_next.py). Its read-only CLI uses
+[selection_context.py](../scripts/selection_context.py) to run the complete
+task_context validator and project its validated records, without changing the
+old reader's default output. Arbitrary JSON cannot replace validated context.
+Task quality types follow the strict reader's ID-prefix contract rules; changing
+an ACCEPT row's display type cannot remove its acceptance checks.
+
+The adapter hashes raw control documents and the tasks/gists trees before and
+after validation, together with real local repository identity, HEAD, branch,
+refs, config and scoped worktree status. Added/removed sources and refs invalidate
+the binding. Symlinks/junctions are rejected; inputs are bounded to 11,004 files
+and 64 MiB, with a bounded directory traversal. These optimistic observations are
+not a cross-repository transaction: use the single coordinator, and revalidate
+immediately before any authorized writer. Full loader separation is independent
+work, not a claim made by this consistency envelope.
+
+Git observations disable optional locks to avoid index refresh writes. The
+selector's two-second budget covers graph selection, not full filesystem/Git
+recovery. Adapter snapshot Git calls each have a ten-second timeout. Errors emit
+bounded codes, not raw repository config, document text or command diagnostics.
 
 ## Inputs and trust
 
@@ -66,16 +82,61 @@ read-set, task row and repository refs. If changed, discard and recompute. Then
 record owner/start refs and invoke the existing authorized task_state writer.
 Selection cannot assign, release BLOCKED, commit, merge or push itself.
 
+## Read-only command
+
+First run without host inputs. The output includes source_ref and a NextAction
+(normally wait-human/AUTHORITY_MISSING); no authority is inferred from documents.
+
+~~~text
+python scripts/task_next.py /path/to/feature --repo app=/path/to/app --repo pm=/path/to/pm
+~~~
+
+For selection with authority, the host explicitly invokes the same command with
+--host-input and --authority-source-ref naming the actual current instruction.
+It supplies a UTF-8 JSON envelope on stdin, limited to 1 MiB. No feature-local
+permission file is loaded. The reference is traceability, not authentication of
+a human acceptance; the host remains responsible for actual authority/provenance.
+Unknown fields/task IDs/capabilities, duplicate keys and wrong boolean types fail.
+
+~~~json
+{
+  "source_ref": "selection-sha256:copy-the-current-returned-binding",
+  "grants": {
+    "DEV-02": {"operation": "work", "capabilities": ["execute"]}
+  },
+  "evidence": {
+    "DEV-02": {"verdict": "ready", "evidence_refs": ["actual-observation-reference"]}
+  }
+}
+~~~
+
+Only supply ready after checking the facts described above. Optional grant field
+outside_scope defaults false. Optional evidence fields are target_sha,
+acceptance_task, release_condition and release_satisfied (default false). Omitted
+evidence does not pass. Each invocation re-runs real recovery and compares the
+envelope's binding, so a stale saved envelope cannot select on changed inputs.
+
+Stdout contains only source_ref and next_action; stderr contains one
+selector.result JSON event with action, reason_code, candidate_count and
+elapsed_ms. The count describes structurally eligible candidates, not permissions.
+Exit 0 means a valid selection/diagnostic, including wait-human/wait-external or
+stop-scope; exit 2 means repair-plan, invalid input or failed recovery. There is
+no apply mode. A coordinator must inspect action, not just the process exit code.
+
 ## Regression
 
-Run [test_task_next.py](../scripts/test_task_next.py):
+Run [test_task_next.py](../scripts/test_task_next.py) and the real Git/CLI tests
+in [test_selection_context.py](../scripts/test_selection_context.py):
 
 ~~~text
 python scripts/test_task_next.py
+python scripts/test_selection_context.py
 ~~~
 
 Behavioral cases cover deterministic repetition, authority and scope, exact
 release proof, rejected acceptance, failed tests, old/missing targets, malformed
 graphs, deadlines, a 10,000-node chain and no-I/O/input preservation. They are
-author tests, not independent review or human acceptance.
-
+author tests, not independent review or human acceptance. Adapter tests compare
+all fixture worktree/Git bytes (including indexes, refs and reflogs), preserve old
+reader output, verify stale/mid-read changes, rejected acceptance and host waits,
+and ensure document bodies are absent from command output/events.
