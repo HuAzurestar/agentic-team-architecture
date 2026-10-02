@@ -120,6 +120,8 @@ Read [references/feature-gates.md](references/feature-gates.md) only when creati
 
 ## Context boundary
 
+The [local document loader](scripts/context_loader.py) reads complete raw task and declared-gist sources before validation. `task_context.py` separates full validation with the host-selected local Git probe from focused projection; a comparison loader cannot replace local repository facts. When changing this boundary, run the [loader and actual-Git regressions](scripts/test_context_loader.py) as well as the existing context tests. Structured envelope output uses `lfd-context-v1`; default CLI output remains compatible. This interface does not supply review-breakpoint recovery by itself.
+
 For next-action selection after recovery, read [references/selection.md](references/selection.md). The [pure core/CLI](scripts/task_next.py) uses a [strict-reader adapter](scripts/selection_context.py); validate with [core tests](scripts/test_task_next.py) and [real Git/CLI tests](scripts/test_selection_context.py). Selection never grants execution authority or changes task state.
 
 Treat individually confirmed requirement points as approved intent, individually confirmed solution points as the retained implementation plan, Git as implementation state, `STATUS.md` as the primary feature/repository entry, `TASKS.md` as the task/ref index, and `tasks/` plus `gists/` as shared focused trace records. If they disagree, report the conflict; do not rewrite a decided point to hide it.

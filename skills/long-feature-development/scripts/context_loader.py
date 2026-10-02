@@ -82,7 +82,8 @@ class DocumentLoader(Protocol):
 
 
 def safe_relative(value: str) -> PurePosixPath:
-    if not isinstance(value, str) or not value or "\\" in value or ":" in value:
+    if (not isinstance(value, str) or not value or "\\" in value or ":" in value
+            or "\x00" in value):
         raise LoaderError("UNSAFE_PATH", "document path must be feature-relative")
     parts = value.split("/")
     if (len(parts) > MAX_DEPTH or any(part in {"", ".", ".."} for part in parts)
@@ -156,7 +157,8 @@ class LocalMarkdownLoader:
             self._paths = self._enumerate()
         if cursor is None:
             offset = 0
-        elif isinstance(cursor, str) and cursor.startswith("offset:") and cursor[7:].isdigit():
+        elif (isinstance(cursor, str) and cursor.startswith("offset:")
+              and 1 <= len(cursor[7:]) <= 4 and cursor[7:].isascii() and cursor[7:].isdigit()):
             offset = int(cursor[7:])
         else:
             raise LoaderError("INVALID_CURSOR", "invalid task page cursor")
@@ -229,7 +231,11 @@ def enumerate_tasks(loader: DocumentLoader) -> tuple[str, ...]:
     cursor = None
     while True:
         page = loader.list_task_paths(cursor, PAGE_SIZE)
-        if not isinstance(page, TaskPage) or len(page.paths) > PAGE_SIZE:
+        if (not isinstance(page, TaskPage) or not isinstance(page.paths, tuple)
+                or len(page.paths) > PAGE_SIZE
+                or (page.next_cursor is not None and
+                    (not isinstance(page.next_cursor, str) or not page.next_cursor
+                     or len(page.next_cursor) > 256))):
             raise LoaderError("INCOMPLETE_CONTEXT", "invalid loader task page")
         for path in page.paths:
             relative = safe_relative(path)
@@ -267,7 +273,15 @@ def load_feature(loader: DocumentLoader) -> FeatureDocuments:
         record = loader.read(name)
         if not isinstance(record, DocumentRecord) or record.logical_path != name:
             raise LoaderError("INCOMPLETE_CONTEXT", "loader returned a mismatched document")
-        raw = record.text.encode("utf-8")
+        if (not isinstance(record.text, str) or not isinstance(record.source_key, str)
+                or not record.source_key or type(record.byte_count) is not int):
+            raise LoaderError("INCOMPLETE_CONTEXT", "loader record has invalid field types")
+        if len(record.text) > MAX_BYTES - total:
+            raise LoaderError("RESOURCE_LIMIT", "document byte budget exceeded")
+        try:
+            raw = record.text.encode("utf-8")
+        except UnicodeEncodeError as exc:
+            raise LoaderError("INVALID_ENCODING", "loader text cannot represent UTF-8 source bytes") from exc
         if (record.encoding != "utf-8" or record.byte_count != len(raw)
                 or record.content_digest != hashlib.sha256(raw).hexdigest() or not record.source_key):
             raise LoaderError("INCOMPLETE_CONTEXT", "loader record has inconsistent raw evidence")
@@ -304,6 +318,8 @@ def load_feature(loader: DocumentLoader) -> FeatureDocuments:
                     raise LoaderError(exc.code, f"declared gist is missing: {gist}") from exc
                 raise
     evidence = loader.finish()
+    if time.process_time() - start_cpu > MAX_COMPUTE_SECONDS:
+        raise LoaderError("RESOURCE_LIMIT", "loader computation budget exceeded")
     expected = tuple((key, record.content_digest) for key, record in sorted(records.items()))
     if (not isinstance(evidence, ReadSetEvidence) or evidence.complete is not True
             or set(evidence.task_paths) != set(task_paths) or evidence.documents != expected
