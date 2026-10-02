@@ -1302,6 +1302,12 @@ class LocalGitProbe:
             resumed = recover(documents, detail, records, repositories, commit_exists)
             if resumed is not None:
                 reviews[task_id] = resumed
+        if reviews:
+            for repository in repositories.values():
+                path = Path(repository['path'])
+                if (run_git(path, 'rev-parse', 'HEAD') != repository['actual_head']
+                        or run_git(path, 'branch', '--show-current') != repository['actual_branch']):
+                    raise LoaderError('SOURCE_CHANGED', 'repository moved during review recovery')
         local.finish()
         return repositories, trace, reviews
 

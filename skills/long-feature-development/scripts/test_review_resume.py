@@ -6,9 +6,47 @@ from pathlib import Path
 import subprocess
 import sys
 import unittest
+from unittest.mock import patch
 import task_context as tc
 import review_resume as rr
 import test_task_reconcile as fixture
+
+
+class ReviewParsingTests(unittest.TestCase):
+    def setUp(self):
+        self.schema = 'review-resume-v1'
+        self.raw = json.dumps({'schema': self.schema, 'attempt_id': 'one'})
+
+    def rejected(self, text):
+        with self.assertRaises(rr.LoaderError) as caught:
+            rr._object(text, self.schema)
+        self.assertEqual(caught.exception.code, 'INVALID_REVIEW_REFERENCE')
+
+    def test_outer_example_fence_is_not_control(self):
+        self.rejected('````md\n```review-resume-v1\n' + self.raw + '\n```\n````\n')
+
+    def test_commented_fence_is_not_control(self):
+        self.rejected('<!--\n```review-resume-v1\n' + self.raw + '\n```\n-->\n')
+
+    def test_quote_and_indented_fences_are_not_control(self):
+        for prefix in ('> ', '    '):
+            text = '```review-resume-v1\n' + self.raw + '\n```'
+            self.rejected('\n'.join(prefix + line for line in text.splitlines()))
+
+    def test_single_top_level_fence_or_raw_object(self):
+        expected = json.loads(self.raw)
+        self.assertEqual(rr._object(self.raw, self.schema), expected)
+        self.assertEqual(rr._object('# Record\n```review-resume-v1\n' + self.raw + '\n```\n', self.schema), expected)
+
+    def test_duplicate_unclosed_or_nonfinite_json_rejected(self):
+        block = '```review-resume-v1\n' + self.raw + '\n```\n'
+        for text in (block + block, block[:-4],
+                     '{"schema":"review-resume-v1","x":NaN}',
+                     '{"schema":"review-resume-v1","x":1,"x":2}'):
+            self.rejected(text)
+
+    def test_commented_task_field_does_not_enable_recovery(self):
+        self.assertIsNone(rr.declaration('<!--\n- Review recovery: gists/example.md\n-->'))
 
 
 class ReviewRecoveryTests(unittest.TestCase):
@@ -120,6 +158,35 @@ class ReviewRecoveryTests(unittest.TestCase):
                      '```md\n- Review recovery: gists/evil.md\n```\n',
                      '    - Review recovery: gists/evil.md\n'):
             self.assertIsNone(rr.declaration(text))
+
+    def test_git_move_during_recovery_is_rejected(self):
+        original = rr.recover
+
+        def move_after_recovery(*args):
+            result = original(*args)
+            if result is not None:
+                fixture.git(self.app, 'commit', '--allow-empty', '-m', 'move during recovery')
+            return result
+
+        with patch.object(rr, 'recover', side_effect=move_after_recovery):
+            self.assert_code('SOURCE_CHANGED')
+
+    def test_missing_actual_commit_rejected(self):
+        self.request['target_refs'] = {'app': 'f' * 40}
+        self.save()
+        self.assert_code('EVIDENCE_MISSING')
+
+    def test_exact_duplicate_finding_is_scoped_and_deduplicated(self):
+        self.report['findings'].append(dict(self.report['findings'][0]))
+        self.save()
+        resumed = tc.build_context(self.root)['review_recovery']
+        self.assertEqual(resumed['open_finding_ids'], ['F-1'])
+        self.assertEqual(resumed['open_findings'][0]['attempt_id'], 'attempt-1')
+
+    def test_contradictory_duplicate_finding_rejected(self):
+        self.report['findings'].append({'id': 'F-1', 'status': 'closed'})
+        self.save()
+        self.assert_code('INVALID_REVIEW_REFERENCE')
 
 
 if __name__ == '__main__':

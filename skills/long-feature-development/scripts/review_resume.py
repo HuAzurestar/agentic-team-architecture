@@ -12,19 +12,39 @@ def fail(code):
     raise LoaderError(code, 'review recovery rejected: ' + code)
 
 
-def declaration(detail):
-    """Only a top-level task field opts in; examples/quotes are not control data."""
-    values = []
-    fence = None
-    for line in detail.splitlines():
+def _markdown(text):
+    """Scan fences before their bodies; comments and nested examples are inert."""
+    fence, tag, body, comment = None, None, [], False
+    for line in text.splitlines():
         match = re.match(r'^ {0,3}(`{3,}|~{3,})', line)
         if fence:
             if (match and match[1][0] == fence[0] and len(match[1]) >= len(fence)
                     and not line[match.end():].strip()):
+                yield 'block', tag, '\n'.join(body)
                 fence = None
+                body = []
+            else:
+                body.append(line)
+            continue
+        if comment:
+            if '-->' in line:
+                comment = False
+            continue
+        if '<!--' in line:
+            comment = '-->' not in line.split('<!--', 1)[1]
             continue
         if match:
             fence = match[1]
+            tag = line[match.end():].strip()
+            continue
+        yield 'line', None, line
+
+
+def declaration(detail):
+    """Only a top-level task field opts in; examples/quotes are not control data."""
+    values = []
+    for kind, _, line in _markdown(detail):
+        if kind != 'line':
             continue
         if line.startswith('- Review recovery:'):
             values.append(line.partition(':')[2].strip())
@@ -41,8 +61,8 @@ def _object(text, schema):
     # example JSON block hidden inside report prose.
     stripped = text.strip()
     if not stripped.startswith('{'):
-        blocks = re.findall(r'^```' + re.escape(schema) + r'\s*\n(.*?)^```\s*$',
-                            text, re.M | re.S)
+        blocks = [body for kind, tag, body in _markdown(text)
+                  if kind == 'block' and tag == schema]
         if len(blocks) != 1:
             fail('INVALID_REVIEW_REFERENCE')
         stripped = blocks[0]
@@ -56,7 +76,8 @@ def _object(text, schema):
         return result
 
     try:
-        obj = json.loads(stripped, object_pairs_hook=unique)
+        obj = json.loads(stripped, object_pairs_hook=unique,
+                         parse_constant=lambda _: fail('INVALID_REVIEW_REFERENCE'))
     except (ValueError, RecursionError):
         fail('INVALID_REVIEW_REFERENCE')
     if not isinstance(obj, dict) or obj.get('schema') != schema:
