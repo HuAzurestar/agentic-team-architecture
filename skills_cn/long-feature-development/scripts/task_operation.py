@@ -367,6 +367,18 @@ def checkpoint_locked(root, gist, overrides, args, authority):
     owned_state(repo, args.include, git)
     if files_at_worktree(repo, args.include, git) != record["expected_source"]["files"]:
         raise Error("CONTENT_CONFLICT")
+    staged = [p for p in git.run(repo, "diff", "--cached", "--name-only", "-z").split("\0") if p]
+    for name in staged:
+        if name not in record["expected_source"]["files"]:
+            raise Error("UNOWNED_CHANGES")
+        blob = git.run(repo, "rev-parse", "--verify", ":" + name, check=False)
+        if blob != record["expected_source"]["files"][name]:
+            raise Error("CONTENT_CONFLICT")
+    if record["expected_source"].get("tree"):
+        index_tree = git.run(repo, "write-tree")
+        old_tree = git.run(repo, "rev-parse", record["expected_source"]["head"] + "^{tree}")
+        if index_tree not in {old_tree, record["expected_source"]["tree"]}:
+            raise Error("CONTENT_CONFLICT")
     subprocess.run(["git", "-C", str(repo), "add", "--", *args.include], check=True, capture_output=True, timeout=10)
     tree = git.run(repo, "write-tree")
     if record["expected_source"].get("tree", tree) != tree:

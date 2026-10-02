@@ -206,6 +206,19 @@ class OperationTests(unittest.TestCase):
         self.assertEqual(result["conflicts"][0]["code"], "RESOURCE_LIMIT")
         self.assertEqual((self.root / "TASKS.md").read_bytes(), before)
 
+    def test_third_party_staged_content_is_not_overwritten_on_resume(self):
+        self.change()
+        self.interrupt("before-commit")
+        path = self.app / "owned.py"
+        path.write_bytes(b"USER STAGED DIFFERENT CONTENT\n")
+        git(self.app, "add", "owned.py")
+        staged = git(self.app, "rev-parse", ":owned.py")
+        self.change()
+        with self.assertRaisesRegex(tc.ContextError, "CONTENT_CONFLICT"):
+            cp.checkpoint(self.args(self.record()["operation_id"]))
+        self.assertEqual(git(self.app, "rev-parse", ":owned.py"), staged)
+        self.assertEqual(git(self.app, "rev-parse", "HEAD"), self.app_head)
+
     def test_wrong_expected_tree_does_not_accept_matching_operation_trailer(self):
         self.change()
         self.interrupt("after-commit")
