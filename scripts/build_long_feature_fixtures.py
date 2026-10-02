@@ -198,13 +198,15 @@ def build(bundle: Path) -> None:
         path = bundle / f"{name}.md"
         if not path.is_file():
             raise FileNotFoundError(path)
+        if b"\r\n" in path.read_bytes():
+            raise ValueError(f"contract specification must use canonical LF bytes: {path.name}")
         entries.append({"path": path.name, "sha256": hashlib.sha256(path.read_bytes()).hexdigest(), "contract": name, "case_id": None, "expected_result": None})
     for name, data, expected in cases():
         path = fixture_dir / f"{data['case_id'].lower()}.json"
-        path.write_text(json.dumps(data, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        path.write_bytes((json.dumps(data, ensure_ascii=False, indent=2, sort_keys=True) + "\n").encode("utf-8"))
         entries.append({"path": "cases/" + path.name, "sha256": hashlib.sha256(path.read_bytes()).hexdigest(), "contract": name, "case_id": data["case_id"], "expected_result": expected})
     manifest = {"schema_version": "contract-fixtures/0.1", "contracts": {"c1": "c1/0.1", "c2": "c2/0.1", "c3": "c3/0.1"}, "required_features": ["c1", "c2", "c3"], "files": entries}
-    (bundle / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    (bundle / "manifest.json").write_bytes((json.dumps(manifest, ensure_ascii=False, indent=2, sort_keys=True) + "\n").encode("utf-8"))
 
 
 def main() -> None:

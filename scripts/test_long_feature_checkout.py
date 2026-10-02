@@ -41,6 +41,13 @@ class CheckoutTests(unittest.TestCase):
                 raw = (bundle / entry["path"]).read_bytes()
                 self.assertEqual(hashlib.sha256(raw).hexdigest(), entry["sha256"],
                                  f"autocrlf={autocrlf}: {entry['path']} at {sha}")
+            # Regeneration must preserve the committed package byte-for-byte
+            # on both operating systems, including the manifest itself.
+            before = {p.relative_to(bundle): p.read_bytes() for p in bundle.rglob("*") if p.is_file()}
+            self.run_process([sys.executable, "scripts/build_long_feature_fixtures.py",
+                              "--bundle", str(bundle)], cwd=checkout)
+            self.assertEqual(before, {p.relative_to(bundle): p.read_bytes()
+                                      for p in bundle.rglob("*") if p.is_file()})
             self.run_process([sys.executable, "scripts/test_long_feature_contracts.py"], cwd=checkout)
             for locale in ("skills", "skills_cn"):
                 scripts = checkout / locale / "long-feature-development" / "scripts"
