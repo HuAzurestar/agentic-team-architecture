@@ -8,6 +8,7 @@ import subprocess
 import tempfile
 import unittest
 from unittest.mock import patch
+from types import SimpleNamespace
 
 import context_loader as cl
 import task_context as tc
@@ -250,6 +251,95 @@ class LoaderTests(unittest.TestCase):
         with patch.object(loader, 'finish', side_effect=expensive_finish), \
                 patch.object(cl.time, 'process_time', side_effect=lambda: elapsed[0]):
             self.error('RESOURCE_LIMIT', lambda: cl.load_feature(loader))
+
+    def test_budget_accumulates_across_load_validate_and_focus(self):
+        elapsed = [0.0]
+        loader = MemoryLoader(self.root)
+        finish = loader.finish
+        decision = tc.validate_decision_mapping
+        focus = tc.focused_status
+
+        def spend(callback):
+            def measured(*args, **kwargs):
+                result = callback(*args, **kwargs)
+                elapsed[0] += 0.75
+                return result
+            return measured
+
+        with patch.object(cl.time, 'process_time', side_effect=lambda: elapsed[0]), \
+                patch.object(loader, 'finish', side_effect=spend(finish)), \
+                patch.object(tc, 'validate_decision_mapping', side_effect=spend(decision)):
+            documents = cl.load_feature(loader)
+            validated = tc.validate_feature(documents, tc.LocalGitProbe(self.root))
+            self.assertAlmostEqual(documents.budget.spent, 1.5)
+            with patch.object(tc, 'focused_status', side_effect=spend(focus)):
+                self.error('RESOURCE_LIMIT', lambda: tc.focus_context(validated))
+
+    def test_git_io_exclusion_does_not_exclude_surrounding_computation(self):
+        elapsed = [0.0]
+        budget = cl.ComputationBudget()
+
+        def external(*args, **kwargs):
+            elapsed[0] += 20
+            return SimpleNamespace(returncode=0, stdout='ok', stderr='')
+
+        with patch.object(cl.time, 'process_time', side_effect=lambda: elapsed[0]), \
+                patch.object(tc.subprocess, 'run', side_effect=external):
+            with budget.measure():
+                elapsed[0] += 0.5
+                self.assertEqual(tc.run_git(self.root, 'status'), 'ok')
+                elapsed[0] += 0.5
+            self.assertAlmostEqual(budget.spent, 1.0)
+            with self.assertRaises(cl.LoaderError) as caught:
+                with budget.measure():
+                    elapsed[0] += 1.1
+            self.assertEqual(caught.exception.code, 'RESOURCE_LIMIT')
+
+    def test_validation_and_reentry_cannot_reset_exhausted_budget(self):
+        documents = cl.load_feature(MemoryLoader(self.root))
+        documents.budget.spent = cl.MAX_COMPUTE_SECONDS + 0.1
+        with patch.object(tc.LocalGitProbe, 'validate', side_effect=AssertionError('should not run')):
+            for _ in range(2):
+                self.error('RESOURCE_LIMIT', lambda: tc.validate_feature(documents, tc.LocalGitProbe(self.root)))
+
+    def legacy_validation(self):
+        # Existing filesystem-backed helpers, without FeatureDocuments/loader.
+        req, sol, status, tasks = [tc.read_utf8(self.root / name) for name in cl.MAIN_PATHS]
+        tc.reject_legacy_status_table(status)
+        records = tc.task_records(tasks)
+        tc.validate_dependency_graph(records)
+        tc.validate_topology(tasks, records)
+        details = tc.validate_task_files(self.root, records)
+        tc.validate_decision_mapping(records, req, sol)
+        tc.validate_feature_state(status, records)
+        tc.validate_type_contracts(records, details, self.root)
+
+    def test_main_document_encoding_matches_legacy_filesystem_helpers(self):
+        for name in cl.MAIN_PATHS:
+            path = self.root / name
+            original = path.read_bytes()
+            normalized = original.decode('utf-8').replace('\r\n', '\n')
+            variants = [normalized.replace('\n', newline) for newline in ('\n', '\r\n', '\r')]
+            variants += ['\ufeff' + normalized,
+                         normalized.replace('|', '\ufeff|', 1),
+                         normalized.replace('# ', '# 中文 ', 1)]
+            for index, text in enumerate(variants):
+                with self.subTest(document=name, variant=index):
+                    path.write_bytes(text.encode('utf-8'))
+                    before = self.snapshot()
+                    outcomes = []
+                    for check in (self.legacy_validation,
+                                  lambda: tc.validate_feature(cl.load_feature(cl.LocalMarkdownLoader(self.root)), tc.LocalGitProbe(self.root)),
+                                  lambda: tc.validate_feature(cl.load_feature(MemoryLoader(self.root)), tc.LocalGitProbe(self.root))):
+                        try:
+                            check()
+                            outcomes.append(('valid', None))
+                        except (tc.ContextError, cl.LoaderError) as exc:
+                            outcomes.append(('invalid', str(exc)))
+                    self.assertEqual(outcomes[0], outcomes[1])
+                    self.assertEqual(outcomes[0], outcomes[2])
+                    self.assertEqual(before, self.snapshot())
+                path.write_bytes(original)
 
 
 class GitLoaderTests(unittest.TestCase):

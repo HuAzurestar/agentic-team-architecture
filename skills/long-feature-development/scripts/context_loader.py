@@ -2,7 +2,9 @@
 """Bounded raw-document loading; no Git, network or source writes."""
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from contextlib import contextmanager
+from contextvars import ContextVar
 import hashlib
 import os
 from pathlib import Path, PurePosixPath
@@ -24,6 +26,50 @@ class LoaderError(ValueError):
     def __init__(self, code: str, message: str):
         super().__init__(message)
         self.code = code
+
+
+_ACTIVE_BUDGET = ContextVar('lfd_computation_budget', default=None)
+
+
+class ComputationBudget:
+    """One cumulative computation allowance across the complete recovery path."""
+    def __init__(self):
+        self.spent = 0.0
+        self.started = None
+        self.external = 0.0
+
+    def check(self):
+        elapsed = (time.process_time() - self.started - self.external
+                   if self.started is not None else 0.0)
+        if self.spent + max(0.0, elapsed) > MAX_COMPUTE_SECONDS:
+            raise LoaderError('RESOURCE_LIMIT', 'recovery computation budget exceeded')
+
+    @contextmanager
+    def measure(self):
+        self.check()
+        if self.started is not None:
+            raise LoaderError('INVALID_CONTEXT', 'nested recovery budget phase')
+        self.started, self.external = time.process_time(), 0.0
+        token = _ACTIVE_BUDGET.set(self)
+        try:
+            yield
+        finally:
+            self.spent += max(0.0, time.process_time() - self.started - self.external)
+            self.started = None
+            _ACTIVE_BUDGET.reset(token)
+        self.check()
+
+
+@contextmanager
+def git_io():
+    """Exclude only the concrete Git subprocess call, never its caller's work."""
+    budget = _ACTIVE_BUDGET.get()
+    started = time.process_time() if budget is not None else None
+    try:
+        yield
+    finally:
+        if budget is not None:
+            budget.external += max(0.0, time.process_time() - started)
 
 
 @dataclass(frozen=True)
@@ -66,6 +112,7 @@ class FeatureDocuments:
     task_paths: tuple[str, ...]
     read_set: ReadSetEvidence
     context_schema: str = SCHEMA
+    budget: ComputationBudget = field(default_factory=ComputationBudget, compare=False, repr=False)
 
     def read(self, path: str) -> str:
         try:
@@ -259,12 +306,17 @@ def enumerate_tasks(loader: DocumentLoader) -> tuple[str, ...]:
 
 
 def load_feature(loader: DocumentLoader) -> FeatureDocuments:
+    budget = ComputationBudget()
+    with budget.measure():
+        return _load_feature(loader, budget)
+
+
+def _load_feature(loader: DocumentLoader, budget: ComputationBudget) -> FeatureDocuments:
     # Import only at the call boundary to keep the raw loader usable independently.
     import task_context as tc
     records = {}
     identities = {}
     total = 0
-    start_cpu = time.process_time()
 
     def take(name):
         nonlocal total
@@ -291,8 +343,9 @@ def load_feature(loader: DocumentLoader) -> FeatureDocuments:
         if record.source_key in identities and identities[record.source_key] != name:
             raise LoaderError("DUPLICATE_IDENTITY", "loader reused a source identity")
         total += len(raw)
-        if total > MAX_BYTES or time.process_time() - start_cpu > MAX_COMPUTE_SECONDS:
-            raise LoaderError("RESOURCE_LIMIT", "loader computation or byte budget exceeded")
+        if total > MAX_BYTES:
+            raise LoaderError("RESOURCE_LIMIT", "loader byte budget exceeded")
+        budget.check()
         records[name] = record
         identities[record.source_key] = name
         return record
@@ -324,11 +377,10 @@ def load_feature(loader: DocumentLoader) -> FeatureDocuments:
                     raise LoaderError(exc.code, f"declared gist is missing: {gist}") from exc
                 raise
     evidence = loader.finish()
-    if time.process_time() - start_cpu > MAX_COMPUTE_SECONDS:
-        raise LoaderError("RESOURCE_LIMIT", "loader computation budget exceeded")
+    budget.check()
     expected = tuple((key, record.content_digest) for key, record in sorted(records.items()))
     if (not isinstance(evidence, ReadSetEvidence) or evidence.complete is not True
             or set(evidence.task_paths) != set(task_paths) or evidence.documents != expected
             or evidence.total_bytes != total):
         raise LoaderError("INCOMPLETE_CONTEXT", "loader finish does not cover the complete read set")
-    return FeatureDocuments(loader.root.resolve(), MappingProxyType(records), task_paths, evidence)
+    return FeatureDocuments(loader.root.resolve(), MappingProxyType(records), task_paths, evidence, budget=budget)

@@ -120,6 +120,8 @@ Read [references/feature-gates.md](references/feature-gates.md) only when creati
 
 ## Context boundary
 
+Recovery shares one two-second computation budget across loading, complete validation (including review-reference checks), and focused projection. Exhaustion returns RESOURCE_LIMIT with no partial context or next action. Only the concrete Git subprocess call is excluded as external execution/I/O; parsing and checks before/after it are counted. This is a cooperative computation bound, not a two-second wall-clock deadline for Git. Reusing exhausted loaded documents cannot reset the budget.
+
 For an interrupted review with declared source materials, use the optional recovery branch in [checkpoints](references/checkpoints.md). The [review reference helper](scripts/review_resume.py) and [real Git/process tests](scripts/test_review_resume.py) restore attempt/target-bound references; they do not assess quality or grant acceptance.
 
 The [local document loader](scripts/context_loader.py) reads complete raw task and declared-gist sources before validation. `task_context.py` separates full validation with the host-selected local Git probe from focused projection; a comparison loader cannot replace local repository facts. When changing this boundary, run the [loader and actual-Git regressions](scripts/test_context_loader.py) as well as the existing context tests. Structured envelope output uses `lfd-context-v1`; default CLI output remains compatible. This interface does not supply review-breakpoint recovery by itself.

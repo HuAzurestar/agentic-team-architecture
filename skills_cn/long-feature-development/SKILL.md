@@ -105,6 +105,8 @@ helper 只取[用途提示](references/prompts.md)中的共同节与当前用途
 
 ## 上下文边界
 
+加载、完整校验（含审查引用检查）和聚焦输出共用一次 2 秒计算预算；耗尽返回 RESOURCE_LIMIT，不输出部分上下文或下一动作。仅具体 Git 子进程调用作为外部执行/I/O 排除，其前后的解析与核验仍计入。这是协作式计算上限，不是 Git 的 2 秒墙钟截止时间；重用已耗尽的资料对象不能重置预算。
+
 已有声明材料的审查中断，按[检查点](references/checkpoints.md)的可选恢复分支处理。[审查引用 helper](scripts/review_resume.py)及[真实 Git/进程测试](scripts/test_review_resume.py)恢复绑定 attempt/target 的引用，不代做质量判断或授予接受权限。
 
 [本地原文 loader](scripts/context_loader.py)在完整校验前读取所有任务与声明 gist；`task_context.py` 分离真实 Git 校验和聚焦输出，比较 loader 不能代答本地仓库事实。修改该边界时运行 [loader/真实 Git 专项](scripts/test_context_loader.py)及旧 context 回归。结构化 envelope 使用 `lfd-context-v1`，默认 CLI 保持兼容。loader 分离本身不代替审查断点恢复。

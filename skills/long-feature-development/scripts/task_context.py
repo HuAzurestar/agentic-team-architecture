@@ -511,8 +511,14 @@ def parse_repo_overrides(values: list[str]) -> dict[str, Path]:
     return result
 
 
+def _git_process(*args, **kwargs):
+    from context_loader import git_io
+    with git_io():
+        return subprocess.run(*args, **kwargs)
+
+
 def run_git(path: Path, *arguments: str, check: bool = True) -> str:
-    process = subprocess.run(
+    process = _git_process(
         ["git", "--no-optional-locks", "-C", str(path), *arguments],
         text=True,
         encoding="utf-8",
@@ -527,7 +533,7 @@ def run_git(path: Path, *arguments: str, check: bool = True) -> str:
 
 
 def git_succeeds(path: Path, *arguments: str) -> bool:
-    return subprocess.run(
+    return _git_process(
         ["git", "--no-optional-locks", "-C", str(path), *arguments],
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
@@ -638,7 +644,7 @@ def validate_shared_records(feature_root: Path, resolved: dict[str, dict[str, An
 
 
 def repository_changes(path: Path) -> list[str]:
-    process = subprocess.run(
+    process = _git_process(
         ["git", "-C", str(path), "status", "--porcelain=v1", "--untracked-files=all"],
         text=True,
         encoding="utf-8",
@@ -677,7 +683,7 @@ def commit_exists(path: Path, sha: str) -> bool:
 
 
 def is_ancestor(path: Path, older: str, newer: str) -> bool:
-    process = subprocess.run(
+    process = _git_process(
         ["git", "-C", str(path), "merge-base", "--is-ancestor", older, newer],
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
@@ -1313,12 +1319,16 @@ class LocalGitProbe:
 
 
 def validate_feature(documents: Any, git_probe: LocalGitProbe, *, include_selection: bool = False) -> ValidatedFeature:
-    from context_loader import SCHEMA, MAX_COMPUTE_SECONDS, LoaderError
+    with documents.budget.measure():
+        return _validate_feature(documents, git_probe, include_selection=include_selection)
+
+
+def _validate_feature(documents: Any, git_probe: LocalGitProbe, *, include_selection: bool = False) -> ValidatedFeature:
+    from context_loader import SCHEMA, LoaderError
     if documents.context_schema != SCHEMA:
         raise LoaderError("UNSUPPORTED_SCHEMA", "unsupported context schema")
     if documents.read_set.complete is not True:
         raise LoaderError("INCOMPLETE_CONTEXT", "document read set is incomplete")
-    start_cpu = time.process_time()
     root = documents.root
     requirement_text = documents.read("REQUIREMENT.md")
     solution_text = documents.read("SOLUTION.md")
@@ -1343,14 +1353,20 @@ def validate_feature(documents: Any, git_probe: LocalGitProbe, *, include_select
     for detail, _ in details.values():
         declared_gist_paths(detail, root, documents=documents)
     type_contracts = validate_type_contracts(records, details, root, documents=documents)
-    if time.process_time() - start_cpu > MAX_COMPUTE_SECONDS:
-        raise LoaderError("RESOURCE_LIMIT", "document validation computation budget exceeded")
+    documents.budget.check()
     repositories, trace, reviews = git_probe.validate(documents, records, details)
     return ValidatedFeature(documents, records, details, type_contracts, repositories, trace, reviews)
 
 
 def focus_context(validated: ValidatedFeature, requested_task: str | None = None, *,
                   include_selection: bool = False, structured: bool = False) -> dict[str, Any]:
+    with validated.documents.budget.measure():
+        return _focus_context(validated, requested_task, include_selection=include_selection,
+                              structured=structured)
+
+
+def _focus_context(validated: ValidatedFeature, requested_task: str | None = None, *,
+                   include_selection: bool = False, structured: bool = False) -> dict[str, Any]:
     """Project already validated documents without file, Git or network access."""
     documents = validated.documents
     root = documents.root
