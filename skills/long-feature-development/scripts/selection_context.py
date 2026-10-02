@@ -100,8 +100,17 @@ def _git(path: Path, *arguments: str) -> str:
 
 def repo_snapshot(root: Path, repositories: dict) -> dict:
     result = {}
+    status = tc.focused_status(tc.read_utf8(root / "STATUS.md"))
     for name, repository in repositories.items():
         path = Path(repository["path"])
+        # Worktrees share a ref database. Other features' branches may advance
+        # concurrently; bind only refs this feature actually registers/validates.
+        branches = {repository[key] for key in ("stable_branch", "integration_branch", "actual_branch")}
+        branches.update(row[2] for row in status["working_branches"]["rows"] if row[0] == name)
+        branches.update(row[1] for row in status["integration_opponents"]["rows"] if row[0] == name)
+        for row in status["pr_mr_objects"]["rows"]:
+            if len(row) >= 6 and row[1] == name:
+                branches.update((row[2], row[4]))
         status_args = ["status", "--porcelain=v1", "-z", "--untracked-files=all"]
         if repository["role"] == "project-management":
             status_args += ["--", root.relative_to(path).as_posix()]
@@ -110,7 +119,8 @@ def repo_snapshot(root: Path, repositories: dict) -> dict:
             "identity": _git(path, "rev-parse", "--absolute-git-dir", "--git-common-dir"),
             "head": _git(path, "rev-parse", "HEAD"),
             "branch": _git(path, "symbolic-ref", "-q", "HEAD"),
-            "refs": _git(path, "for-each-ref", "--format=%(refname):%(objectname)"),
+            "refs": _git(path, "show-ref", "--verify", "--",
+                         *("refs/heads/" + branch for branch in sorted(branches))),
             "config": _git(path, "config", "--local", "--null", "--list"),
             "status": _git(path, *status_args),
         }

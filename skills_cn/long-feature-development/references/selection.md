@@ -14,8 +14,10 @@ an ACCEPT row's display type cannot remove its acceptance checks.
 
 The adapter hashes raw control documents and the tasks/gists trees before and
 after validation, together with real local repository identity, HEAD, branch,
-refs, config and scoped worktree status. Added/removed sources and refs invalidate
-the binding. Symlinks/junctions are rejected; inputs are bounded to 11,004 files
+registered working/stable/integration/PR refs, config and scoped worktree status.
+Added/removed sources and relevant ref changes invalidate the binding; unrelated
+feature branches in a shared worktree ref database do not. Symlinks/junctions are
+rejected; inputs are bounded to 11,004 files
 and 64 MiB, with a bounded directory traversal. These optimistic observations are
 not a cross-repository transaction: use the single coordinator, and revalidate
 immediately before any authorized writer. Full loader separation is independent

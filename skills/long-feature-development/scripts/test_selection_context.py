@@ -168,11 +168,33 @@ class SelectionIntegrationTests(unittest.TestCase):
         self.assertEqual(before, self.actual_state())
 
     def test_ref_only_change_also_invalidates_host_input(self):
+        self.register_stable_only()
         context = self.load()
-        fixture.git(self.app, "branch", "new-observed-ref", self.app_base)
+        fixture.git(self.app, "update-ref", "refs/heads/stable-only", self.app_head)
         result = self.cli(self.envelope(context))
         self.assertEqual(2, result.returncode, result.stderr)
         self.assertEqual("STALE_INPUT", json.loads(result.stdout)["next_action"]["reason_code"])
+
+    def register_stable_only(self):
+        fixture.git(self.app, "branch", "stable-only", self.app_base)
+        path = self.root / "STATUS.md"
+        path.write_text(path.read_text(encoding="utf-8").replace(
+            "https://example.invalid/app.git | ../app | main | task |",
+            "https://example.invalid/app.git | ../app | stable-only | task |"), encoding="utf-8")
+        self.commit_records()
+
+    def test_other_feature_branch_is_not_part_of_current_source_binding(self):
+        context = self.load()
+        original = tc.build_context
+        def unrelated(*args, **kwargs):
+            value = original(*args, **kwargs)
+            fixture.git(self.pm, "branch", "other-feature", self.pm_base)
+            return value
+        with patch.object(tc, "build_context", side_effect=unrelated):
+            self.assertEqual(context.source_ref, self.load().source_ref)
+        result = self.cli(self.envelope(context))
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertEqual("resume", json.loads(result.stdout)["next_action"]["action"])
 
     def test_change_during_actual_validation_is_not_projected(self):
         original = tc.build_context
@@ -186,10 +208,11 @@ class SelectionIntegrationTests(unittest.TestCase):
                 self.load()
 
     def test_ref_change_during_validation_is_rejected(self):
+        self.register_stable_only()
         original = tc.build_context
         def changed(*args, **kwargs):
             value = original(*args, **kwargs)
-            fixture.git(self.app, "branch", "changed-during-validation", self.app_base)
+            fixture.git(self.app, "update-ref", "refs/heads/stable-only", self.app_head)
             return value
         with patch.object(tc, "build_context", side_effect=changed):
             with self.assertRaisesRegex(adapter.SelectionError, "SOURCE_CHANGED"):
