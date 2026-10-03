@@ -15,6 +15,8 @@ description: 从项目管理目录恢复并推进跨会话的软件 feature，�
 
 记录接受决定时使用[实际接受来源适配器](scripts/state_acceptance.py)及[原件回归](scripts/test_state_acceptance.py)，组合已提交决定/brief 原件、产品候选与已配置真人读回；记录拒绝不等于质量成功。认证与自然语言解释仍由真实宿主负责。
 
+使用[接受工作流入口](references/acceptance-workflow.md)检查旧 attempt，将干净基线的精确准备接到上述适配器和受保护状态写入器。CLI 只读；记录真人决定由已配置宿主显式执行，随后另作管理检查点。
+
 准备受保护写入的元数据时，使用[精确准备状态读取器](scripts/state_prepared.py)及其[真实 Git 回归](scripts/test_state_prepared.py)。必须在准备文件前捕获干净基线，不得替换成忽略 dirty 的开关；宿主组合及尚需完成的认证/UI 工作见质量边界。
 
 [质量/选择器组合测试](scripts/test_quality_selection.py)覆盖分阶段策略消费；交付时 ready 摘要不能替代完整质量输入。详见[质量接入](references/quality.md)。

@@ -15,6 +15,8 @@ Protected state writes use the [state evidence guard](scripts/state_guard.py), [
 
 Record an acceptance decision through the [actual acceptance-source adapter](scripts/state_acceptance.py) and its [real-original regressions](scripts/test_state_acceptance.py). It joins committed decision/brief originals, the product candidate and configured human readback without equating a recorded rejection with quality success. Authentication and interpretation remain host responsibilities.
 
+Use the [acceptance workflow entry](references/acceptance-workflow.md) to inspect a retained attempt and connect an exact clean-baseline preparation to that adapter and the guarded state writer. Its CLI only inspects; recording a real decision is an explicit configured-host operation followed by a separate management checkpoint.
+
 For metadata prepared before a protected write, use the [exact prepared-state reader](scripts/state_prepared.py) and its [real-Git regressions](scripts/test_state_prepared.py). Capture the clean baseline before preparing files; never substitute an ignore-dirty flag. See the quality boundary for host composition and remaining authentication/UI work.
 
 The [quality/selector composition tests](scripts/test_quality_selection.py) cover stage-specific policy consumption; a ready summary cannot replace complete quality inputs for delivery. See [quality integration](references/quality.md).
