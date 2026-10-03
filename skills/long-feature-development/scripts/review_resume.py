@@ -91,7 +91,7 @@ def _id(value):
     return value
 
 
-def recover(documents, detail, tasks, repositories, commit_exists):
+def recover(documents, detail, tasks, repositories, commit_exists, declaring_task=None):
     """Consume the complete loaded read set plus host-verified repository facts.
 
     All evidence must also be declared in this task's Gists. No file reads,
@@ -131,17 +131,31 @@ def recover(documents, detail, tasks, repositories, commit_exists):
         fail('STALE_REVIEW')
     if tasks[task_id]['type'] != 'Review' and not task_id.startswith('REVIEW-'):
         fail('INVALID_REVIEW_REFERENCE')
+    owner = tasks.get(declaring_task)
+    review_done = tasks[task_id]['state'] == 'DONE'
+    owner_done = owner is not None and owner['state'] == 'DONE'
+    # History is derived from validated task facts, never a flag in the report.
+    # An in-progress review must still bind the actual candidate. A rework
+    # dependent on a completed report can retain its source after its own fix.
+    history_allowed = review_done and (owner_done or (
+        owner is not None and owner['type'] == 'Rework'
+        and task_id in owner['dependencies']))
     targets = request.get('target_refs')
     if not isinstance(targets, dict) or not targets:
         fail('INVALID_REVIEW_REFERENCE')
+    current_targets = {}
+    changed_target = False
     for name, sha in targets.items():
         if name not in repositories or not isinstance(sha, str) or not re.fullmatch('[0-9a-f]{40}', sha):
             fail('INVALID_REVIEW_REFERENCE')
         repo = repositories[name]
         if not commit_exists(Path(repo['path']), sha):
             fail('EVIDENCE_MISSING')
+        current_targets[name] = repo['actual_head']
         if sha != repo['actual_head']:
-            fail('STALE_REVIEW')
+            if not history_allowed:
+                fail('STALE_REVIEW')
+            changed_target = True
     packet = source(request.get('packet_ref'), 'review-packet-v1')
     report = source(request.get('report_ref'), 'report-v1')
     checklist = request.get('checklist_ref')
@@ -190,10 +204,16 @@ def recover(documents, detail, tasks, repositories, commit_exists):
             if (not isinstance(ids, list) or any(not isinstance(x, str) for x in ids)
                     or len(ids) != len(set(ids)) or set(ids) != set(opened)):
                 fail('REVIEW_SUMMARY_MISMATCH')
+    historical = changed_target or (review_done and owner_done)
+    next_action = ('needs-recheck' if changed_target else 'historical-reference') if historical else (
+        'resume-rework' if opened else 'needs-independent-recheck')
+    diagnostics = [{'code': 'STALE_REVIEW', 'reason': 'HISTORICAL_TARGET'}] if changed_target else []
     return {'review_task': task_id, 'attempt_id': attempt, 'target_refs': targets,
+            'current_target_refs': current_targets,
+            'evidence_scope': 'historical' if historical else 'current-candidate',
             'checklist_ref': checklist, 'report_ref': request['report_ref'],
             'open_finding_ids': opened,
             'open_findings': [{'feature': feature, 'report_ref': request['report_ref'],
                                'attempt_id': attempt, 'finding_id': key} for key in opened],
-            'next_review_action': 'resume-rework' if opened else 'needs-independent-recheck',
-            'diagnostics': [], 'quality_assessed': False}
+            'next_review_action': next_action,
+            'diagnostics': diagnostics, 'quality_assessed': False}

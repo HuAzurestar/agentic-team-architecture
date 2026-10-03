@@ -1326,7 +1326,7 @@ class LocalGitProbe:
         from review_resume import recover
         reviews = {}
         for task_id, (detail, _) in details.items():
-            resumed = recover(documents, detail, records, repositories, commit_exists)
+            resumed = recover(documents, detail, records, repositories, commit_exists, task_id)
             if resumed is not None:
                 reviews[task_id] = resumed
         if reviews:
@@ -1577,10 +1577,13 @@ def render_markdown(context: dict[str, Any]) -> str:
     if 'review_recovery' in context:
         review = context['review_recovery']
         parts.extend(('', '## Review recovery', '',
-                      f"- Current candidate: {json.dumps(review['target_refs'], sort_keys=True)}",
+                      f"- Current candidate: {json.dumps(review['current_target_refs'], sort_keys=True)}",
+                      f"- {'Historical target' if review['evidence_scope'] == 'historical' else 'Report target'}: {json.dumps(review['target_refs'], sort_keys=True)}",
+                      f"- Evidence scope: {review['evidence_scope']}",
                       f"- Attempt: {review['attempt_id']}",
                       f"- Report: {review['report_ref']['path']}",
                       f"- Next action: {review['next_review_action']}",
+                      f"- Diagnostics: {', '.join(item['code'] for item in review['diagnostics']) or 'none'}",
                       '- Quality assessment: not performed; no acceptance or closure granted.'))
     return "\n".join(parts).rstrip() + "\n"
 
@@ -1627,7 +1630,9 @@ def main(argv: list[str] | None = None) -> int:
     if 'review_recovery' in context:
         review = context['review_recovery']
         print(json.dumps({'event': 'review.resume', 'source': review['report_ref']['sha256'],
-                          'open_count': len(review['open_findings']), 'error_code': None,
+                          'open_count': len(review['open_findings']),
+                          'evidence_scope': review['evidence_scope'],
+                          'error_code': review['diagnostics'][0]['code'] if review['diagnostics'] else None,
                           'elapsed_ms': round((time.monotonic() - started) * 1000)}), file=sys.stderr)
     if args.format == "envelope":
         print(json.dumps({"ok": True, "code": "OK", "diagnostics": [], "complete": True,
