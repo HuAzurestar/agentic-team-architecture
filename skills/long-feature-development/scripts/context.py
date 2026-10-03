@@ -252,6 +252,11 @@ def build_context(*, task_ref, purpose, background=None, environment=None, commo
 
 
 def main(argv=None):
+    # CLI wire output is UTF-8 on every platform, including redirected pipes.
+    # In-process callers may supply StringIO streams without reconfigure().
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8", errors="strict", newline="\n")
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--task-ref", required=True, help="Explicit feature/project directory")
     parser.add_argument("--purpose", required=True, choices=PURPOSES)

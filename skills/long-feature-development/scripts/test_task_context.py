@@ -6,6 +6,7 @@ from __future__ import annotations
 import contextlib
 import io
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -761,6 +762,32 @@ class TaskContextTests(unittest.TestCase):
 """
         with self.assertRaisesRegex(task_context.ContextError, "incomplete field: Failed"):
             task_context.validate_type_contract(record, detail, {"TEST-02": record})
+
+    def test_cli_unicode_output_does_not_depend_on_console_encoding(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = self.make_feature(Path(temp) / "中文 space")
+            gist = root / "gists" / "parser.md"
+            gist.write_text("中文正文 😀\n", encoding="utf-8")
+            env = dict(os.environ)
+            env.pop("PYTHONUTF8", None)
+            env["PYTHONIOENCODING"] = "gbk"
+            for output_format in ("json", "markdown"):
+                with self.subTest(format=output_format):
+                    run = subprocess.run(
+                        [sys.executable, "-X", "utf8=0", "-B", task_context.__file__,
+                         str(root), "--format", output_format], capture_output=True, env=env)
+                    self.assertEqual(run.returncode, 0, run.stderr)
+                    output = run.stdout.decode("utf-8")
+                    self.assertIn("中文正文 😀", output)
+                    self.assertNotIn("\r\n", output)
+                    if output_format == "json":
+                        self.assertEqual(json.loads(output)["task"]["id"], "DEV-02")
+            run = subprocess.run(
+                [sys.executable, "-X", "utf8=0", "-B", task_context.__file__,
+                 str(root / "缺失 😀")], capture_output=True, env=env)
+            self.assertEqual(run.returncode, 1)
+            self.assertIn("ERROR:", run.stderr.decode("utf-8"))
+            self.assertNotIn(b"Traceback", run.stderr)
 
     def test_cli_json_success_and_failure_exit_codes(self) -> None:
         with tempfile.TemporaryDirectory() as temp:

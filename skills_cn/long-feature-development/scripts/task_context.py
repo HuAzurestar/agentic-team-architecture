@@ -1573,6 +1573,11 @@ def render_acceptance(context: dict[str, Any]) -> str:
 
 
 def main(argv: list[str] | None = None) -> int:
+    # CLI wire output is UTF-8 on every platform, including redirected pipes.
+    # In-process callers may supply StringIO streams without reconfigure().
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8", errors="strict", newline="\n")
     started = time.monotonic()
     args = parse_args(argv)
     root = Path(args.feature_directory).resolve()

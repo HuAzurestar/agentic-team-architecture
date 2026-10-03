@@ -2,6 +2,7 @@
 """Behavioral checks for bounded, read-only purpose context."""
 import hashlib
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -191,6 +192,47 @@ class ContextTests(unittest.TestCase):
         original = self.request()
         duplicate = self.request(heading_paths=[["Company / 订单", "development"]] * 3)
         self.assertEqual(original["selected_sections"], duplicate["selected_sections"])
+
+    def test_cli_unicode_output_is_utf8_without_environment_workaround(self):
+        unicode_root = self.root / "中文 space"
+        unicode_root.mkdir()
+        background = unicode_root / "BACKGROUND.md"
+        background.write_text(self.text.replace("COMMON", "中文正文 😀"), encoding="utf-8")
+        selection = ["--file", str(background)]
+        for flag, path in (
+            ("environment-section", ["Company / 订单"]),
+            ("common-section", ["Common"]),
+            ("route-section", ["Company / 订单", "Route"]),
+            ("evidence-section", ["Company / 订单", "Evidence"]),
+            ("purpose-section", ["Company / 订单", "development"]),
+        ):
+            selection.extend(["--" + flag, json.dumps(path)])
+        for encoding in (None, "gbk", "ascii"):
+            env = dict(os.environ)
+            env.pop("PYTHONUTF8", None)
+            env.pop("PYTHONIOENCODING", None)
+            if encoding:
+                env["PYTHONIOENCODING"] = encoding
+            for mode, extra, expected_code in (
+                ("direct", [], 0), ("selected", selection, 0),
+                ("diagnostic", ["--file", str(background)], 2),
+            ):
+                with self.subTest(encoding=encoding, mode=mode):
+                    run = subprocess.run(
+                        [sys.executable, "-X", "utf8=0", "-B", str(Path(context.__file__)),
+                         "--task-ref", str(unicode_root), "--purpose", "development", *extra],
+                        capture_output=True, env=env)
+                    self.assertEqual(run.returncode, expected_code, run.stderr)
+                    self.assertEqual(run.stderr, b"")
+                    result = json.loads(run.stdout.decode("utf-8"))
+                    self.assertNotIn(b"\r\n", run.stdout)
+                    self.assertEqual(result["complete"], expected_code == 0)
+                    if mode == "selected":
+                        self.assertIn("中文正文 😀", json.dumps(result, ensure_ascii=False))
+                    if mode == "direct":
+                        self.assertEqual(result["required_facts"]["task_ref"], str(unicode_root.resolve()))
+                    if mode == "diagnostic":
+                        self.assertEqual(result["diagnostics"][0]["code"], "ENVIRONMENT_REQUIRED")
 
     def test_cli_is_a_fresh_process_with_machine_readable_failure(self):
         run = subprocess.run([sys.executable, str(Path(context.__file__)),

@@ -1,5 +1,7 @@
 # Skill-only installation and lifecycle
 
+The `context.py` and `task_context.py` command-line outputs (stdout and stderr) use UTF-8 with LF line endings, including redirected pipes on Windows. Consumers must decode them as UTF-8. Chinese paths and Unicode background text do not require `PYTHONUTF8` or `PYTHONIOENCODING` workarounds. The context size budget measures the JSON payload; its trailing LF is framing, not selected content.
+
 Use the repository's existing `skills/long-feature-development` directory (or `skills_cn/long-feature-development` for the Chinese entry) with your host's directory-based skill installation. No installer service, SMMD, UI, Docker or provider credentials are required. Python and Git are needed for the local helpers. Use an explicit full 40-character commit and record it outside the installed directory; a moving branch is not an installation version. The release/test evidence must specify which commit was actually tested.
 
 For a clean installation, clone `https://github.com/HuAzurestar/agentic-team-architecture.git` into a new checkout, fetch the intended published ref if necessary, then `git checkout --detach <full-sha>` and check `git rev-parse HEAD`. Copy the complete selected Skill directory, including `references`, `templates` and `scripts`, to a new host skill directory. Use exclusive creation of the destination: an existing directory is a conflict to inspect, not permission to overwrite it. Keep project Markdown, Git repositories, credentials and backgrounds outside this program directory.

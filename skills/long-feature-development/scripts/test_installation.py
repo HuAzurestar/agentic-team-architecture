@@ -2,6 +2,7 @@
 """Exercise directory installation and lifecycle using isolated real files."""
 import hashlib
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -47,6 +48,19 @@ class InstallationTests(unittest.TestCase):
         self.assertTrue((self.install / "SKILL.md").is_file())
         for source in result["source_refs"]:
             self.assertTrue(Path(source["path"]).is_relative_to(self.install))
+        self.assertEqual(self.before, self.digests())
+
+    def test_unicode_install_passes_native_startup_checks(self):
+        installed = self.root / "中文 space" / "long-feature-development"
+        self.copy(installed)
+        env = dict(os.environ)
+        env.pop("PYTHONUTF8", None)
+        env.pop("PYTHONIOENCODING", None)
+        run = subprocess.run(
+            [sys.executable, "-X", "utf8=0", "-B",
+             str(installed / "scripts" / "test_context.py")],
+            capture_output=True, env=env)
+        self.assertEqual(run.returncode, 0, run.stderr)
         self.assertEqual(self.before, self.digests())
 
     def test_existing_install_is_not_overwritten(self):
