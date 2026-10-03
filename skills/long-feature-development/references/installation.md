@@ -1,5 +1,11 @@
 # Skill-only installation and lifecycle
 
+## Runtime requirements
+
+Use Python 3.12 for this candidate. Author regressions have run on Windows/NTFS with CPython 3.12.10 and on Linux with CPython 3.12.15; this is a tested environment statement, not a promise for every 3.12 patch, operating system, or filesystem. Other Python versions and macOS are not validated by these runs. Git must be available on PATH. Before installation, run `python --version` and `git --version`, and record their actual output with the pinned product SHA. Invoke that same Python executable for the checks below. The helpers use the Python standard library; the separate repository skill-audit tool has its own dependencies.
+
+## Install and verify
+
 For the first project-management records, follow [first-record bootstrap](bootstrap.md). Installation and feature initialization are separate: strict task recovery requires a clean initial checkpoint, and creating it does not approve a requirement or grant execution authority.
 
 The `context.py` and `task_context.py` command-line outputs (stdout and stderr) use UTF-8 with LF line endings, including redirected pipes on Windows. Consumers must decode them as UTF-8. Chinese paths and Unicode background text do not require `PYTHONUTF8` or `PYTHONIOENCODING` workarounds. The context size budget measures the JSON payload; its trailing LF is framing, not selected content.

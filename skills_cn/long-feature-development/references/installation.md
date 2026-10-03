@@ -1,19 +1,27 @@
-# Skill-only installation and lifecycle
+# 独立 Skill 的安装与生命周期
 
-For the first project-management records, follow [first-record bootstrap](bootstrap.md). Installation and feature initialization are separate: strict task recovery requires a clean initial checkpoint, and creating it does not approve a requirement or grant execution authority.
+## 运行环境
 
-The `context.py` and `task_context.py` command-line outputs (stdout and stderr) use UTF-8 with LF line endings, including redirected pipes on Windows. Consumers must decode them as UTF-8. Chinese paths and Unicode background text do not require `PYTHONUTF8` or `PYTHONIOENCODING` workarounds. The context size budget measures the JSON payload; its trailing LF is framing, not selected content.
+本候选使用 Python 3.12。作者回归已在 Windows/NTFS 的 CPython 3.12.10 和 Linux 的 CPython 3.12.15 上执行；这是已测试环境说明，不是对所有 3.12 补丁版本、操作系统或文件系统的兼容保证。其他 Python 版本及 macOS 未由这些测试验证。Git 必须位于 PATH。安装前运行 `python --version` 和 `git --version`，将实际输出与固定产品 SHA 一同记录；下述检查使用同一个 Python 可执行文件。helper 使用 Python 标准库；仓库独立的 skill-audit 工具有自己的依赖。
 
-Use the repository's existing `skills/long-feature-development` directory (or `skills_cn/long-feature-development` for the Chinese entry) with your host's directory-based skill installation. No installer service, SMMD, UI, Docker or provider credentials are required. Python and Git are needed for the local helpers. Use an explicit full 40-character commit and record it outside the installed directory; a moving branch is not an installation version. The release/test evidence must specify which commit was actually tested.
+## 安装与验证
 
-For a clean installation, clone `https://github.com/HuAzurestar/agentic-team-architecture.git` into a new checkout, fetch the intended published ref if necessary, then `git checkout --detach <full-sha>` and check `git rev-parse HEAD`. Copy the complete selected Skill directory, including `references`, `templates` and `scripts`, to a new host skill directory. Use exclusive creation of the destination: an existing directory is a conflict to inspect, not permission to overwrite it. Keep project Markdown, Git repositories, credentials and backgrounds outside this program directory.
+首次创建项目管理记录时，遵循[首次记录初始化](bootstrap.md)。安装与 feature 初始化是两件事：严格任务恢复要求干净的初始检查点；创建检查点不会确认需求或授予执行权限。
 
-For a host with no install facility, the checkout is a usable explicit Skill root: open its `SKILL.md`, run `python scripts/context.py --task-ref <project-directory> --purpose development`, and run `python scripts/task_context.py <feature-directory>` against the real project. This is an explicit-root route, not proof of automatic host discovery.
+`context.py` 与 `task_context.py` 的命令行 stdout/stderr 使用 UTF-8 和 LF，包括 Windows 重定向管道；消费者必须按 UTF-8 解码。中文路径及 Unicode 背景无需设置 `PYTHONUTF8` 或 `PYTHONIOENCODING`。上下文大小预算衡量 JSON 载荷；末尾 LF 是传输分隔，不属于选段内容。
 
-Verify the installed copy rather than only the checkout. Start a new process/session, read its `SKILL.md`, run its `scripts/test_context.py`, and obtain a DIRECT context with no background. Then select a real background with explicit paths and run task recovery with the project's actual Git refs. Record actual host discovery separately: a subprocess proves fresh-process behavior, not that a GUI/agent session discovered the skill. Never label the latter passed without observing it.
+使用仓库的 `skills_cn/long-feature-development` 中文目录（英文入口为 `skills/long-feature-development`），按宿主的目录式 Skill 安装机制部署。无需安装器服务、SMMD、UI、Docker 或 provider 凭据；本地 helper 需要 Python 和 Git。使用明确的完整 40 位 commit，并在安装目录外记录版本；移动分支不是安装版本。发布/测试证据必须注明实际测试的 commit。
 
-For upgrade, install the new pinned version in a separate sibling directory. Preserve the previous program directory unchanged, compare versions, run the checks, then explicitly select/activate the new root using the host's normal mechanism. Do not recursively copy over an old version: that can leave removed scripts behind. If the host requires a stable directory name, close sessions using it, move the old program directory to an explicit backup name and select the complete new directory. Do not move a project-management root or credentials directory.
+全新安装时，将 `https://github.com/HuAzurestar/agentic-team-architecture.git` 克隆到新 checkout；必要时获取目标已发布 ref，然后运行 `git checkout --detach <full-sha>` 并检查 `git rev-parse HEAD`。将所选 Skill 的完整目录（含 `references`、`templates` 和 `scripts`）复制到新的宿主 Skill 目录。目标必须独占创建：目录已存在时先检查冲突，不得据此覆盖。项目 Markdown、Git 仓库、凭据和背景材料保留在程序目录外。
 
-For rollback, select the preserved old program root and restart the session; verify its version and run recovery against the same external project. Old versions may correctly reject new record formats; inspect that compatibility failure rather than rewriting the records to make rollback appear successful. Exit by deselecting the Skill in the host or stopping explicit invocation. Deleting program files is optional and requires an exact, validated program-only target. Upgrade, exit and rollback must not delete user records, backups or credentials.
+宿主没有安装机制时，可以把 checkout 作为显式 Skill 根：读取 `SKILL.md`，执行 `python scripts/context.py --task-ref <project-directory> --purpose development`，并对真实项目执行 `python scripts/task_context.py <feature-directory>`。这是显式根目录方式，不证明宿主会自动发现 Skill。
 
-Installation tests live in `scripts/test_installation.py` and use only disposable directories. They check real directory copies, fresh-process execution and unchanged external files. Host activation and full F03/F04 recovery/review acceptance need their own observed evidence; these tests do not substitute for it.
+验证已安装副本，而不只是 checkout。启动新进程/会话，读取其 `SKILL.md`，运行其 `scripts/test_context.py`，并取得无背景的 DIRECT 上下文。随后用明确路径选择真实背景，以项目实际 Git refs 执行任务恢复。单独记录实际宿主发现行为：子进程只能证明新进程行为，不能证明 GUI/Agent 会话发现了 Skill；没有观察就不得将后者记为通过。
+
+## 升级、回退与退出
+
+升级时，把新的固定版本安装到独立兄弟目录，保持旧程序目录不变；比较版本、运行检查，再用宿主正常机制明确选择/激活新根。不得递归覆盖旧目录，否则可能残留新版已删除的脚本。若宿主要求固定目录名，先关闭使用它的会话，把旧程序目录移到明确的备份名称，再选择完整新目录。不得移动项目管理根或凭据目录。
+
+回退时，选择保留的旧程序根并重启会话，核验版本，然后对同一个外部项目执行恢复。旧版本可能合理拒绝新版记录格式；应检查兼容性失败，不得重写记录来制造回退成功。退出时在宿主取消选择 Skill，或停止显式调用。删除程序文件是可选操作，须使用精确、已验证的纯程序目标。升级、退出和回退都不得删除用户记录、备份或凭据。
+
+安装测试位于 `scripts/test_installation.py`，仅使用临时目录，检查真实目录复制、新进程执行以及外部文件不变。宿主激活和完整 F03/F04 恢复/审查接受需要各自的实际观察；这些测试不代替它们。

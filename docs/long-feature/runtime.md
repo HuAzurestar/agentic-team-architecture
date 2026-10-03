@@ -2,6 +2,8 @@
 
 This guide chooses a route for a long running Markdown and Git project. Record the environment facts before choosing a route. A route describes how to work with existing material; it does not install a service or grant access.
 
+The Skill-only candidate uses Python 3.12. Author regressions have been run with CPython 3.12.10 on Windows/NTFS and CPython 3.12.15 on Linux. Other Python versions, macOS and other filesystems are unverified, not implicitly supported by those results. Run `python --version` and `git --version` before setup, record the actual interpreter and pinned product SHA, then follow the [installation checks](../../skills/long-feature-development/references/installation.md). Git must be available on PATH.
+
 ## Selection record
 
 Fill in `project`, the authoritative Markdown root, Git repository and remote, host and Python version, whether a local service and containers are permitted, installed SMMD version and capabilities, and whether a same source C3 adapter/profile is available. Mark unknown facts `unknown` and ask the owner; an unknown permission is not permission to start a service. Keep the selected document authority strategy in [management.md](management.md) separate from this runtime choice.
@@ -15,7 +17,7 @@ Choose the least set of components that meets the requested work:
 | SMMD Docker | All local route conditions, container permission, and an explicit persistent configuration and source mount. | The Skill for task execution. | A missing mount is a blocking setup gap; do not create an empty substitute source in the container. |
 | Skill plus SMMD | The Skill only conditions, a verified compatible SMMD release, and a C3 adapter/profile for the same authoritative source. | Container hosting if separately permitted. | Without the adapter or required SMMD feature, use the complete Skill only route for task execution; never splice a partial service projection into local context. |
 
-The current SMMD v1 by itself does not establish F08 conditional writes or F13 same source context exchange. Ask for the actual version and capability response. An installation or health result cannot substitute for a compatibility check. The public C1/C2/C3 package is delivered by `DEV-F01-03`; until it exists, there is no claim that a combined installation is compatible.
+The current SMMD v1 by itself does not establish F08 conditional writes or F13 same source context exchange. Ask for the actual version and capability response. An installation or health result cannot substitute for a compatibility check. The public [C1/C2/C3 package](../../examples/long-feature/contracts/v0.2-draft/README.md) is present, including its static checker and fixtures. Passing that package is not evidence that an actual combined installation is compatible: validate the precise component versions, same-source adapter and required runtime capabilities separately.
 
 ## Data, upgrade, and exit
 
