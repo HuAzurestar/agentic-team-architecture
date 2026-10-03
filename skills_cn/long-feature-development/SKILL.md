@@ -112,6 +112,7 @@ helper 只取[用途提示](references/prompts.md)中的共同节与当前用途
 使用[宿主回读入口](scripts/decision_host.py)及其[接口测试](scripts/test_decision_host.py)，将已认证回复读取、宿主权限和精确解释连接至校验器。
 使用[单点草稿生成器](scripts/decision_point.py)及其[草稿测试](scripts/test_decision_point.py)，保留表述/历史、移动处置记录并重算文档状态。输出仅为 DRAFT_ONLY，不认证、不写入、不提交、不完成任务；持久写入器仍须重验真实人类来源和当前材料。
 使用[点决定提交准备器](scripts/decision_commit.py)，在严格恢复、实际 Git 原文和配置的人类回读核验后，以决定专属 Git ref 保留单父、单文档提交。[真实 Git 测试](scripts/test_decision_commit.py)覆盖重入、写入响应丢失、撤销授权及晚期来源变化。COMMIT_PREPARED 不等于应用：HEAD、真实 index、工作文件和任务保持不变；仍须接应用/状态协调者。
+使用[点应用步骤](scripts/decision_apply.py)及其[真实 Git 测试](scripts/test_decision_apply.py)，重验授权、记录发起，再仅快进到精确准备的点提交。发起结果未知时只观察，不自动重试；进程丢失后仍可只读恢复。APPLIED_PENDING_STATUS 不等于任务完成，仍须另行登记任务状态和决定 SHA。若预期状态违反依赖规则则拒绝应用，不擅改已启动的下游任务；此步骤还不是完整跨文件状态协调者。
 真实宿主传输、写入器与质量策略仍待集成；文件自述不能认证人类决定。
 
 ## Git 与平台边界
