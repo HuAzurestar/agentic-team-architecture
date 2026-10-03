@@ -52,6 +52,27 @@ class ReviewParsingTests(unittest.TestCase):
 class ReviewRecoveryTests(unittest.TestCase):
     commit_records = fixture.RecoveryTests.commit_records
 
+    def test_complete_f04_report_remains_readable_without_quality_promotion(self):
+        from test_review_report import report, check, finding
+        import review_report
+        expanded = report()
+        expanded.update(self.packet, schema='report-v1')
+        expanded['evidence_refs'] = [self.ref('parser')]
+        expanded['checks'] = [check(outcome='FAIL', findings=['F1'])]
+        expanded['checks'][0]['evidence_refs'] = [self.ref('parser')]
+        expanded['findings'] = [finding()]
+        expanded['findings'][0]['evidence_refs'] = [self.ref('parser')]
+        summary = review_report.compute_report(expanded)
+        self.assertTrue(summary['summary']['valid'], summary)
+        expanded['summary'] = summary['summary']
+        self.report = expanded
+        self.save()
+        before = {p: p.read_bytes() for p in self.root.rglob('*.md')}
+        recovered = tc.build_context(self.root)['review_recovery']
+        self.assertEqual(recovered['open_finding_ids'], ['F1'])
+        self.assertFalse(recovered['quality_assessed'])
+        self.assertEqual(before, {p: p.read_bytes() for p in self.root.rglob('*.md')})
+
     def setUp(self):
         fixture.RecoveryTests.setUp(self)
         old = self.root / 'tasks/DEV-02.md'
