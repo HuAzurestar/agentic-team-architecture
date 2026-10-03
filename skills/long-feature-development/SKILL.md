@@ -121,6 +121,7 @@ For decision applicability work, read [decision evidence](references/decision-ev
 and use the pure [checker](scripts/decision_evidence.py) with its [tests](scripts/test_decision_evidence.py).
 Read local current material using the [Git source reader](scripts/decision_source.py), covered by [real Git tests](scripts/test_decision_source.py).
 Use the [host readback gateway](scripts/decision_host.py) and its [contract tests](scripts/test_decision_host.py) to connect authenticated reply reads, host policy and exact interpretation to the checker.
+The [single-point draft renderer](scripts/decision_point.py), covered by [draft tests](scripts/test_decision_point.py), preserves statements/history, moves disposition records and recomputes document state. It returns DRAFT_ONLY: it does not authenticate, write, commit, or complete a task. The durable writer must still revalidate the actual human source and current material.
 Live host transports, writers and quality policy still need integration; file claims cannot authenticate a human decision.
 
 ## Git and forge boundary

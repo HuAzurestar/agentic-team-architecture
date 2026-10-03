@@ -110,6 +110,7 @@ helper 只取[用途提示](references/prompts.md)中的共同节与当前用途
 处理决策适用性时，读取[决策证据](references/decision-evidence.md)，使用纯[校验器](scripts/decision_evidence.py)及其[测试](scripts/test_decision_evidence.py)。
 使用 [Git 来源读取器](scripts/decision_source.py)读取本地当前材料，覆盖[真实 Git 测试](scripts/test_decision_source.py)。
 使用[宿主回读入口](scripts/decision_host.py)及其[接口测试](scripts/test_decision_host.py)，将已认证回复读取、宿主权限和精确解释连接至校验器。
+使用[单点草稿生成器](scripts/decision_point.py)及其[草稿测试](scripts/test_decision_point.py)，保留表述/历史、移动处置记录并重算文档状态。输出仅为 DRAFT_ONLY，不认证、不写入、不提交、不完成任务；持久写入器仍须重验真实人类来源和当前材料。
 真实宿主传输、写入器与质量策略仍待集成；文件自述不能认证人类决定。
 
 ## Git 与平台边界
