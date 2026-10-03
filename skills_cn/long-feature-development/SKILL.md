@@ -113,6 +113,7 @@ helper 只取[用途提示](references/prompts.md)中的共同节与当前用途
 使用[单点草稿生成器](scripts/decision_point.py)及其[草稿测试](scripts/test_decision_point.py)，保留表述/历史、移动处置记录并重算文档状态。输出仅为 DRAFT_ONLY，不认证、不写入、不提交、不完成任务；持久写入器仍须重验真实人类来源和当前材料。
 使用[点决定提交准备器](scripts/decision_commit.py)，在严格恢复、实际 Git 原文和配置的人类回读核验后，以决定专属 Git ref 保留单父、单文档提交。[真实 Git 测试](scripts/test_decision_commit.py)覆盖重入、写入响应丢失、撤销授权及晚期来源变化。COMMIT_PREPARED 不等于应用：HEAD、真实 index、工作文件和任务保持不变；仍须接应用/状态协调者。
 使用[点应用步骤](scripts/decision_apply.py)及其[真实 Git 测试](scripts/test_decision_apply.py)，重验授权、记录发起，再仅快进到精确准备的点提交。发起结果未知时只观察，不自动重试；进程丢失后仍可只读恢复。APPLIED_PENDING_STATUS 不等于任务完成，仍须另行登记任务状态和决定 SHA。若预期状态违反依赖规则则拒绝应用，不擅改已启动的下游任务；此步骤还不是完整跨文件状态协调者。
+使用[点状态续记](scripts/decision_status.py)及其[真实 Git 测试](scripts/test_decision_status.py)，将独立元数据提交绑定已应用的决定 SHA，重验已配置的真人授权，并通过 task_state 转换状态。恢复从实际父提交重建精确元数据；Git 记录仅是事实，不是真人认证。未知发起不自动重试。已使用点的重开依赖协调、生产平台认证和完整工作流/UI 仍须另行完成。
 真实宿主传输、写入器与质量策略仍待集成；文件自述不能认证人类决定。
 
 ## Git 与平台边界
