@@ -25,3 +25,11 @@
 fetch 使用浅历史并请求 blob 过滤。Git 传输/pack 成本不属于 4 MiB 意见文档限制，服务端可能不支持过滤。每次 Git 子进程超时 50 秒，禁用终端询问，含潜在凭据的诊断不返回。仅允许 file/http/https/ssh/git 协议；宿主凭据/传输仍须在实际环境配置验证。本地远端 fixture 证明 Git 行为，不证明真实 forge 认证。临时对象在返回时清理，不合入工作仓库。
 
 结果报告工作历史是否包含观察到的 master，但始终 `application_authorized=false`、`agent_consumed=false`。编辑/放行前，后续流程须核对授权、干净工作树，必要时纳入精确 master，重核样本和来源移动，再条件发布。该应用/发布集成和原生平台传输仍待完成。
+
+## 应用前置校验
+
+`review_application.assess_application` 核对实际预期分支/HEAD、严格宿主授权和干净状态，重读权威文档并校对所选意见；缺 master 祖先时返回精确 SHA 和 `MASTER_SYNC_REQUIRED`，不合并。脏树检查遵循检出所用的 Git 文本/过滤配置；禁用全局 autocrlf 会将部分正常 CRLF 检出误报为脏树。再次核对配置下的仓库根，并禁用可选 index 写入。
+
+master 已包含后，独立提供的 `GitSampleBinding` 将每个 Basis 来源键绑定到仓库、相对文件、预期当前 HEAD、目标引用和 feature。实际当前材料来自 Git/工作区事实，不来自评论本身。支持点 selector 或明确行范围，不接受二者歧义组合。记录的完整历史 Git Basis 须存在并包含所引原样本；当前文本变化返回 `BASIS_NEEDS_RECHECK` 和有界差异，不改变意见状态。不支持的 selector、缺失历史版本及原生平台来源仍未核实，不静默放行。去重后的当前材料正文限制 4 MiB，并在远端观察后再次读取。
+
+通过仅表示该观察版本的前置条件成立；trace 和样本检查返回内存，未持久化。结果仍为 `NOT_APPLIED`，不授予合并/发布权限，也不证明独立审查或验收。仍需接入 F03 operation writer，在精确 master 同步前持久化 intent，保留冲突/未知效果，恢复核对、重查样本并条件发布。本模块不提供绕过日志的另一条合并路径。

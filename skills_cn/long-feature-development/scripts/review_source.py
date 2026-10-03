@@ -41,11 +41,12 @@ def _require(ok, code):
         raise ReviewSourceError(code)
 
 
-def _run(repo, *args, accepted=(0,)):
+def _run(repo, *args, accepted=(0,), configured=False):
     env = {key: value for key, value in os.environ.items() if not key.upper().startswith('GIT_')}
     env.update(GIT_TERMINAL_PROMPT='0', GIT_OPTIONAL_LOCKS='0', GIT_NO_REPLACE_OBJECTS='1',
-               GIT_CONFIG_NOSYSTEM='1', GIT_CONFIG_GLOBAL=os.devnull,
                GIT_ALLOW_PROTOCOL='file:https:http:ssh:git')
+    if not configured:
+        env.update(GIT_CONFIG_NOSYSTEM='1', GIT_CONFIG_GLOBAL=os.devnull)
     try:
         # Bound returned data; do not include remote diagnostics or credentials.
         with tempfile.TemporaryFile() as output:
