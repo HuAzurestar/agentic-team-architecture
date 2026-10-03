@@ -117,6 +117,23 @@ placeholder
             with self.assertRaisesRegex(task_context.ContextError, "sensitive path"):
                 task_checkpoint.safe_include("secrets/token.txt")
 
+    def test_invalid_resume_metadata_is_rejected_before_any_git_write(self):
+        for damaged in ("attempt-notes", "index-repository"):
+            with self.subTest(damaged=damaged), tempfile.TemporaryDirectory() as temp:
+                feature, app, start = self.make_fixture(Path(temp))
+                (app / "work.txt").write_text("keep this user work\n", encoding="utf-8")
+                path = feature / ("tasks/DEV-01.md" if damaged == "attempt-notes" else "TASKS.md")
+                text = path.read_text(encoding="utf-8")
+                text = text.replace("## Attempt notes", "## Other notes") if damaged == "attempt-notes" else text.replace("app@" + start, "pm@" + start)
+                path.write_text(text, encoding="utf-8")
+                before = {p: p.read_bytes() for p in feature.rglob("*.md")}
+                with self.assertRaises(task_context.ContextError):
+                    task_checkpoint.checkpoint(self.args(feature, feature.parents[1], app))
+                self.assertEqual(git(app, "rev-parse", "HEAD"), start)
+                self.assertEqual(git(app, "diff", "--cached", "--name-only"), "")
+                self.assertEqual((app / "work.txt").read_text(encoding="utf-8"), "keep this user work\n")
+                self.assertEqual(before, {p: p.read_bytes() for p in before})
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

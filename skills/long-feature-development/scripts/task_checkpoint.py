@@ -216,6 +216,13 @@ def checkpoint(args: argparse.Namespace) -> str:
     summary = safe_line(args.summary, "summary")
     resume_action = safe_line(args.resume_action, "resume action")
     feature_key = safe_line(root.name, "feature key")
+    # Validate both metadata transformations before staging or committing code.
+    # A malformed resume record must not leave an unrecorded implementation SHA.
+    detail_path = root / "tasks" / f"{args.task_id}.md"
+    observed_head = task_context.run_git(repo, "rev-parse", "HEAD").lower()
+    replace_detail_checkpoint(task_context.read_utf8(detail_path), args.repository,
+                              observed_head, resume_action, summary)
+    replace_task_head(tasks_text, args.task_id, args.repository, observed_head)
     subprocess.run(["git", "-C", str(repo), "add", "--", *includes], check=True)
     subprocess.run(
         ["git", "-C", str(repo), "commit", "-m", f"{feature_key}/{args.task_id}: checkpoint {summary}"],

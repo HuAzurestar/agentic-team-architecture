@@ -130,6 +130,8 @@ For complete reports, read [report semantics](references/review-report.md), use 
 
 Use the [dependency helper](scripts/task_dependencies.py) only for unstarted PENDING tasks, following [review](references/review.md). Preview first; authorized writes record intent before per-file replacement and use F03 reconciliation after interruption. Run [planner tests](scripts/test_task_dependencies.py) and [real-file writer tests](scripts/test_dependency_write.py). Dependency READY is not quality approval.
 
+Run the [real-Git rework-chain fixtures](scripts/test_rework_chain.py) for report delivery, versioned repair/retest/recheck, active-attempt protection and abrupt-process recovery. Their synthetic reviewer claims do not constitute independent review or human acceptance.
+
 The [local document loader](scripts/context_loader.py) reads complete raw task and declared-gist sources before validation. `task_context.py` separates full validation with the host-selected local Git probe from focused projection; a comparison loader cannot replace local repository facts. When changing this boundary, run the [loader and actual-Git regressions](scripts/test_context_loader.py) as well as the existing context tests. Structured envelope output uses `lfd-context-v1`; default CLI output remains compatible. This interface does not supply review-breakpoint recovery by itself.
 
 For next-action selection after recovery, read [references/selection.md](references/selection.md). The [pure core/CLI](scripts/task_next.py) uses a [strict-reader adapter](scripts/selection_context.py); validate with [core tests](scripts/test_task_next.py) and [real Git/CLI tests](scripts/test_selection_context.py). Selection never grants execution authority or changes task state.

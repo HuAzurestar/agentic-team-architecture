@@ -115,6 +115,8 @@ helper 只取[用途提示](references/prompts.md)中的共同节与当前用途
 
 仅对未启动 PENDING 任务按[审查流程](references/review.md)使用[依赖 helper](scripts/task_dependencies.py)。先预览，获授权写入前持久化意图，再逐文件替换；中断后使用 F03 对账。运行[规划测试](scripts/test_task_dependencies.py)和[真实文件 writer 测试](scripts/test_dependency_write.py)。依赖 READY 不等于质量批准。
 
+报告交付、版本化返工/复测/复核、在途 attempt 保护和进程骤停恢复运行[真实 Git 返工链夹具](scripts/test_rework_chain.py)。其中模拟 reviewer 声明不构成真实独立审查或人工接受。
+
 [本地原文 loader](scripts/context_loader.py)在完整校验前读取所有任务与声明 gist；`task_context.py` 分离真实 Git 校验和聚焦输出，比较 loader 不能代答本地仓库事实。修改该边界时运行 [loader/真实 Git 专项](scripts/test_context_loader.py)及旧 context 回归。结构化 envelope 使用 `lfd-context-v1`，默认 CLI 保持兼容。loader 分离本身不代替审查断点恢复。
 
 恢复后选择下一动作时，阅读 [references/selection.md](references/selection.md)。[纯函数核心/CLI](scripts/task_next.py)通过[严格读取适配器](scripts/selection_context.py)恢复；运行[核心测试](scripts/test_task_next.py)及[真实 Git/CLI 测试](scripts/test_selection_context.py)验证。选择结果不授予执行权限，也不修改任务状态。
