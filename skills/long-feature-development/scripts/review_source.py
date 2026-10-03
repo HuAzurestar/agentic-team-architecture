@@ -97,8 +97,11 @@ def read_git_reviews(repo, *, remote, expected_remote, repository_ref, relative_
         observed = _master(root, remote)
         with tempfile.TemporaryDirectory(prefix='lfd-review-read-') as cache:
             _run(cache, 'init', '--bare', '-q', '--object-format=' + ('sha256' if len(observed) == 64 else 'sha1'))
+            # A stable name is required for promisor/lazy-blob support; raw
+            # absolute paths are invalid promisor remote names on POSIX Git.
+            _run(cache, 'remote', 'add', 'authority', expected_remote)
             _run(cache, 'fetch', '--quiet', '--depth=1', '--filter=blob:none', '--no-tags',
-                 '--no-recurse-submodules', '--no-write-fetch-head', expected_remote, observed)
+                 '--no-recurse-submodules', '--no-write-fetch-head', 'authority', observed)
             entry = _run(cache, 'ls-tree', '-z', observed, '--', relative_path)[1]
             missing = not entry
             if missing:
