@@ -7,6 +7,8 @@
 ```report-v1
 {
   "schema": "report-v1",
+  "result": "BLOCKED",
+  "reason": "REPLACE-actual-conclusion-and-basis",
   "report_ref": "REPLACE-unique-report-id",
   "feature": "REPLACE-feature",
   "review_task": "REVIEW-01",
@@ -53,6 +55,7 @@
   "verified_ref": null,
   "verified_target_refs": null,
   "nonblocking_reason": "",
+  "follow_up": "REPLACE-rework-or-explicit-follow-up-plan",
   "violates_requirement": true,
   "severity_history": []
 }

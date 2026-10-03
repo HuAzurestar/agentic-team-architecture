@@ -14,6 +14,8 @@
 
 使用 REVIEW-REPORT 模板。顶层包括 report/packet/attempt 身份、feature/task、literal target refs、checklist、reviewer/context、evidence_refs、checks、findings、diagnostics、summary。缺完整字段返回 LEGACY_EVIDENCE_INCOMPLETE；旧最小恢复报告继续由 review_resume.py 读取，不静默升级。
 
+报告还记录 result（SUCCESS/FAILED/BLOCKED）及非空 reason。这是报告结论，不增加任务状态；FAILED 报告交付后 REVIEW 仍可 DONE。空 applicable 集、已知未关闭 blocker、必需 FAIL/UNKNOWN/NOT-RUN 或当前未处置诊断与 SUCCESS 矛盾，必须拒绝。P1/P2 对核心场景的组合影响由 reviewer 的有证据理由说明，不杜撰数量阈值。声称 SUCCESS 仍需真实宿主/来源/质量校验，不是自授权限。每项 finding 含 follow_up；非阻塞 finding 除不影响范围的理由，还必须给出具体后续安排。
+
 每个 check 有 id、outcome、required（布尔）、scope_ids、evidence_refs、reason、next_action、finding_ids。只允许 PASS/FAIL/UNKNOWN/NOT-RUN/N/A。PASS/FAIL 需要证据，FAIL 需要关联 finding；N/A 需要适用理由；UNKNOWN/NOT-RUN 需要原因和下一动作。需要人类范围决定时提供 scope_exception_ref。质量消费者须把 required/scope/N/A 与真实 packet 和已确认意图比对，报告不能自称 optional 来删除必需工作。
 
 复用可增加 reuse，含完整 feature/report/attempt/check 主键 prior_check_ref、非空 diff_refs、dependency_refs、reviewer_basis。这些是待核验资料，不自动允许沿用旧 PASS。当前版本质量检查仍须验证实际 diff、范围/依赖未变及 reviewer 依据，仅同属祖先链不能沿用整份报告。
@@ -33,6 +35,8 @@ ALL = PASS + FAIL + UNKNOWN + NOT-RUN；total = ALL + N/A；ALL=0 时 ratio=null
 summary:{} 请求重新推导；已提供的当前 summary 必须精确匹配计算后的 {valid, counts, ratio}。历史 summary 不参与算术，也不复制为新报告结果。校验或预算失败时 summary.valid=false、counts=null、ratio=null，不输出部分 100%。
 
 ## 资源与测试
+
+报告 diagnostics 含 code/reason，可选布尔 blocking（默认 true）。明确的信息提示可 nonblocking；缺范围/证据、来源变化、独立性未验证及资源耗尽不能伪装为提示。原生关闭/严重性诊断沿用问题组实际 blocking 状态，不把已有明确非阻塞依据的问题重新虚构为 blocker。SUCCESS 检查针对当前阻塞诊断，不针对纯提示。
 
 整个显式报告集合共用上限：10000 checks、10000 finding 观察、30000 links、64 MiB、2 秒计算时间。证据、scope、check/finding、duplicate、history 引用都消耗 link 预算。哈希表和迭代三色遍历避免逐对文本比较及深链 Python 递归，不引入后台或 SQL 状态。
 

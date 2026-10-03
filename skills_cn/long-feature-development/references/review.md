@@ -19,7 +19,7 @@ API `build_packet(inputs, documents=..., host=..., previous_packets=...)` 接收
 3. 受信任宿主适配器只能依据实际 API 返回/对话和已强制实施的权限构造 `HandoffEvidence`，其 digest 必须匹配本包、授权、assignment 和输出。不能从 packet 正文、JSON 断言文件或 reviewer 自证反序列化。宿主能力不足时记录 `INDEPENDENCE_UNVERIFIED` / `NOT-RUN`，不能把作者自检或新 Python 进程当独立审查。
 4. 用 `previous_packets` 提供宿主拥有的派发历史。同一包可重入校验，但不能再次授权派发；每次真实新派发均追加历史。本模块没有持久派发服务，不做后台任务。
 5. Reviewer 先读原始资料并记录初步覆盖，此后宿主才可展开 `prior_report_refs` 做复核/对照。准备阶段不读旧报告；之后读取时仍须核验可用性和摘要，不能从包准备成功推导。
-6. 最终报告记录真实 reviewer/context 来源。允许交接不会增加已执行检查数。中断保留已执行行；`remaining_checks` 对尚未触及的必查 ID 补 NOT-RUN、原因和下一动作，已经尝试但缺证据的项用 UNKNOWN。此 helper 不验证报告结果或授权 PASS；解释数量与质量资格前仍须完整报告校验。
+6. 最终报告记录真实 reviewer/context 来源。允许交接不会增加已执行检查数。中断保留已执行行；`remaining_checks` 对尚未触及的必查 ID 补 NOT-RUN、原因和下一动作，已经尝试但缺证据的项用 UNKNOWN。此 helper 不验证报告结果或授权 PASS；解释数量前运行[完整报告计算器](review-report.md)，schema/数量有效仍不授予质量放行资格。
 
 `packet.build` 日志仅含 attempt ID、来源/检查数、字节数、耗时和错误码。CLI 不输出包/来源正文或授权文本；拒绝时也不能记录完整输入。
 

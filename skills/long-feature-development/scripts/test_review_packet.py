@@ -307,6 +307,14 @@ class PacketCliTests(unittest.TestCase):
         self.save()
         self.assertIn('DUPLICATE_IDENTITY', self.run_cli(2)['reason_codes'])
 
+    def test_packet_and_control_file_must_not_alias(self):
+        source = self.root / 'gists/packet.md'
+        header = self.detail.read_text(encoding='utf-8')
+        source.write_text(header + '\n```review-packet-v1\n' + json.dumps(self.packet) + '\n```\n', encoding='utf-8')
+        self.detail.unlink()
+        os.link(source, self.detail)
+        self.assertIn('DUPLICATE_IDENTITY', self.run_cli(2)['reason_codes'])
+
     def test_duplicate_json_and_oversize_manifest(self):
         path = self.root / 'gists/packet.md'
         path.write_text('{"schema":"review-packet-v1","schema":"review-packet-v1"}', encoding='utf-8')

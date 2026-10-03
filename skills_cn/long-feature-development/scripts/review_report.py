@@ -10,6 +10,8 @@ from pathlib import Path
 import sys
 import time
 
+sys.dont_write_bytecode = True
+
 from context_loader import LoaderError, LocalMarkdownLoader
 from review_packet import _digest, _id, _keys, _path, _text
 from review_resume import _object
@@ -24,10 +26,10 @@ MAX_REPORTS = 1000
 MAX_SECONDS = 2.0
 FIELDS = frozenset(('schema', 'report_ref', 'feature', 'review_task', 'packet_id',
     'attempt_id', 'target_refs', 'checklist_ref', 'reviewer', 'context',
-    'evidence_refs', 'checks', 'findings', 'diagnostics', 'summary'))
+    'evidence_refs', 'checks', 'findings', 'diagnostics', 'summary', 'result', 'reason'))
 FINDING_FIELDS = frozenset(('id', 'severity', 'blocking', 'status', 'description',
     'evidence_refs', 'affected_check_ids', 'resolution_ref', 'verified_by', 'verified_ref',
-    'verified_target_refs', 'nonblocking_reason', 'violates_requirement', 'severity_history'))
+    'verified_target_refs', 'nonblocking_reason', 'follow_up', 'violates_requirement', 'severity_history'))
 CHECK_FIELDS = frozenset(('id', 'outcome', 'required', 'scope_ids', 'evidence_refs',
                           'reason', 'next_action', 'finding_ids'))
 KEY_FIELDS = ('feature', 'report_ref', 'attempt_id', 'finding_id')
@@ -205,6 +207,7 @@ def compute_report(raw, *, related_reports=(), verified=None):
             identity = _identity(report)
             _require(report['feature'] == current['feature'], 'FEATURE_MISMATCH')
             _require(_targets(report['target_refs']), 'INVALID_TARGET')
+            _require(report['result'] in ('SUCCESS', 'FAILED', 'BLOCKED') and _text(report['reason']), 'INVALID_RESULT')
             _reference(report['checklist_ref'], budget)
             _refs(report['evidence_refs'], budget, True)
             _require(_text(report['reviewer']))
@@ -213,9 +216,16 @@ def compute_report(raw, *, related_reports=(), verified=None):
                      and all(_text(v) for v in context.values()), 'CONTEXT_MISSING')
             _require(isinstance(report['diagnostics'], list) and len(report['diagnostics']) <= MAX_CHECKS)
             for diagnostic in report['diagnostics']:
-                _require(_keys(diagnostic, ('code', 'reason')) and _id(diagnostic['code'])
+                _require(isinstance(diagnostic, dict) and {'code', 'reason'} <= diagnostic.keys()
+                         and not (diagnostic.keys() - {'code', 'reason', 'blocking'}) and _id(diagnostic['code'])
                          and _text(diagnostic['reason']))
+                diagnostic_blocking = diagnostic.get('blocking', True)
+                _require(type(diagnostic_blocking) is bool, 'INVALID_DIAGNOSTIC')
+                if diagnostic['code'] in ('MISSING_SCOPE', 'EVIDENCE_MISSING', 'SOURCE_CHANGED',
+                                           'INDEPENDENCE_UNVERIFIED', 'RESOURCE_LIMIT'):
+                    _require(diagnostic_blocking, 'INVALID_DIAGNOSTIC')
                 diagnostics.append({'code': diagnostic['code'], 'reported': True,
+                    'blocking': diagnostic_blocking,
                     'report_ref': report['report_ref'], 'attempt_id': report['attempt_id'],
                     'evidence_scope': 'current' if report is current else 'historical'})
             _require(isinstance(report['summary'], dict))
@@ -288,13 +298,14 @@ def compute_report(raw, *, related_reports=(), verified=None):
                     check_map[x]['required'] and check_map[x]['outcome'] == 'FAIL' for x in affected)
                 if not finding['blocking']:
                     _require(_text(finding['nonblocking_reason']), 'EVIDENCE_MISSING')
+                    _require(_text(finding['follow_up']), 'EVIDENCE_MISSING')
                     if 'exception_ref' in finding:
                         _reference(finding['exception_ref'], budget)
                     if requires_blocking:
                         _require('exception_ref' in finding, 'EXCEPTION_UNVERIFIED')
                         _require(_trusted(verified, key, digests, 'exceptions'), 'EXCEPTION_UNVERIFIED')
                 else:
-                    _require(isinstance(finding['nonblocking_reason'], str))
+                    _require(isinstance(finding['nonblocking_reason'], str) and isinstance(finding['follow_up'], str))
                     if 'exception_ref' in finding:
                         _reference(finding['exception_ref'], budget)
                 if finding['status'] in ('addressed', 'closed'):
@@ -370,9 +381,9 @@ def compute_report(raw, *, related_reports=(), verified=None):
             closed = bool(closure_candidates) and all(nodes[k]['status'] == 'closed'
                 and _trusted(verified, k, digests, 'closures') for k in closure_candidates)
             if any(nodes[k]['status'] == 'closed' for k in members) and not closed:
-                diagnostics.append({'code': 'CLOSURE_UNVERIFIED', 'finding_key': _key_object(root)})
+                diagnostics.append({'code': 'CLOSURE_UNVERIFIED', 'finding_key': _key_object(root), 'blocking': blocking})
             if any(nodes[k]['severity_history'] for k in members) and not changes:
-                diagnostics.append({'code': 'SEVERITY_UNVERIFIED', 'finding_key': _key_object(root)})
+                diagnostics.append({'code': 'SEVERITY_UNVERIFIED', 'finding_key': _key_object(root), 'blocking': blocking})
             by_severity[severity] += 1
             if not closed:
                 opened[severity] += 1
@@ -384,6 +395,11 @@ def compute_report(raw, *, related_reports=(), verified=None):
             ledger.append({'root': _key_object(root), 'members': [_key_object(k) for k in members],
                            'severity': severity, 'blocking': blocking, 'closed': closed, 'origin': origin})
         applicable = sum(current_outcomes[x] for x in OUTCOMES if x != 'N/A')
+        if current['result'] == 'SUCCESS':
+            _require(applicable > 0 and blockers == 0
+                     and all(not c['required'] or c['outcome'] in ('PASS', 'N/A') for c in current['checks'])
+                     and not any(d.get('blocking', True) and d.get('evidence_scope') != 'historical'
+                                 for d in diagnostics), 'RESULT_MISMATCH')
         ratio = current_outcomes['PASS'] / applicable if applicable else None
         counts = {'by_outcome': current_outcomes, 'all': applicable, 'total': sum(current_outcomes.values()),
                   'findings_total': len(groups), 'by_severity': by_severity, 'open_by_severity': opened,
@@ -395,7 +411,7 @@ def compute_report(raw, *, related_reports=(), verified=None):
         budget.check()
         return {'summary': summary, 'counts': counts, 'ratio': ratio, 'diagnostics': diagnostics,
                 'ledger': ledger, 'target_refs': dict(current['target_refs']),
-                'report_digest': digests[current_identity], 'quality_assessed': False,
+                'report_digest': digests[current_identity], 'reported_result': current['result'], 'quality_assessed': False,
                 'source_evidence_verified': False, 'event': {'name': 'report.summarize',
                 'checks': budget.checks, 'findings': budget.findings, 'links': budget.links,
                 'target_refs': dict(current['target_refs']), 'reason_codes': sorted({x['code'] for x in diagnostics})}}
@@ -435,6 +451,8 @@ def main(argv=None):
         _require(_id(task))
         detail_name = 'tasks/' + task + '.md'
         detail, identity = loader._read_raw(detail_name, MAX_BYTES - total)
+        _require(identity not in identities, 'DUPLICATE_REPORT')
+        identities.add(identity)
         total += len(detail)
         import task_context as tc
         declared = set(tc.declared_gist_names(detail.decode('utf-8-sig')))
@@ -455,6 +473,7 @@ def main(argv=None):
         # No prose, report bodies or human authorization claims in output.
         output = {k: result[k] for k in ('summary', 'counts', 'ratio', 'diagnostics',
                          'quality_assessed', 'source_evidence_verified', 'event')}
+        output['reported_result'] = result.get('reported_result')
         output['source_refs'] = [{'path': name, 'sha256': hashlib.sha256(loaded[name][0]).hexdigest()}
                                  for name in names]
         print(json.dumps(output, ensure_ascii=True))

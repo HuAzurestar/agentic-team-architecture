@@ -12,6 +12,8 @@ import re
 import sys
 import time
 
+sys.dont_write_bytecode = True
+
 from context_loader import LoaderError, LocalMarkdownLoader, safe_relative
 from review_resume import _markdown, _object
 
@@ -342,6 +344,8 @@ def main(argv=None):
         import task_context as tc
         detail_path = 'tasks/' + task + '.md'
         detail, detail_identity = loader._read_raw(detail_path, MAX_FILE_BYTES)
+        if detail_identity == packet_identity:
+            raise LoaderError('DUPLICATE_IDENTITY', 'packet and task control share one file')
         declared = set(tc.declared_gist_names(detail.decode('utf-8-sig')))
         if len(declared) > MAX_FILES or args.packet not in declared:
             raise LoaderError('INVALID_PACKET', 'packet is not a declared gist')

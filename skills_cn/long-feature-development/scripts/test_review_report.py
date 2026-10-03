@@ -2,6 +2,8 @@
 """Deterministic ledger tests, not independent reviewer or human decisions."""
 import copy
 import json
+import os
+import shutil
 from pathlib import Path
 import subprocess
 import sys
@@ -29,12 +31,13 @@ def finding(key='F1', checks=('C1',), severity='P1'):
             'description': 'A concrete failure', 'evidence_refs': [copy.deepcopy(REF)],
             'affected_check_ids': list(checks), 'resolution_ref': None,
             'verified_by': None, 'verified_ref': None, 'verified_target_refs': None,
-            'nonblocking_reason': '', 'violates_requirement': True,
+            'nonblocking_reason': '', 'follow_up': 'Rework and independently recheck', 'violates_requirement': True,
             'severity_history': []}
 
 
 def report(identity='report-1', attempt='attempt-1'):
     return {'schema': 'report-v1', 'report_ref': identity, 'feature': 'PIRC-31',
+            'result': 'BLOCKED', 'reason': 'Synthetic report awaits real host verification',
             'review_task': 'REVIEW-1', 'packet_id': 'packet-1', 'attempt_id': attempt,
             'target_refs': {'app': 'a' * 40}, 'checklist_ref': copy.deepcopy(REF),
             'reviewer': 'reviewer-1',
@@ -324,6 +327,35 @@ class ReportTests(unittest.TestCase):
         self.report['summary']['counts']['all'] = 100
         self.assert_invalid('SUMMARY_MISMATCH')
 
+    def test_success_requires_no_known_blockers_or_required_unknowns(self):
+        self.report['result'] = 'SUCCESS'
+        self.assertTrue(self.compute()['summary']['valid'])
+        self.report['checks'] = [check(outcome='UNKNOWN')]
+        self.assert_invalid('RESULT_MISMATCH')
+        self.fail_report()
+        self.assert_invalid('RESULT_MISMATCH')
+        self.report['result'] = 'FAILED'
+        self.assertTrue(self.compute()['summary']['valid'])
+
+    def test_all_na_cannot_claim_success(self):
+        self.report['result'] = 'SUCCESS'
+        self.report['checks'] = [check(outcome='N/A')]
+        self.assert_invalid('RESULT_MISMATCH')
+
+    def test_nonblocking_requires_follow_up_not_just_reason(self):
+        self.report['checks'][0]['finding_ids'] = ['F1']
+        self.report['findings'] = [finding(severity='P2')]
+        self.report['findings'][0].update(blocking=False, violates_requirement=False,
+                                         nonblocking_reason='Naming suggestion', follow_up='')
+        self.assert_invalid('EVIDENCE_MISSING')
+
+    def test_result_is_not_task_state_and_reason_must_exist(self):
+        self.report['result'] = 'DONE'
+        self.assert_invalid('INVALID_RESULT')
+        self.report['result'] = 'BLOCKED'
+        self.report['reason'] = ''
+        self.assert_invalid('INVALID_RESULT')
+
     def test_input_is_unchanged(self):
         before = copy.deepcopy(self.report)
         self.compute()
@@ -339,6 +371,13 @@ class ReportTests(unittest.TestCase):
                 self.assertEqual(result['ratio'], case['expected']['ratio'])
                 for name in ('all', 'total', 'findings_total'):
                     self.assertEqual(result['counts'][name], case['expected'][name])
+
+    def test_nonblocking_diagnostic_does_not_invent_a_quality_failure(self):
+        self.report['result'] = 'SUCCESS'
+        self.report['diagnostics'] = [{'code': 'INFORMATIONAL', 'reason': 'Optional detail', 'blocking': False}]
+        self.assertTrue(self.compute()['summary']['valid'])
+        self.report['diagnostics'][0]['code'] = 'MISSING_SCOPE'
+        self.assert_invalid('INVALID_DIAGNOSTIC')
 
     def test_reported_diagnostics_are_preserved_without_prose_in_cli_metadata(self):
         self.report['diagnostics'] = [{'code': 'MISSING_SCOPE', 'reason': 'SENTINEL original prose'}]
@@ -393,6 +432,41 @@ class ReportCliTests(unittest.TestCase):
         self.assertEqual(result['ratio'], 1.0)
         self.assertFalse(result['source_evidence_verified'])
         self.assertFalse(result['quality_assessed'])
+
+    def test_native_readonly_clis_do_not_create_bytecode(self):
+        from test_review_packet import fixture
+        packet, documents = fixture()
+        packet_root = self.root / 'packet-feature'
+        for name, data in documents.items():
+            path = packet_root / name
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(data)
+        (packet_root / 'tasks').mkdir()
+        (packet_root / 'tasks/REVIEW-1.md').write_text('- Gists: gists/packet.md, ' + ', '.join(
+            name for name in documents if name.startswith('gists/')), encoding='utf-8')
+        (packet_root / 'gists/packet.md').write_text(json.dumps(packet), encoding='utf-8')
+        env = dict(os.environ)
+        env.pop('PYTHONDONTWRITEBYTECODE', None)
+        for script, root, path in (('review_report.py', self.root, 'gists/report.md'),
+                                   ('review_packet.py', packet_root, 'gists/packet.md')):
+            with self.subTest(script=script):
+                installed = self.root / ('installed-' + script)
+                shutil.copytree(Path(rr.__file__).parent.parent, installed,
+                                ignore=shutil.ignore_patterns('__pycache__', '*.pyc'))
+                before = {str(p.relative_to(self.root)) for p in self.root.rglob('*') if p.is_file()}
+                proc = subprocess.run([sys.executable, str(installed / 'scripts' / script),
+                                       str(root), path], capture_output=True, env=env)
+                self.assertEqual(proc.returncode, 0, proc.stderr.decode(errors='replace'))
+                after = {str(p.relative_to(self.root)) for p in self.root.rglob('*') if p.is_file()}
+                self.assertEqual(sorted(after - before), [])
+
+    def test_report_and_control_file_must_not_alias(self):
+        data = json.loads(self.source.read_text(encoding='utf-8'))
+        self.source.write_text('- Gists: gists/report.md\n```report-v1\n' + json.dumps(data) + '\n```\n', encoding='utf-8')
+        detail = self.root / 'tasks/REVIEW-1.md'
+        detail.unlink()
+        os.link(self.source, detail)
+        self.assertEqual(self.run_cli(2)['diagnostics'][0]['code'], 'DUPLICATE_REPORT')
 
     def test_undeclared_history_is_not_opened(self):
         result = self.run_cli(2, '--related', 'gists/does-not-exist.md')

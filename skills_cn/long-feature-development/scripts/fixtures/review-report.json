@@ -126,11 +126,14 @@
             "verified_target_refs": null,
             "nonblocking_reason": "",
             "violates_requirement": true,
-            "severity_history": []
+            "severity_history": [],
+            "follow_up": "Rework and independently recheck"
           }
         ],
         "diagnostics": [],
-        "summary": {}
+        "summary": {},
+        "result": "BLOCKED",
+        "reason": "Synthetic report awaits real host verification"
       },
       "related": [],
       "expected": {
@@ -184,7 +187,9 @@
         ],
         "findings": [],
         "diagnostics": [],
-        "summary": {}
+        "summary": {},
+        "result": "BLOCKED",
+        "reason": "Synthetic report awaits real host verification"
       },
       "related": [],
       "expected": {
@@ -278,11 +283,14 @@
                 "path": "gists/evidence.md",
                 "sha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
               }
-            ]
+            ],
+            "follow_up": "Rework and independently recheck"
           }
         ],
         "diagnostics": [],
-        "summary": {}
+        "summary": {},
+        "result": "BLOCKED",
+        "reason": "Synthetic report awaits real host verification"
       },
       "related": [
         {
@@ -354,15 +362,18 @@
               "verified_target_refs": null,
               "nonblocking_reason": "",
               "violates_requirement": true,
-              "severity_history": []
+              "severity_history": [],
+              "follow_up": "Rework and independently recheck"
             }
           ],
           "diagnostics": [],
-          "summary": {}
+          "summary": {},
+          "result": "BLOCKED",
+          "reason": "Synthetic report awaits real host verification"
         }
       ],
       "expected": {
-        "ratio": 0.0,
+        "ratio": 0,
         "all": 1,
         "total": 1,
         "findings_total": 1

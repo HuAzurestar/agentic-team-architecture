@@ -69,8 +69,9 @@ links/junctions, changed read sets and duplicate declarations are rejected.
    to hand off never increments executed checks. Preserve executed rows on
    interruption; `remaining_checks` fills untouched required IDs with NOT-RUN,
    reason and next action. Missing evidence for an attempted check is UNKNOWN.
-   This helper does not validate report outcomes or authorize PASS; use complete
-   report validation before interpreting counts or quality eligibility.
+   This helper does not validate report outcomes or authorize PASS; use the
+   [complete report calculator](review-report.md) before interpreting counts.
+   Schema/count validity still does not grant quality eligibility.
 
 The event `packet.build` contains only attempt ID, source/check counts, byte
 count, elapsed time and error codes. CLI output omits packet/source prose and

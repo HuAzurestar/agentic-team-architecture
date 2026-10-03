@@ -39,6 +39,14 @@ evidence refs, checks, findings, diagnostics and summary. Missing full-schema
 fields return `LEGACY_EVIDENCE_INCOMPLETE`; old minimal recovery reports remain
 readable through `review_resume.py` and are never silently upgraded.
 
+The report also records `result` (SUCCESS/FAILED/BLOCKED) and its nonempty `reason`.
+These are report conclusions, not new task states; a delivered FAILED report may
+still make its REVIEW task DONE. SUCCESS is inconsistent with an empty applicable
+set, a known open blocker, required FAIL/UNKNOWN/NOT-RUN, or unresolved current blocking
+diagnostics and is rejected. Group/core-scenario impact belongs to the reviewer's
+evidence-backed reason, not a guessed numeric P1/P2 threshold. A reported SUCCESS
+still needs actual host/source/quality validation; it is never self-authorization.
+
 Each check has `id`, `outcome`, `required` (Boolean), `scope_ids`, `evidence_refs`,
 `reason`, `next_action`, and `finding_ids`. Only PASS/FAIL/UNKNOWN/NOT-RUN/N/A are
 allowed. PASS/FAIL need evidence; FAIL needs linked findings. N/A needs an
@@ -63,8 +71,10 @@ similarity is never deduplication proof. Missing targets and cycles fail closed.
 
 P0 must be blocking. P1/P2 affecting required failed checks or confirmed intent
 cannot be marked nonblocking without a current verified scope exception. Other
-nonblocking suggestions still need a reason. Addressed requires a resolution ref;
-closed additionally requires a different verifier from the implementation author,
+nonblocking suggestions still need a reason.
+Every finding has `follow_up`; nonblocking findings need a concrete nonempty
+follow-up arrangement as well as their no-impact rationale. Addressed requires
+a resolution ref; closed additionally requires a different verifier from the implementation author,
 a verification ref and exact verified target refs. Those claims alone do not
 close anything: absent trusted host evidence the ledger keeps it open and emits
 `CLOSURE_UNVERIFIED`. Old closed claims do not transfer to a new candidate.
@@ -94,6 +104,13 @@ The current report supplies check counts; the explicit complete ledger supplies
 deduplicated severity/open counts. `discovered_current`, `inherited_current` and
 `historical_only` distinguish provenance. Original report diagnostics are retained
 as source-tagged codes, without leaking their prose into telemetry.
+
+Reported diagnostics have code/reason and optional Boolean blocking (default
+true). Explicit informational diagnostics may be nonblocking; known missing
+scope/evidence, source change, unverified independence and resource exhaustion
+cannot be disguised as informational. Native closure/severity diagnostics keep
+their finding group's effective blocking status instead of inventing a blocker
+for an otherwise explicitly nonblocking issue.
 
 `summary: {}` requests a fresh derivation; a supplied current summary must exactly
 match the computed `{valid, counts, ratio}`. Related historical summaries are
