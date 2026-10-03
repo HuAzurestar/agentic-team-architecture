@@ -82,3 +82,23 @@ Legacy minimal `review-packet-v1` recovery records remain readable by
 them or invent missing independence evidence. Run [packet tests](../scripts/test_review_packet.py) plus
 the existing review/context regressions when changing this boundary. Synthetic
 host fixtures verify rejection logic, not F04-T01's real blank-review outcome.
+
+## Dependency preview (implementation in progress)
+
+The pure [dependency planner](../scripts/task_dependencies.py) exposes
+`plan_dependencies(index_bytes, detail_bytes, task_id, expected_index_digest, dependency_ids)`.
+It checks the original byte digest, the entire graph, an unassigned PENDING
+target with no start refs, and the existing type contract before generating
+the new index/topology and Gate Required tasks. Duplicate IDs are removed in
+input order. Bounds are 10,000 nodes, 30,000 edges, 4 MiB combined input and
+two CPU seconds; an overrun rejects the whole preview. BOM/newlines are retained.
+
+The result contains original/candidate bytes for a future controlled writer.
+Do not log these bytes as event metadata. This module currently has no writer
+or CLI and does not persist intent or recover partial writes. Do not manually
+apply its candidates as a substitute for that missing protocol. Run the
+[dependency regression tests](../scripts/test_task_dependencies.py) when
+changing it. READY only describes dependency states, never successful review,
+human acceptance or permission to merge. An already started acceptance or
+Gate must retain its actual attempt; a new task cannot hide it, and a missing
+human decision must not be replaced by an invented rejection.

@@ -24,3 +24,16 @@ API `build_packet(inputs, documents=..., host=..., previous_packets=...)` 接收
 `packet.build` 日志仅含 attempt ID、来源/检查数、字节数、耗时和错误码。CLI 不输出包/来源正文或授权文本；拒绝时也不能记录完整输入。
 
 旧最小 `review-packet-v1` 恢复记录仍由 `review_resume.py` 读取，不是完整交接包。不能静默升级或补造独立性证据。修改此边界时运行[审查包测试](../scripts/test_review_packet.py)和原有 review/context 回归；模拟宿主 fixture 只验证拒绝逻辑，不证明 F04-T01 的真实空白审查结果。
+
+## 依赖预览（实现中）
+
+纯函数[依赖规划器](../scripts/task_dependencies.py)提供
+`plan_dependencies(index_bytes, detail_bytes, task_id, expected_index_digest, dependency_ids)`。
+生成新索引/拓扑与 Gate Required tasks 前，核验原始字节摘要、全图、尚未分配且无 start refs 的 PENDING 目标和原有类型契约；依赖 ID 按输入顺序去重。
+上限为 10000 节点、30000 边、输入合计 4 MiB、2 秒 CPU；超限整体拒绝预览，保留 BOM/换行。
+
+结果中的原始/候选字节只供后续受控 writer 使用，不得作为事件元数据记录。
+本模块当前没有 writer 或 CLI，尚不持久化意图或恢复部分写入；不能手动应用候选来代替缺失的协议。
+修改时运行[依赖回归测试](../scripts/test_task_dependencies.py)。
+READY 只代表依赖任务状态，不代表审查成功、人工接受或允许合并。
+已启动接受或 Gate 必须保留实际 attempt，不能用新任务隐藏，也不能伪填人类拒绝来代替尚未收到的决定。
