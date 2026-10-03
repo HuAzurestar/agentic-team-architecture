@@ -51,10 +51,15 @@ Outside the Gate closure additionally needs outside_scope=true.
 Observed GateEvidence supplies a verdict (ready, wait-human, wait-external or
 repair-plan) and bounded evidence_refs. ready asserts actual checks of applicable
 quality, target scope, budget and external contracts. Do not synthesize it from
-READY, DONE, author summaries or missing evidence. A quality assessor (including
-F04 when available) supplies observations; this core does not implement that
-assessor or authenticate remote/human evidence. Transitive findings and complete
-multi-repository target applicability remain that assessor's responsibility.
+READY, DONE, author summaries or missing evidence. Accept, merge/publish and final
+Gate suggestions now require host-only QualityInputs and recompute the F04 policy
+for pre_accept, pre_merge and post_merge respectively. Exact source/task binding,
+normalized plan and phase must match. Missing details return
+LEGACY_EVIDENCE_INCOMPLETE; old DONE records remain unchanged. The stdin JSON
+adapter cannot import these trusted objects. Use the Python host API with actual
+source/authority observations; this does not authenticate remote/human evidence.
+See [quality integration](quality.md) and
+[composition tests](../scripts/test_quality_selection.py).
 
 BLOCKED release needs the exact release_condition and release_satisfied=true with
 evidence. merge/publish and a Gate whose To phase is DONE need an existing DONE

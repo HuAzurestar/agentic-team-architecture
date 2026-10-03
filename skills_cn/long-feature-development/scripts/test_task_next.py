@@ -119,7 +119,7 @@ class SelectorTests(unittest.TestCase):
             self.assertEqual("wait-human", result.action)
             self.assertEqual((operation,), result.required_authority)
             args[1].grants["MERGE"] = grant(operation, ["execute", operation])
-            self.assertEqual("assign", n.select_next(*args).action)
+            self.assertEqual("LEGACY_EVIDENCE_INCOMPLETE", n.select_next(*args).reason_code)
 
     def test_acceptance_version_and_missing_task_rejected(self):
         args = self.delivery()
@@ -246,7 +246,7 @@ class SelectorTests(unittest.TestCase):
         with patch.object(builtins, "open", side_effect=AssertionError("file IO")), \
              patch.object(subprocess, "Popen", side_effect=AssertionError("process")), \
              patch.object(socket, "socket", side_effect=AssertionError("network")):
-            self.assertEqual("assign", n.select_next(*args).action)
+            self.assertEqual("LEGACY_EVIDENCE_INCOMPLETE", n.select_next(*args).reason_code)
         self.assertEqual(before, args)
 
 

@@ -5,6 +5,8 @@ description: Help Codex resume and advance a multi-session software feature from
 
 # Long Feature Development
 
+The [quality/selector composition tests](scripts/test_quality_selection.py) cover stage-specific policy consumption; a ready summary cannot replace complete quality inputs for delivery. See [quality integration](references/quality.md).
+
 The [actual quality source reader](scripts/quality_source.py) and [real Git source tests](scripts/test_quality_source.py) bind complete policy objects to original documents. Source integrity alone never proves independent review or human authority; see [quality boundaries](references/quality.md).
 
 For three-phase release evidence, read [quality boundaries](references/quality.md). The [actual Git correspondence reader](scripts/quality_git.py) and [real-repository tests](scripts/test_quality_git.py) establish local ancestry/tree facts only; they do not replace aggregate quality assessment, acceptance or host integration.

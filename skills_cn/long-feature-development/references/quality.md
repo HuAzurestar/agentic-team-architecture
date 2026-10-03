@@ -1,5 +1,11 @@
 # 质量证据与放行边界
 
+## 下一动作接入
+
+`task_next.GateEvidence.quality_inputs` 接收宿主专用 `QualityInputs(source_ref, task_id, feature, request, observations, report_evidence, decision_sources)`。选择器在建议请求接受（pre_accept）、合并/发布（pre_merge）或最终 DONE Gate（post_merge）前实际重算 assess_quality，核对精确选择读集/任务、完整规范任务图/契约及阶段。ready 摘要、序列化 allowed 标记、别的计划或旧观察不能替代策略；历史明细缺失返回 LEGACY_EVIDENCE_INCOMPLETE，不改旧 DONE。CLI 的 host JSON 刻意不能导入 QualityInputs；已认证宿主应通过 Python API 组合，不从 stdin 制造核实事实。
+
+操作权限及既有直接矛盾检查仍有效；质量成功不授予合并/发布权限。正常合并后的对应判断绑定已接受 source vector 和实际 result，不仅因普通 merge SHA 不同就重收决定。普通工作、返工/重测/复核及非最终 Gate 不添加零阻塞限制。此接入只建议动作，尚不完成 REVIEW/ACCEPT、写决定或守护 task_state 修改。详见[组合测试](../scripts/test_quality_selection.py)；其宿主来源为合成夹具，不代表真实独立审查。
+
 ## 实际本地来源快照
 
 `quality_source.read_git_documents(tuple_of_GitDocument)` 从实际 Git 对象、索引和工作文件读取配置的原材料。宿主传入逻辑证据路径、已登记仓库/路径及独立观察的 HEAD，不得从上传声明反序列化绑定。核对仓库根、当前 HEAD、普通已提交 blob、精确索引项、有界 UTF-8 正文和安全无链接工作文件，再复核整个已读集合。只容许 CRLF 检出差异；source refs 摘要绑定实际工作字节，HEAD/blob 版本单独保留。重复路径/物理身份、缺失来源、暂存变化及并发变化均拒绝。上限为 1,000 文档、合计 64 MiB，每个 Git 子进程 I/O 超时 50 秒；不写 refs、索引或来源。

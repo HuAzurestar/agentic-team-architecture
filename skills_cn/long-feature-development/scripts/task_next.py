@@ -12,6 +12,7 @@ from dataclasses import dataclass, field
 import re
 import time
 from typing import Mapping
+import quality_policy as quality
 
 MAX_TASKS = 10_000
 MAX_EDGES = 30_000
@@ -59,6 +60,23 @@ class Authorization:
 
 
 @dataclass(frozen=True)
+class QualityInputs:
+    """Host-only complete policy inputs, never parsed from a ready JSON claim.
+
+    source_ref binds the selection read set. feature and observations must come
+    from actual validated sources and separately verified host facts. The selector
+    recomputes policy, not a caller-provided allowed flag. This is not authority.
+    """
+    source_ref: str
+    task_id: str
+    feature: object
+    request: dict
+    observations: object
+    report_evidence: object = None
+    decision_sources: object = None
+
+
+@dataclass(frozen=True)
 class GateEvidence:
     # ready means the host checked applicable quality, budget, external contracts
     # and target scope, not merely that dependencies were marked DONE.
@@ -68,6 +86,7 @@ class GateEvidence:
     acceptance_task: str | None = None
     release_condition: str = ""
     release_satisfied: bool = False
+    quality_inputs: QualityInputs | None = None
 
 
 @dataclass(frozen=True)
@@ -185,6 +204,49 @@ def _contract_failure(task: Task) -> str | None:
     return None
 
 
+def _quality_failure(task, operation, evidence, records, source_ref):
+    phase = ('pre_accept' if operation == 'accept' else
+             'pre_merge' if operation in {'merge', 'publish'} else
+             'post_merge' if operation == 'gate' and task.contract.get('To phase') == 'DONE' else None)
+    if phase is None:
+        return None
+    inputs = evidence.quality_inputs
+    if inputs is None:
+        return 'LEGACY_EVIDENCE_INCOMPLETE'
+    if type(inputs) is not QualityInputs:
+        return 'QUALITY_SOURCES_UNVERIFIED'
+    if inputs.source_ref != source_ref or inputs.task_id != task.id:
+        return 'STALE_QUALITY_INPUT'
+    feature = inputs.feature
+    if type(feature) is not quality.tc.ValidatedFeature:
+        return 'VALIDATED_FEATURE_REQUIRED'
+    # A valid report from another plan cannot be attached to this selection.
+    if (not isinstance(feature.records, Mapping) or not isinstance(feature.type_contracts, Mapping)
+            or set(feature.records) != set(records)):
+        return 'QUALITY_PLAN_MISMATCH'
+    for key, record in records.items():
+        actual = feature.records[key]
+        if not isinstance(actual, Mapping) or not isinstance(actual.get('dependencies', ()), (tuple, list)):
+            return 'QUALITY_PLAN_MISMATCH'
+        kind = {'TEST': 'Test', 'REVIEW': 'Review', 'REWORK': 'Rework',
+                'ACCEPT': 'Acceptance', 'GATE': 'Gate'}.get(key.split('-')[0], actual.get('type'))
+        if (actual.get('state') != record.state or kind != record.kind
+                or tuple(actual.get('dependencies', ())) != record.dependencies
+                or feature.type_contracts.get(key, {}) != record.contract):
+            return 'QUALITY_PLAN_MISMATCH'
+    if not isinstance(inputs.request, dict) or inputs.request.get('phase') != phase:
+        return 'QUALITY_PHASE_MISMATCH'
+    result = quality.assess_quality(feature, inputs.request, observed=inputs.observations,
+        report_evidence=inputs.report_evidence, decision_sources=inputs.decision_sources)
+    if result['allowed'] is not True:
+        return result['reason_codes'][0] if result['reason_codes'] else 'QUALITY_NOT_ELIGIBLE'
+    # Legacy single-target summary must at least identify an accepted source;
+    # the policy above checks the complete vector and post-merge correspondence.
+    if phase != 'pre_accept' and evidence.target_sha not in inputs.request['target_refs'].values():
+        return 'QUALITY_TARGET_MISMATCH'
+    return None
+
+
 def _candidate(task, action, records, required, authorization, observations):
     grant = authorization.grants.get(task.id)
     if not isinstance(grant, Grant) or grant.operation not in OPERATIONS:
@@ -237,6 +299,9 @@ def _candidate(task, action, records, required, authorization, observations):
         if (not re.fullmatch(r"[0-9a-fA-F]{40}|[0-9a-fA-F]{64}", evidence.target_sha)
                 or acceptance.contract.get("Target SHA") != evidence.target_sha):
             return NextAction("wait-human", task.id, "ACCEPTANCE_TARGET_MISMATCH", refs)
+    failure = _quality_failure(task, grant.operation, evidence, records, observations.source_ref)
+    if failure:
+        return NextAction('wait-external', task.id, failure, refs)
     return NextAction(action, task.id, "CURRENT_UNFINISHED" if action == "resume"
                       else "LEGAL_CANDIDATE", refs)
 

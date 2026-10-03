@@ -5,6 +5,8 @@ description: 从项目管理目录恢复并推进跨会话的软件 feature，�
 
 # 长程 Feature 开发
 
+[质量/选择器组合测试](scripts/test_quality_selection.py)覆盖分阶段策略消费；交付时 ready 摘要不能替代完整质量输入。详见[质量接入](references/quality.md)。
+
 [实际质量来源读取器](scripts/quality_source.py)及[真实 Git 来源测试](scripts/test_quality_source.py)将完整策略对象绑定到原件。来源完整性不证明独立审查或真人权限；详见[质量边界](references/quality.md)。
 
 处理三阶段放行证据时，先读[质量边界](references/quality.md)。[实际 Git 对应关系读取器](scripts/quality_git.py)及[真实仓库测试](scripts/test_quality_git.py)只核对本地祖先/整树事实，不替代聚合质量判断、接受或宿主集成。
