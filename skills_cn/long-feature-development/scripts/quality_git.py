@@ -115,8 +115,18 @@ def _working_snapshot(root, binding, phase, result_sha):
     # the index. Hidden tracked changes must not become a false clean result.
     entries = _run(root, 'ls-files', '-v', '-z', configured=True)[1].split(b'\0')
     _require(all(not entry or entry[:1] == b'H' for entry in entries), 'HIDDEN_INDEX_STATE')
-    _require(not _run(root, 'status', '--porcelain=v1', '-z', '--untracked-files=all',
-                      '--ignore-submodules=none', configured=True)[1], 'WORKTREE_DIRTY')
+    status = _run(root, 'status', '--porcelain=v1', '-z', '--untracked-files=all',
+                  '--ignore-submodules=none', configured=True)[1]
+    if status:
+        # A CRLF checkout with stale index stat data may say M even when the
+        # normalized content is unchanged. Never refresh the real index merely
+        # to observe it. Only plain unstaged M is eligible for content recheck;
+        # staged/untracked/conflicted/renamed entries still fail immediately.
+        _require(all(row.startswith(b' M ') for row in status.rstrip(b'\0').split(b'\0')),
+                 'WORKTREE_DIRTY')
+        _require(_run(root, 'diff', '--quiet', '--no-ext-diff', '--no-textconv',
+                      '--ignore-submodules=none', 'HEAD', '--', accepted=(0, 1),
+                      configured=True)[0] == 0, 'WORKTREE_DIRTY')
     for name in ('MERGE_HEAD', 'CHERRY_PICK_HEAD', 'REVERT_HEAD', 'rebase-merge',
                  'rebase-apply', 'sequencer'):
         path = Path(_git(root, 'rev-parse', '--git-path', name))
