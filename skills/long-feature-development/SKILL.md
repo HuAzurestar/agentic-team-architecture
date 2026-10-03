@@ -5,6 +5,8 @@ description: Help Codex resume and advance a multi-session software feature from
 
 # Long Feature Development
 
+Protected state writes use the [state evidence guard](scripts/state_guard.py), [writer tests](scripts/test_state_guard.py) and [quality boundary](references/quality.md). A human-looking actor label is not decision provenance; configured host readback is required.
+
 The [quality/selector composition tests](scripts/test_quality_selection.py) cover stage-specific policy consumption; a ready summary cannot replace complete quality inputs for delivery. See [quality integration](references/quality.md).
 
 The [actual quality source reader](scripts/quality_source.py) and [real Git source tests](scripts/test_quality_source.py) bind complete policy objects to original documents. Source integrity alone never proves independent review or human authority; see [quality boundaries](references/quality.md).

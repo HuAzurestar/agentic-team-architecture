@@ -205,7 +205,15 @@ class ReworkChainTests(unittest.TestCase):
         review = self.make_task("Review", ["SOL-001"], {"Target SHA": self.app_head,
             "Result gist": "gists/review.md"})
         (self.root / "gists/review.md").write_text("Review not yet executed.\n", encoding="utf-8")
-        self.start(acceptance)
+        # This test consumes an already assigned historical attempt. A new
+        # assignment without quality evidence now correctly refuses; do not
+        # weaken the writer or fabricate a fresh quality pass for this fixture.
+        with self.assertRaisesRegex(tc.ContextError, 'STATE_EVIDENCE_REQUIRED'):
+            self.start(acceptance)
+        index = self.root / 'TASKS.md'
+        historical_args = state.parse_args([str(self.root), acceptance, '--to', 'WIP',
+            '--owner', 'fixture', '--started-at', '2026-10-03T01:00:00Z', '--head', 'app@' + self.app_head])
+        index.write_text(state.transition_text(index.read_text(encoding='utf-8'), historical_args), encoding='utf-8')
         self.commit_records()
         result = self.rewire("GATE-ACCEPT", ["DEV-02", acceptance])
         self.assertEqual(result["effect"], "APPLIED", result)
@@ -226,7 +234,13 @@ class ReworkChainTests(unittest.TestCase):
 
     def test_started_gate_cannot_be_rewired(self):
         gate = self.make_task("Gate", ["SOL-001"], {})
-        self.start(gate)
+        with self.assertRaisesRegex(tc.ContextError, 'STATE_EVIDENCE_REQUIRED'):
+            self.start(gate)
+        # Seed a historical in-flight Gate, not a new verified release.
+        index = self.root / 'TASKS.md'
+        historical_args = state.parse_args([str(self.root), gate, '--to', 'WIP',
+            '--owner', 'fixture', '--started-at', '2026-10-03T01:00:00Z', '--head', 'app@' + self.app_head])
+        index.write_text(state.transition_text(index.read_text(encoding='utf-8'), historical_args), encoding='utf-8')
         self.commit_records()
         before = {p: p.read_bytes() for p in self.root.rglob("*.md")}
         result = self.rewire(gate, ["DEV-02"])

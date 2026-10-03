@@ -1,10 +1,18 @@
 # 质量证据与放行边界
 
+## 状态写入接入
+
+`task_state.update(root, args, evidence_reader=host_reader)` 已在新 Acceptance WIP 前检查 pre_accept，在最终 DONE Gate 的 WIP/RECORDING/DONE 前检查 post_merge。Acceptance 带真实决定进入 RECORDING 或 DONE 走独立的 decision_host.inspect_decision 路径；适用的 CONFIRMED、REJECTED、REWORK 均可记录。REVIEW 完成和 WAITING 的 Acceptance RECORDING 不要求零 blocker；旧来源不足会拒绝新写入，不改历史状态。普通 CLI 不提供证据导入参数，因此受保护写入需要配置 Python 宿主读取器。
+
+读取器收到不可变 TransitionRequest，绑定实际根目录、任务、原/目标状态、完整修改前后索引摘要及有界实际 feature 文件读集。宿主必须独立核对准备中的元数据，并新读实际仓库/远端、审查和真人事实，返回绑定 request.digest 的 TransitionEvidence。QualityInputs 使用同一绑定和精确任务；writer 核对任务图、实际 REQ/SOL 摘要并重算阶段策略。回调是可信宿主配置，不能从项目文件加载；类型和摘要不等于认证，完整平台适配仍需完成。
+
+HumanDecisionInputs 提供原决定及已配置的当前对象/回复/解释读取器与 grant。writer 要求已声明的实际六章节 brief 等于获准/当前正文，唯一顶层 Target version/目标版本等于任务 Target SHA，actor/feature/kind/outcome 一致，再由既有人类网关重读来源。writer 调用宿主两次，包括替换前，并复核来源成员/摘要；变化时保留外部修改、停止替换，晚期失败只清理本 writer 临时文件。这是既有单协调者下的乐观检查，不是 OS 权限边界或跨文件/远端原子事务。合并/发布执行和逐点决定提交仍是独立操作。
+
 ## 下一动作接入
 
 `task_next.GateEvidence.quality_inputs` 接收宿主专用 `QualityInputs(source_ref, task_id, feature, request, observations, report_evidence, decision_sources)`。选择器在建议请求接受（pre_accept）、合并/发布（pre_merge）或最终 DONE Gate（post_merge）前实际重算 assess_quality，核对精确选择读集/任务、完整规范任务图/契约及阶段。ready 摘要、序列化 allowed 标记、别的计划或旧观察不能替代策略；历史明细缺失返回 LEGACY_EVIDENCE_INCOMPLETE，不改旧 DONE。CLI 的 host JSON 刻意不能导入 QualityInputs；已认证宿主应通过 Python API 组合，不从 stdin 制造核实事实。
 
-操作权限及既有直接矛盾检查仍有效；质量成功不授予合并/发布权限。正常合并后的对应判断绑定已接受 source vector 和实际 result，不仅因普通 merge SHA 不同就重收决定。普通工作、返工/重测/复核及非最终 Gate 不添加零阻塞限制。此接入只建议动作，尚不完成 REVIEW/ACCEPT、写决定或守护 task_state 修改。详见[组合测试](../scripts/test_quality_selection.py)；其宿主来源为合成夹具，不代表真实独立审查。
+操作权限及既有直接矛盾检查仍有效；质量成功不授予合并/发布权限。正常合并后的对应判断绑定已接受 source vector 和实际 result，不仅因普通 merge SHA 不同就重收决定。普通工作、返工/重测/复核及非最终 Gate 不添加零阻塞限制。选择器只建议动作；上文独立状态写入接入核验受保护 task_state 流转。两者均不执行逐点决定提交或合并/发布。详见[组合测试](../scripts/test_quality_selection.py)；其宿主来源为合成夹具，不代表真实独立审查。
 
 ## 实际本地来源快照
 
