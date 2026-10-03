@@ -5,7 +5,9 @@ description: 从项目管理目录恢复并推进跨会话的软件 feature，�
 
 # 长程 Feature 开发
 
-处理三阶段放行证据时，先读[质量边界](references/quality.md)。[实际 Git 对应关系读取器](scripts/quality_git.py)及[真实仓库测试](scripts/test_quality_git.py)只核对本地祖先/整树事实，不替代尚待完成的聚合质量策略、接受或宿主集成。
+处理三阶段放行证据时，先读[质量边界](references/quality.md)。[实际 Git 对应关系读取器](scripts/quality_git.py)及[真实仓库测试](scripts/test_quality_git.py)只核对本地祖先/整树事实，不替代聚合质量判断、接受或宿主集成。
+
+[三阶段纯判断](scripts/quality_policy.py)及[策略测试](scripts/test_quality_policy.py)组合已验证 feature、完整报告/测试、精确范围与宿主核实的观察。allowed 不授予操作权限；实际宿主来源/权限适配及任务/UI 接线仍待完成，不得从上传文档构造可信观察。
 
 本 Skill 使用小型、版本化的 feature 记录续接开发，不依赖旧聊天。项目自行决定 `<Project-Manage>` 的实际路径；不得假定为 MPA 或其他固定仓库。
 

@@ -5,7 +5,9 @@ description: Help Codex resume and advance a multi-session software feature from
 
 # Long Feature Development
 
-For three-phase release evidence, read [quality boundaries](references/quality.md). The [actual Git correspondence reader](scripts/quality_git.py) and [real-repository tests](scripts/test_quality_git.py) establish local ancestry/tree facts only; they do not replace the pending aggregate quality policy, acceptance or host integration.
+For three-phase release evidence, read [quality boundaries](references/quality.md). The [actual Git correspondence reader](scripts/quality_git.py) and [real-repository tests](scripts/test_quality_git.py) establish local ancestry/tree facts only; they do not replace aggregate quality assessment, acceptance or host integration.
+
+The [pure three-phase policy](scripts/quality_policy.py) and [policy tests](scripts/test_quality_policy.py) combine validated feature, detailed reports/tests, exact scope and host-verified observations. Its allowed result never grants an operation. Actual host source/authority adapters and task/UI wiring remain required; do not construct trusted observations from uploaded documents.
 
 This Codex skill uses a small, versioned feature record to continue development without relying on previous chat history. The project chooses the concrete path represented by `<Project-Manage>`; never assume MPA or another fixed repository.
 
