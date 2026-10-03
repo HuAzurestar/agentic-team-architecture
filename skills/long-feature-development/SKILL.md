@@ -101,6 +101,10 @@ For an acceptance task, create and validate the plain-language brief described i
 
 Read [references/feature-gates.md](references/feature-gates.md) only when creating or executing a gate or changing feature phase/condition. A gate checks refs and dependencies; it does not replace a human acceptance decision.
 
+For decision applicability work, read [decision evidence](references/decision-evidence.md)
+and use the pure [checker](scripts/decision_evidence.py) with its [tests](scripts/test_decision_evidence.py).
+It is not yet integrated with source readers/writers or quality policy; file claims cannot authenticate a human decision.
+
 ## Git and forge boundary
 
 - Treat each repository independently. A feature may span several repositories.
