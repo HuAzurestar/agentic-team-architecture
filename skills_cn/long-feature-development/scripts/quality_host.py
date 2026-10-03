@@ -6,8 +6,11 @@ No dynamic plugins, JSON authority flags, task writes or merge operations.
 """
 from dataclasses import dataclass, field
 from copy import deepcopy
+import argparse
+import json
 from pathlib import Path
 import sys
+import time
 sys.dont_write_bytecode = True
 from context_loader import LocalMarkdownLoader, load_feature
 import task_context as tc
@@ -15,6 +18,9 @@ import quality_source as sources
 import quality_git as git
 import quality_policy as policy
 import review_report as reports
+from review_resume import _object
+
+MAX_CONFIG_BYTES = 4 * 1024 * 1024
 
 
 @dataclass(frozen=True)
@@ -210,3 +216,103 @@ def evaluate(root, *, documents, roles, repositories, read_provenance=None, repo
             missing_checks=[], open_blockers=[], stale_refs=[], evidence_refs=[],
             required_next_actions=['repair-quality-source-or-host-provenance'],
             effect='NOT_APPLIED', merge_authorized=False))
+
+
+def configured_inputs(root, raw, repo_overrides=None):
+    """Resolve an explicitly selected configuration, never authority or code.
+
+    Repository locations and HEADs come from the strict reader, not JSON paths
+    or expected-head assertions. Authenticated provenance remains a Python host
+    dependency and cannot be selected/imported from the configuration.
+    """
+    require(isinstance(raw, bytes) and len(raw) <= MAX_CONFIG_BYTES, 'INVALID_QUALITY_CONFIG')
+    try:
+        config = _object(raw.decode('utf-8-sig'), 'quality-host-config-v1')
+        require(set(config) == {'schema', 'roles', 'documents', 'repositories'}, 'INVALID_QUALITY_CONFIG')
+        role = config['roles']
+        require(isinstance(role, dict) and set(role) == {'request', 'report', 'tests', 'checklist',
+                                                       'related_reports', 'result_tests'}, 'INVALID_QUALITY_CONFIG')
+        require(isinstance(role['related_reports'], list) and len(role['related_reports']) <= 1000,
+                'INVALID_QUALITY_CONFIG')
+        roles = SourceRoles(**(role | {'related_reports': tuple(role['related_reports'])}))
+        for key in ('documents', 'repositories'):
+            require(isinstance(config[key], list) and 0 < len(config[key]) <= 1000, 'INVALID_QUALITY_CONFIG')
+        feature = _feature(Path(root).resolve(strict=True), repo_overrides)
+        documents, repositories = [], []
+        for item in config['documents']:
+            require(isinstance(item, dict) and set(item) == {'logical_path', 'repository', 'relative_path'},
+                    'INVALID_QUALITY_CONFIG')
+            registered = feature.repositories[item['repository']]
+            documents.append(sources.GitDocument(item['logical_path'], Path(registered['path']),
+                                                 item['relative_path'], registered['actual_head']))
+        keys = {'repository_ref', 'remote', 'expected_remote', 'source_branch', 'source_sha',
+                'source_tree', 'target_branch', 'target_before'}
+        for item in config['repositories']:
+            require(isinstance(item, dict) and set(item) == keys, 'INVALID_QUALITY_CONFIG')
+            registered = feature.repositories[item['repository_ref']]
+            repositories.append(git.IntegrationBinding(repo=Path(registered['path']), **item))
+        return dict(documents=tuple(documents), roles=roles, repositories=tuple(repositories),
+                    repo_overrides=repo_overrides)
+    except HostError:
+        raise
+    except Exception:
+        raise HostError('INVALID_QUALITY_CONFIG') from None
+
+
+def render_result(result):
+    """Human-readable diagnosis, with no source bodies or implied operation grant."""
+    lines = ['Quality: ' + ('eligible' if result['allowed'] else 'blocked'),
+             'Effect: NOT_APPLIED; merge authority: not granted']
+    for label, key in [('Reasons', 'reason_codes'), ('Missing checks', 'missing_checks'),
+                       ('Open blockers', 'open_blockers'), ('Stale refs', 'stale_refs'),
+                       ('Evidence refs', 'evidence_refs'), ('Next checks', 'required_next_actions')]:
+        values = result.get(key, [])
+        if values:
+            lines.extend(['', label + ':'])
+            lines.extend('- ' + (value if isinstance(value, str) else json.dumps(value, ensure_ascii=True))
+                         for value in values)
+    return '\n'.join(lines)
+
+
+def main(argv=None, *, read_provenance=None):
+    """CLI diagnostics, optionally embedded by an authenticated Python host.
+
+    Standalone CLI has no authenticated reviewer/human transport: missing facts
+    remain denied. No command-line switch or JSON property manufactures them.
+    A real host may inject its already-configured reader through the Python API.
+    """
+    parser = argparse.ArgumentParser(description='Read actual quality evidence without applying any operation.')
+    parser.add_argument('feature_directory')
+    parser.add_argument('--config', required=True, help='Explicit quality-host-config-v1 source bindings; not authority')
+    parser.add_argument('--repo', action='append', default=[], metavar='NAME=PATH')
+    parser.add_argument('--format', choices=('text', 'json'), default='text')
+    args = parser.parse_args(argv)
+    started, phase, targets = time.monotonic(), None, {}
+    exit_code = 2
+    try:
+        path = Path(args.config)
+        # Bounded explicit-file read, including link/path checks; never import code.
+        loader = LocalMarkdownLoader(path.parent.resolve())
+        raw, identity = loader._read_raw(path.name, MAX_CONFIG_BYTES)
+        inputs = configured_inputs(Path(args.feature_directory), raw, tc.parse_repo_overrides(args.repo))
+        assessment = evaluate(Path(args.feature_directory), **inputs, read_provenance=read_provenance)
+        require(loader._read_raw(path.name, len(raw)) == (raw, identity), 'QUALITY_CONFIG_CHANGED')
+        result = assessment.result
+        if assessment.request is not None:
+            phase = assessment.request.get('phase')
+            targets = assessment.request.get('target_refs', {})
+        exit_code = 0 if result['allowed'] else (1 if assessment.observations is not None else 2)
+    except Exception:
+        result = dict(allowed=False, eligible=False, reason_codes=['INVALID_QUALITY_CONFIG'],
+            missing_checks=[], open_blockers=[], stale_refs=[], evidence_refs=[],
+            required_next_actions=['check-explicit-source-bindings-and-feature-context'],
+            effect='NOT_APPLIED', merge_authorized=False)
+    print(json.dumps(result, ensure_ascii=True, separators=(',', ':')) if args.format == 'json' else render_result(result))
+    print(json.dumps(dict(event='quality.evaluate', phase=phase, allowed=result['allowed'],
+        reason_codes=result['reason_codes'], target_refs=targets,
+        elapsed_ms=round((time.monotonic() - started) * 1000, 3)), separators=(',', ':')), file=sys.stderr)
+    return exit_code
+
+
+if __name__ == '__main__':
+    raise SystemExit(main())

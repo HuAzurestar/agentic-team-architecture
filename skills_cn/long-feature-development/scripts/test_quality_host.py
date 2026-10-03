@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 """Actual Git/files/strict feature composition; identity transport is synthetic."""
-from dataclasses import replace
+from dataclasses import asdict, replace
+import contextlib
 import hashlib
 import json
+import io
 from pathlib import Path
 import subprocess
 import sys
@@ -197,6 +199,76 @@ class HostTests(unittest.TestCase):
         result = self.evaluate()
         self.assertFalse(result.result['allowed'])
         self.assertIn('ACCEPTANCE_REQUIRED', result.result['reason_codes'])
+
+    def cli_config(self):
+        binding = asdict(self.binding)
+        binding.pop('repo')
+        return dict(schema='quality-host-config-v1', roles=asdict(self.roles),
+            documents=[dict(logical_path=d.logical_path, repository='pm', relative_path=d.relative_path)
+                       for d in self.documents], repositories=[binding])
+
+    def cli_args(self, config=None):
+        path = self.workspace / 'quality-config.json'
+        path.write_text(json.dumps(self.cli_config() if config is None else config), encoding='utf-8')
+        return [str(self.root), '--config', str(path), '--repo', f'pm={self.pm}', '--repo', f'app={self.app}']
+
+    def test_cli_reads_actual_sources_but_never_imports_identity(self):
+        args = self.cli_args() + ['--format', 'json']
+        before = [(p / '.git/index').read_bytes() for p in (self.app, self.pm)]
+        process = subprocess.run([sys.executable, '-B', host.__file__, *args], capture_output=True)
+        self.assertEqual(process.returncode, 1, process.stderr.decode())
+        result = json.loads(process.stdout)
+        self.assertIn('INDEPENDENCE_UNVERIFIED', result['reason_codes'])
+        self.assertFalse(result['allowed'])
+        self.assertEqual(result['effect'], 'NOT_APPLIED')
+        event = json.loads(process.stderr)
+        self.assertEqual(event['event'], 'quality.evaluate')
+        self.assertEqual(event['phase'], 'pre_accept')
+        self.assertEqual(event['target_refs'], {'app': self.app_head})
+        self.assertEqual(before, [(p / '.git/index').read_bytes() for p in (self.app, self.pm)])
+
+    def test_embedded_cli_uses_host_reader_and_prints_next_checks(self):
+        stdout, stderr = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+            code = host.main(self.cli_args(), read_provenance=self.provenance)
+        self.assertEqual(code, 0, stdout.getvalue())
+        self.assertIn('Quality: eligible', stdout.getvalue())
+        self.assertIn('merge authority: not granted', stdout.getvalue())
+        self.assertIn('request-current-candidate-acceptance', stdout.getvalue())
+        self.assertTrue(json.loads(stderr.getvalue())['allowed'])
+
+    def test_cli_config_cannot_inject_permissions_or_executable_reader(self):
+        for key in ('allowed', 'provenance', 'reader_module'):
+            config = self.cli_config() | {key: 'secret-credential-or-module'}
+            process = subprocess.run([sys.executable, '-B', host.__file__, *self.cli_args(config),
+                                      '--format', 'json'], capture_output=True)
+            self.assertEqual(process.returncode, 2)
+            self.assertEqual(json.loads(process.stdout)['reason_codes'], ['INVALID_QUALITY_CONFIG'])
+            self.assertNotIn(b'secret-credential-or-module', process.stdout + process.stderr)
+
+    def test_cli_rejects_duplicate_and_oversized_config_without_echo(self):
+        args = self.cli_args() + ['--format', 'json']
+        path = self.workspace / 'quality-config.json'
+        for raw in ('{"schema":"quality-host-config-v1","schema":"secret"}',
+                    'x' * (host.MAX_CONFIG_BYTES + 1)):
+            path.write_text(raw, encoding='utf-8')
+            process = subprocess.run([sys.executable, '-B', host.__file__, *args], capture_output=True)
+            self.assertEqual(process.returncode, 2)
+            self.assertFalse(json.loads(process.stdout)['allowed'])
+            self.assertLess(len(process.stdout) + len(process.stderr), 2000)
+
+    def test_cli_config_changed_during_read_is_preserved_and_denied(self):
+        args = self.cli_args() + ['--format', 'json']
+        path = self.workspace / 'quality-config.json'
+        def reader(probe):
+            path.write_text('changed externally', encoding='utf-8')
+            return self.provenance(probe)
+        stdout, stderr = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+            code = host.main(args, read_provenance=reader)
+        self.assertEqual(code, 2)
+        self.assertFalse(json.loads(stdout.getvalue())['allowed'])
+        self.assertEqual(path.read_text(), 'changed externally')
 
 
 if __name__ == '__main__':

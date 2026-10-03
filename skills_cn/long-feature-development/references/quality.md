@@ -2,11 +2,19 @@
 
 ## 实际宿主组合
 
+### 只读命令行诊断
+
+执行 `python scripts/quality_host.py <feature-directory> --config <bindings.json> --repo app=<actual-path> --format json`，省略 `--format` 则输出文本。文本显示 eligible、原因码、缺失检查、阻塞项、过期/证据引用及下一核对，明确 NOT_APPLIED 且不授予 merge；JSON 为同一判断。退出码 0 表示 eligible，1 表示原件读取完成但策略拒绝，2 表示配置/上下文/来源无效。stderr 仅输出 `quality.evaluate` 的 phase、allowed、原因码、目标向量和毫秒耗时，不记录原件正文或凭据。
+
+显式配置限 4 MiB，schema 为 `quality-host-config-v1`，仅有 `schema, roles, documents, repositories`。roles 包含 `request, report, tests, checklist, related_reports`（数组）和 `result_tests`（路径或 null）。每个 document 仅含 `logical_path, repository`（登记名）、`relative_path`；仓库物理路径和 HEAD 由严格读取器实时解析，不接受 JSON 自报。每个 repository binding 含 `repository_ref, remote, expected_remote, source_branch, source_sha, source_tree, target_branch, target_before`，候选/冻结 refs 应独立保留并与实际 Git 核对。这些只是来源选择，不是范围授权或身份凭证。重复 key、未知字段（包括 allowed/provenance/module）、链接、超限及观察期间配置变化均拒绝，保留外部修改。
+
+独立 CLI 没有真实 reviewer/真人 transport，不会把完整原件升级为已核实独立性或接受，而是报告缺失来源。实际 Python 宿主可嵌入 `main(argv, read_provenance=其真实认证读回器)`；没有命令行信任开关或可执行模块导入。两种方式都执行相同原件/策略核验。准备中状态写入适配、实际平台读回器部署、逐点决定提交和 UI 仍须分别完成。
+
 `quality_host.evaluate(root, documents=..., roles=..., repositories=..., read_provenance=..., repo_overrides=...)` 实际调用严格本地 Feature 恢复，再读取已提交 Git 原件及实时交付状态。完整 quality-request-v1 原件内的报告、关联报告、测试和结果测试，必须分别等于独立读取的原件，并对应任务声明的 Result gist；登记源仓库 HEAD 和声明的实际物理路径须一致。真实摘要不能搭配另一份 PASS 对象，也不能用其他路径的相同副本代替声明源。结构化清单为仅含 `schema, required_checks` 的 `quality-checklist-v1`，完整映射和清单路径/摘要须一致；不把既有散文自动升级为已验证清单。
 
 SourceRoles、仓库及文档绑定由宿主独立配置，不从项目文件反序列化权限。真实认证的 `read_provenance` 回调取得不可变完整请求/原件字节和版本，摘要绑定 Feature 与实际交付观察。宿主须独立核实 reviewer 身份/上下文、当前审查链、关闭/降级证据、排除/复用及真人决定与候选适用性，才返回对应摘要的 HostProvenance。类型和摘要本身不是认证；不接受 JSON allowed 标记或动态插件。没有回调时，原件可读也仍因独立性未核实而拒绝。回调错误脱敏。
 
-组合入口重算策略，并重读来源权限、全部原件、严格 Feature 和交付事实后返回 Assessment。`Assessment.for_task(current_source_ref, task_id)` 提供已有 selector/state guard 消费的 QualityInputs；消费者再次比较完整计划并重算策略，不跨操作边界缓存。不 merge/publish/改任务或持久化第二份 Gate。该入口只接干净已提交元数据；准备中的状态写入须专门核对，不提供忽略 dirty 的开关。真实平台认证配置、准备中写入组合、CLI/UI 调用及逐点决定提交仍是未完成集成。真实 Git 测试只证明来源和组合行为，身份回调明确为合成夹具。
+组合入口重算策略，并重读来源权限、全部原件、严格 Feature 和交付事实后返回 Assessment。`Assessment.for_task(current_source_ref, task_id)` 提供已有 selector/state guard 消费的 QualityInputs；消费者再次比较完整计划并重算策略，不跨操作边界缓存。不 merge/publish/改任务或持久化第二份 Gate。该入口只接干净已提交元数据；准备中的状态写入须专门核对，不提供忽略 dirty 的开关。真实平台认证配置、准备中写入组合、生产工作流/UI 调用及逐点决定提交仍是未完成集成。真实 Git 测试只证明来源和组合行为，身份回调明确为合成夹具。
 
 ## 状态写入接入
 
