@@ -121,6 +121,150 @@ class IntegrationTests(unittest.TestCase):
         self.assertIsNone(result['event']['phase'])
         self.assertFalse(result['valid'])
 
+    def delivery_remote(self):
+        remote = tempfile.TemporaryDirectory()
+        self.addCleanup(remote.cleanup)
+        subprocess.check_call(['git', 'init', '--bare', '-q', remote.name])
+        self.git('remote', 'set-url', 'origin', remote.name)
+        self.git('push', '-q', 'origin', 'main')
+        return replace(self.binding, expected_remote=remote.name)
+
+    def test_delivery_reads_actual_remote_without_fetch_or_index_write(self):
+        binding = self.delivery_remote()
+        before = self.git('show-ref'), (self.root / '.git/index').read_bytes()
+        result = quality.observe_delivery(binding, 'pre_accept')
+        self.assertTrue(result['valid'], result)
+        self.assertTrue(result['remote_target_verified'])
+        self.assertTrue(result['worktree_verified'])
+        self.assertEqual(result['facts']['remote_target'], self.base)
+        self.assertFalse(result['merge_authorized'])
+        self.assertFalse(result['quality_assessed'])
+        self.assertEqual(before, (self.git('show-ref'), (self.root / '.git/index').read_bytes()))
+        self.assertFalse((self.root / '.git/FETCH_HEAD').exists())
+
+    def test_delivery_remote_movement_not_hidden_by_stale_local_branch(self):
+        binding = self.delivery_remote()
+        self.git('push', '-q', 'origin', 'source:main')
+        result = quality.observe_delivery(binding, 'pre_merge')
+        self.assertEqual(result['reason_codes'], ['REMOTE_TARGET_MOVED'])
+        self.assertFalse(result['remote_target_verified'])
+        self.assertIsNone(result['facts'])
+
+    def test_delivery_missing_remote_branch_is_not_empty_success(self):
+        binding = self.delivery_remote()
+        subprocess.check_call(['git', '--git-dir', binding.expected_remote, 'update-ref', '-d', 'refs/heads/main'])
+        self.assertEqual(quality.observe_delivery(binding, 'pre_merge')['reason_codes'],
+                         ['REMOTE_TARGET_UNAVAILABLE'])
+
+    def test_delivery_unreachable_remote_does_not_echo_private_url(self):
+        self.git('remote', 'set-url', 'origin', str(self.root / 'secret-unreachable'))
+        binding = replace(self.binding, expected_remote=str(self.root / 'secret-unreachable'))
+        result = quality.observe_delivery(binding, 'pre_merge')
+        self.assertFalse(result['valid'])
+        self.assertNotIn('secret-unreachable', str(result))
+
+    def test_delivery_dirty_staged_and_untracked_preserved(self):
+        binding = self.delivery_remote()
+        for kind in ('unstaged', 'staged', 'untracked'):
+            with self.subTest(kind=kind):
+                path = self.root / ('new.txt' if kind == 'untracked' else 'file.txt')
+                path.write_text('uncommitted', encoding='utf-8')
+                if kind == 'staged':
+                    self.git('add', 'file.txt')
+                before = self.git('status', '--porcelain'), (self.root / '.git/index').read_bytes()
+                result = quality.observe_delivery(binding, 'pre_merge')
+                self.assertEqual(result['reason_codes'], ['WORKTREE_DIRTY'])
+                self.assertEqual(path.read_text(), 'uncommitted')
+                self.assertEqual(before, (self.git('status', '--porcelain'), (self.root / '.git/index').read_bytes()))
+                if kind == 'untracked':
+                    path.unlink()
+                else:
+                    self.git('restore', '--source=HEAD', '--staged', '--worktree', 'file.txt')
+
+    def test_delivery_hidden_tracked_edits_are_not_clean(self):
+        binding = self.delivery_remote()
+        for flag in ('assume-unchanged', 'skip-worktree'):
+            with self.subTest(flag=flag):
+                self.git('update-index', '--' + flag, 'file.txt')
+                (self.root / 'file.txt').write_text('hidden', encoding='utf-8')
+                self.assertEqual(quality.observe_delivery(binding, 'pre_merge')['reason_codes'], ['HIDDEN_INDEX_STATE'])
+                self.git('update-index', '--no-' + flag, 'file.txt')
+                self.git('restore', 'file.txt')
+
+    def test_delivery_wrong_checkout_or_detached_head_rejected(self):
+        binding = self.delivery_remote()
+        self.git('checkout', '-qb', 'other')
+        self.assertEqual(quality.observe_delivery(binding, 'pre_merge')['reason_codes'], ['WORKING_BRANCH_MISMATCH'])
+        self.git('checkout', '--detach', '-q', self.source)
+        self.assertFalse(quality.observe_delivery(binding, 'pre_merge')['valid'])
+
+    def test_delivery_clean_sequencer_is_still_in_progress(self):
+        binding = self.delivery_remote()
+        (self.root / '.git/sequencer').mkdir()
+        self.assertEqual(quality.observe_delivery(binding, 'pre_merge')['reason_codes'], ['GIT_OPERATION_IN_PROGRESS'])
+
+    def test_delivery_post_merge_requires_published_result(self):
+        binding = self.delivery_remote()
+        self.git('checkout', '-q', 'main')
+        self.git('merge', '--no-ff', 'source', '-m', 'integrate')
+        sha = self.git('rev-parse', 'HEAD')
+        self.assertEqual(quality.observe_delivery(binding, 'post_merge', result_sha=sha)['reason_codes'], ['REMOTE_TARGET_MOVED'])
+        self.git('push', '-q', 'origin', 'main')
+        result = quality.observe_delivery(binding, 'post_merge', result_sha=sha)
+        self.assertTrue(result['valid'], result)
+        self.assertEqual(result['facts']['result_tree'], self.tree)
+
+    def test_delivery_workspace_and_remote_races_fail_closed(self):
+        binding = self.delivery_remote()
+        original = quality._delivery_snapshot
+        for kind in ('workspace', 'remote'):
+            calls = []
+            def observe(*args):
+                snapshot = original(*args)
+                calls.append(1)
+                if len(calls) == 1:
+                    if kind == 'workspace':
+                        (self.root / 'file.txt').write_text('raced', encoding='utf-8')
+                    else:
+                        self.git('push', '-q', 'origin', 'source:main')
+                return snapshot
+            with self.subTest(kind=kind), patch.object(quality, '_delivery_snapshot', side_effect=observe):
+                result = quality.observe_delivery(binding, 'pre_merge')
+                self.assertFalse(result['valid'], result)
+                self.assertFalse(result['worktree_verified'])
+            if kind == 'workspace':
+                self.git('restore', 'file.txt')
+
+    def test_delivery_edit_during_last_remote_call_is_detected(self):
+        binding = self.delivery_remote()
+        original = quality._run
+        calls = []
+        def run(root, *args, **kwargs):
+            result = original(root, *args, **kwargs)
+            if args[0] == 'ls-remote':
+                calls.append(1)
+                if len(calls) == 2:
+                    (self.root / 'file.txt').write_text('late edit', encoding='utf-8')
+            return result
+        with patch.object(quality, '_run', side_effect=run):
+            result = quality.observe_delivery(binding, 'pre_merge')
+        self.assertEqual(result['reason_codes'], ['WORKTREE_DIRTY'])
+
+    def test_delivery_respects_crlf_checkout_without_refreshing_index(self):
+        binding = self.delivery_remote()
+        self.git('config', 'core.autocrlf', 'true')
+        # Force a fresh configured checkout of a file containing a newline.
+        self.commit('candidate\n')
+        binding = replace(binding, source_sha=self.git('rev-parse', 'HEAD'),
+                          source_tree=self.git('rev-parse', 'HEAD^{tree}'))
+        (self.root / 'file.txt').unlink()
+        self.git('checkout-index', '-f', '--', 'file.txt')
+        before = (self.root / '.git/index').read_bytes()
+        self.assertIn(b'\r\n', (self.root / 'file.txt').read_bytes())
+        result = quality.observe_delivery(binding, 'pre_merge')
+        self.assertTrue(result['valid'], result)
+        self.assertEqual(before, (self.root / '.git/index').read_bytes())
+
 
 if __name__ == '__main__':
     unittest.main()

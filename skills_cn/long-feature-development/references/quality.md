@@ -36,6 +36,8 @@ pre_accept 不要求尚未产生的接受。pre_merge 还要求来源核实、�
 
 ## 实际 Git 集成对应关系
 
+`quality_git.observe_delivery(binding, phase, result_sha=...)` 将下面的集成对应读取与实际远端目标、干净工作区读取组合。接受/合并前要求检出候选分支；合并后要求检出结果目标分支并已发布结果。使用实际 `ls-remote`，不信任旧 remote-tracking refs，并在本地核对前后重复观察。远端缺失/不可达/移动、分支错误或 detached、未跟踪/暂存/未暂存变更、assume-unchanged/skip-worktree 隐藏状态及未结束 Git 操作均拒绝。状态读取尊重 CRLF 等检出配置，不刷新索引，不 fetch/merge/push。成功仅增加实际 working branch/head/remote target 以及 `remote_target_verified=true`、`worktree_verified=true`，仍不授予质量成功或合并权限。这是乐观回读而非锁，也不证明独立 reviewer 或真人来源；完整质量宿主仍须消费这些事实并在操作边界重读。
+
 `quality_git.observe_integration(IntegrationBinding(...), phase, result_sha=...)` 读取实际本地 Git 对象和 refs。宿主独立提供已登记仓库身份、source 分支/SHA/tree、target 分支及冻结的 target-before SHA。校验分支名、仓库根与配置 remote 身份，并在观察前后核对两分支和身份。共享 Git runner 禁用 replace objects，读取器拒绝本地 graft 文件；不 fetch、改 refs、刷新 index、merge 或 push。
 
 接受/合并前，source ref 必须仍为冻结的候选，local target 必须等于 target-before。target-before 必须是 source 的真实祖先，source 的实际整棵树须等于保留的候选树。对于已同步目标的 source，这些事实确定正常 merge 的预期树，但不授权 merge。

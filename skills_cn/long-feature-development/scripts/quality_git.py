@@ -102,3 +102,74 @@ def observe_integration(binding, phase, *, result_sha=None):
                           phase=phase if phase in ('pre_accept', 'pre_merge', 'post_merge') else None, valid=result['valid'],
                           reason_codes=list(result['reason_codes']))
     return result
+
+
+def _working_snapshot(root, binding, phase, result_sha):
+    """Actual workspace facts, never caller supplied PASS flags."""
+    branch = binding.target_branch if phase == 'post_merge' else binding.source_branch
+    head = result_sha if phase == 'post_merge' else binding.source_sha
+    _require(_git(root, 'symbolic-ref', '--quiet', 'HEAD') == 'refs/heads/' + branch,
+             'WORKING_BRANCH_MISMATCH')
+    _require(_git(root, 'rev-parse', '--verify', 'HEAD') == head, 'WORKING_HEAD_MISMATCH')
+    # Honor checkout configuration (notably Windows CRLF), without refreshing
+    # the index. Hidden tracked changes must not become a false clean result.
+    entries = _run(root, 'ls-files', '-v', '-z', configured=True)[1].split(b'\0')
+    _require(all(not entry or entry[:1] == b'H' for entry in entries), 'HIDDEN_INDEX_STATE')
+    _require(not _run(root, 'status', '--porcelain=v1', '-z', '--untracked-files=all',
+                      '--ignore-submodules=none', configured=True)[1], 'WORKTREE_DIRTY')
+    for name in ('MERGE_HEAD', 'CHERRY_PICK_HEAD', 'REVERT_HEAD', 'rebase-merge',
+                 'rebase-apply', 'sequencer'):
+        path = Path(_git(root, 'rev-parse', '--git-path', name))
+        if not path.is_absolute():
+            path = root / path
+        _require(not path.exists() and not path.is_symlink(), 'GIT_OPERATION_IN_PROGRESS')
+    return dict(working_branch=branch, working_head=head)
+
+
+def _delivery_snapshot(root, binding, phase, result_sha):
+    working = _working_snapshot(root, binding, phase, result_sha)
+    ref = 'refs/heads/' + binding.target_branch
+    rows = _run(root, 'ls-remote', '--refs', binding.remote, ref)[1].decode('ascii').splitlines()
+    _require(len(rows) == 1 and len(rows[0].split('\t')) == 2, 'REMOTE_TARGET_UNAVAILABLE')
+    remote_sha, remote_ref = rows[0].split('\t')
+    _require(remote_ref == ref and SHA.fullmatch(remote_sha), 'REMOTE_TARGET_UNAVAILABLE')
+    _require(remote_sha == (result_sha if phase == 'post_merge' else binding.target_before),
+             'REMOTE_TARGET_MOVED')
+    _require(_working_snapshot(root, binding, phase, result_sha) == working,
+             'DELIVERY_CHANGED_DURING_READ')
+    return dict(working, remote_target=remote_sha)
+
+
+def observe_delivery(binding, phase, *, result_sha=None):
+    """Compose local correspondence with live remote and workspace reads.
+
+    Pre-accept/merge observes the checked-out candidate branch; post-merge
+    observes the checked-out result branch. Missing/offline remote, dirty or
+    hidden index state and unfinished Git operations fail closed. All reads are
+    repeated around the aggregate observation. No fetch or mutation occurs.
+    This still does not establish reviewer/human authority or grant a merge.
+    """
+    result = observe_integration(binding, phase, result_sha=result_sha)
+    if not result['valid']:
+        return result
+    try:
+        root = Path(binding.repo).resolve(strict=True)
+        first = _delivery_snapshot(root, binding, phase, result_sha)
+        local = observe_integration(binding, phase, result_sha=result_sha)
+        _require(local['valid'] and local['facts'] == result['facts'], 'REF_MOVED_DURING_READ')
+        second = _delivery_snapshot(root, binding, phase, result_sha)
+        _require(first == second, 'DELIVERY_CHANGED_DURING_READ')
+        # Last check also covers remote identity changed during ls-remote.
+        _require(_snapshot(root, binding) == dict(source=binding.source_sha,
+                 target=result_sha if phase == 'post_merge' else binding.target_before),
+                 'REF_MOVED_DURING_READ')
+        result['facts'] = dict(result['facts'], **second,
+                              observation_scope='registered-repository-and-remote')
+        result.update(remote_target_verified=True, worktree_verified=True)
+    except (IntegrationError, ReviewSourceError, OSError, ValueError, TypeError, UnicodeError) as exc:
+        result.update(valid=False, facts=None, remote_target_verified=False, worktree_verified=False)
+        result['reason_codes'] = [str(exc) if isinstance(exc, (IntegrationError, ReviewSourceError))
+                                  else 'DELIVERY_READ_FAILED']
+    result['event'] = dict(name='quality.delivery.observe', phase=phase, valid=result['valid'],
+                          reason_codes=list(result['reason_codes']))
+    return result
