@@ -5,6 +5,8 @@ description: 从项目管理目录恢复并推进跨会话的软件 feature，�
 
 # 长程 Feature 开发
 
+宿主／Workbench 使用[决定工作流入口](references/decision-workflow.md)检查、应用及恢复单点决定。[原生真人来源适配器](scripts/decision_native.py)读取独立配置的消息和权限服务，并连接既有接受读回器；账号映射及 endpoint 凭据由运行时宿主配置。
+
 [质量宿主组合入口](scripts/quality_host.py)先读取严格 Feature 记录、已提交的报告/测试/清单原件及实际 Git 交付事实，再重算质量。[真实来源回归](scripts/test_quality_host.py)的身份 transport 为合成夹具，仍需真实认证的来源读回器；详见[质量边界](references/quality.md)。
 
 受保护状态写入使用[状态证据检查](scripts/state_guard.py)、[writer 测试](scripts/test_state_guard.py)和[质量边界](references/quality.md)。像人名的 actor 字段不是决定出处，必须经已配置宿主读回核验。
