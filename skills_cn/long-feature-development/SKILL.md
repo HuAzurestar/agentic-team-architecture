@@ -102,7 +102,7 @@ helper 只取[用途提示](references/prompts.md)中的共同节与当前用途
 进入审查或明确读取审查内容时，按已登记绑定调用前台[来源读取器](scripts/review_source.py)，见[真实 Git 回归](scripts/test_review_source.py)。
 Git 读取不合并、不发布、不授权应用，也不改变点决定；原生平台和条件发布仍待完成。
 应用前使用[前置校验](scripts/review_application.py)及其[真实 Git 测试](scripts/test_review_application.py)；通过仍需 F03 intent/writer 集成，不能绕过日志直接合并。
-已授权的实现仓库同步使用 [F03 持久化写入器](scripts/review_sync.py)和[中断/冲突测试](scripts/test_review_sync.py)。先阅读评论规则中的边界；管理仓库自身同步及条件发布仍待完成。
+已授权的仓库同步使用 [F03 持久化写入器](scripts/review_sync.py)和[中断/冲突测试](scripts/test_review_sync.py)。[管理仓库协议](scripts/review_sync_management.py)及其[同仓库测试](scripts/test_review_sync_management.py)覆盖仅含操作日志的提交。使用前先阅读评论规则；条件发布仍待完成。
 
 - 每个仓库独立处理；一个 feature 可以跨仓库。
 - 仓库定位顺序为：显式 `--repo NAME=PATH`、相对项目管理仓库根目录的 path hints、按注册 remote 身份进行 sibling/workspace 发现。不得把历史绝对路径当作定位器；缺失或歧义均停止。

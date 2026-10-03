@@ -43,6 +43,12 @@ def coordinator(root):
 
 def read_gist(root, relative):
     raw = recovery.bounded_bytes(recovery.safe_path(root, relative), recovery.MAX_PLAN_BYTES)
+    return parse_gist(raw)
+
+
+def parse_gist(raw):
+    if len(raw) > recovery.MAX_PLAN_BYTES:
+        raise Error('RESOURCE_LIMIT')
     text = recovery.decode(raw)
     blocks = list(re.finditer(r"^```json[ \t]*\n(.*?)^```[ \t]*$", text, re.M | re.S))
     if len(blocks) > 1:
@@ -65,6 +71,17 @@ def save(root, relative, record, expected):
     raw, text, blocks, records = read_gist(root, relative)
     if raw != expected:
         raise Error("CONTENT_CONFLICT", path=relative)
+    after = render_gist(raw, record)
+    path = recovery.safe_path(root, relative)
+    if recovery.bounded_bytes(path, recovery.MAX_PLAN_BYTES) != raw:
+        raise Error("CONTENT_CONFLICT", path=relative)
+    if after != raw:
+        recovery.atomic_replace(path, after)
+    return after
+
+
+def render_gist(raw, record):
+    raw, text, blocks, records = parse_gist(raw)
     records[record["operation_id"]] = record
     if len(records) > 1000:
         raise Error("RESOURCE_LIMIT")
@@ -73,11 +90,6 @@ def save(root, relative, record, expected):
     after = recovery.encode(text, raw)
     if len(after) > recovery.MAX_PLAN_BYTES:
         raise Error("RESOURCE_LIMIT")
-    path = recovery.safe_path(root, relative)
-    if recovery.bounded_bytes(path, recovery.MAX_PLAN_BYTES) != raw:
-        raise Error("CONTENT_CONFLICT", path=relative)
-    if after != raw:
-        recovery.atomic_replace(path, after)
     return after
 
 
@@ -116,8 +128,13 @@ def refs(root, record, overrides, git):
         if not git.is_ancestor(Path(repo["path"]), sha, previous):
             raise Error("REF_MOVED")
     management = [Path(r["path"]) for r in repos.values() if r["role"] == "project-management"]
-    if len(management) != 1 or repo["role"] != "implementation":
+    management_sync = record['kind'] == 'review-master-sync' and target.get('role') == 'project-management'
+    if (len(management) != 1 or repo['role'] != ('project-management' if management_sync else 'implementation')):
         raise Error("INVALID_REPOSITORY_SET")
+    if management_sync:
+        recorded_head = record['expected_source']['recorded_head']
+        if not git.is_ancestor(Path(repo['path']), recorded_head, previous):
+            raise Error('REF_MOVED')
     base = record["expected_source"]["management_head"]
     if not git.commit_exists(management[0], base) or not git.is_ancestor(management[0], base, git.run(management[0], "rev-parse", "HEAD")):
         raise Error("REF_MOVED")
@@ -132,6 +149,10 @@ def refs(root, record, overrides, git):
     allowed = {record["intent_ref"], ".operation.lock", *record["expected_source"]["documents"]}
     prefix = root.relative_to(management[0]).as_posix() + "/"
     for entry in git.run(management[0], "status", "--porcelain=v1", "-z", "--untracked-files=all").split("\0"):
+        if management_sync:
+            # The sync observer must inspect MERGE_HEAD before treating a
+            # conflict as ordinary dirt; its own whole-repository guard follows.
+            continue
         if not entry:
             continue
         if len(entry) < 4 or "R" in entry[:2] or "C" in entry[:2]:
@@ -184,7 +205,9 @@ def validate_record(root, gist, record):
     if task["state"] not in {"WIP", "RECORDING"} or gist not in dict(tc.declared_gist_paths(detail, root)):
         raise Error("INVALID_INTENT")
     repository = record["target_identity"]["repository"]
-    if task["head_refs"].get(repository) != record["expected_source"]["head"]:
+    management_sync = record['kind'] == 'review-master-sync' and record['target_identity'].get('role') == 'project-management'
+    expected_head = record['expected_source']['recorded_head' if management_sync else 'head']
+    if task["head_refs"].get(repository) != expected_head:
         raise Error("INVALID_INTENT")
     if record["kind"] == "review-master-sync":
         import review_sync
@@ -242,10 +265,12 @@ def desired(root, record, sha):
     tasks = cp.replace_task_head(texts["TASKS.md"], task, repository, sha)
     rows = tc.focused_status(texts["STATUS.md"])["working_branches"]["rows"]
     rows = [row for row in rows if row[0] == repository]
-    if len(rows) != 1 or rows[0][3] != record["expected_source"]["head"]:
+    management_sync = record['kind'] == 'review-master-sync' and record['target_identity'].get('role') == 'project-management'
+    expected_head = 'DERIVED:HEAD' if management_sync else record['expected_source']['head']
+    if len(rows) != 1 or rows[0][3] != expected_head:
         raise Error("INVALID_INTENT")
     old = recovery.row_line(texts["STATUS.md"], rows[0])
-    new = list(rows[0]); new[3] = sha
+    new = list(rows[0]); new[3] = 'DERIVED:HEAD' if management_sync else sha
     status = recovery.replace_operations(texts["STATUS.md"], [{"kind": "row", "old_value": old, "new_value": "| " + " | ".join(new) + " |"}])
     return {p: recovery.encode(text, original(docs[p])) for p, text in
             [(detail_ref, detail), ("TASKS.md", tasks), ("STATUS.md", status)]}
@@ -334,7 +359,12 @@ def reconcile_locked(root, gist, operation_id, overrides, result, write):
             return result
         result.update(observed_result={"status": "not-observed"}, next_check="resume-authorized-checkpoint")
         return result
-    if git.run(repo, "status", "--porcelain=v1", "-z", "--untracked-files=all"):
+    management_sync = record['kind'] == 'review-master-sync' and record['target_identity'].get('role') == 'project-management'
+    observed_head = git.run(repo, 'rev-parse', 'HEAD')
+    if management_sync:
+        import review_sync_management as management
+        management.clean(root, repo, record, metadata=True, journal=True)
+    elif git.run(repo, "status", "--porcelain=v1", "-z", "--untracked-files=all"):
         raise Error("UNOWNED_CHANGES")
     result["observed_result"] = {"status": "success", "commit_sha": sha}
     targets = desired(root, record, sha)
@@ -359,7 +389,7 @@ def reconcile_locked(root, gist, operation_id, overrides, result, write):
             recovery.atomic_replace(path, target)
             result["recorded_fields"].append(relative)
         interruption_point("after-detail" if index == 0 else "after-index" if index == 1 else "after-status")
-    if git.run(repo, "rev-parse", "HEAD") != sha:
+    if git.run(repo, "rev-parse", "HEAD") != (observed_head if management_sync else sha):
         raise Error("REF_MOVED")
     record["recorded_fields"] = list(targets)
     if save(root, gist, record, raw) != raw:

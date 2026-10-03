@@ -40,4 +40,8 @@ master 已包含后，独立提供的 `GitSampleBinding` 将每个 Basis 来源�
 
 `review_sync.execute(..., operation_id, authority=True)` 重查原记录/管理正文、干净工作区及远端来源，无 refs/FETCH_HEAD 变更地获取精确 SHA，然后先持久化 dispatch 标记，再执行带 operation UUID trailer 的 `git merge --no-ff`。已包含 master 时不再合并。不推送、不 abort/reset、不自动解决冲突；冲突保留 MERGE_HEAD、索引及文件。响应丢失后只按真实 HEAD、有序 parents 与 UUID 核对；已 dispatch 但没有已证实结果时保持 unknown，不自动重放。F03 以原值/目标值条件幂等修复任务和 STATUS refs；只读 reconcile 不写入。
 
-首个写入器仅支持与管理日志分离的已登记实现仓库。管理仓库自身同步明确返回 `MANAGEMENT_SYNC_PROTOCOL_REQUIRED`，其干净日志协议仍须实现。同步后必须重读来源并检查目标样本，包括合并中/合并后 master 前进的情形。合并记录不等于评论应用权限、质量通过或真人接受；条件发布、原生 provider、决定写入器仍未完成。测试使用真实临时 Git 仓库，不代表线上 forge 凭据验证或实际项目分支合并。
+对于已登记管理仓库，`review_sync_management` 在合并前增加一个仅含操作日志的本地提交。保留的工作 HEAD 为原始 H0；intent 提交 J 的 parent 是 H0，只改已声明 gist，核对完整预期正文/文件模式及 Operation-Intent UUID。合并的有序 parents 必须为 J 与观察到的 master SHA。继续使用同一 F03 coordinator；脏树检查仅排除其精确未跟踪运行时锁，不排除用户文件，也不允许合并时日志仍未提交。拒绝外部已暂存内容；日志提交显式限定单一路径。远端改动日志本身或与 coordinator 路径碰撞时，在 dispatch 前停止，不静默解决或覆盖。
+
+恢复保留管理仓库的 `DERIVED:HEAD`，在任务 refs 记录实际合并 SHA。原值/目标值检查将合并带来的新管理文档内容保留为需明确解决的冲突。允许核对其后一次仅含管理记录的提交并幂等重入；不能借旧成功收据掩盖无关改动。日志提交前后崩溃均按真实 Git 内容检查，未知合并不自动重放。不 reset、不强制 checkout、不 stash、不隐式推送 master。
+
+同步后必须重读来源并检查目标样本，包括合并中/合并后 master 前进的情形。合并记录不等于评论应用权限、质量通过或真人接受；条件发布、原生 provider、决定写入器仍未完成。测试使用真实临时 Git 仓库，不代表线上 forge 凭据验证或实际项目分支合并。
