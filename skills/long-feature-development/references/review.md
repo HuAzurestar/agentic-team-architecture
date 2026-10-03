@@ -83,7 +83,7 @@ them or invent missing independence evidence. Run [packet tests](../scripts/test
 the existing review/context regressions when changing this boundary. Synthetic
 host fixtures verify rejection logic, not F04-T01's real blank-review outcome.
 
-## Dependency preview (implementation in progress)
+## Controlled dependency replacement
 
 The pure [dependency planner](../scripts/task_dependencies.py) exposes
 `plan_dependencies(index_bytes, detail_bytes, task_id, expected_index_digest, dependency_ids)`.
@@ -93,12 +93,46 @@ the new index/topology and Gate Required tasks. Duplicate IDs are removed in
 input order. Bounds are 10,000 nodes, 30,000 edges, 4 MiB combined input and
 two CPU seconds; an overrun rejects the whole preview. BOM/newlines are retained.
 
-The result contains original/candidate bytes for a future controlled writer.
-Do not log these bytes as event metadata. This module currently has no writer
-or CLI and does not persist intent or recover partial writes. Do not manually
-apply its candidates as a substitute for that missing protocol. Run the
+The pure result contains original/candidate bytes. Do not log those as event
+metadata. The CLI prints only IDs, counts, digests, changed paths and errors.
+Run the
 [dependency regression tests](../scripts/test_task_dependencies.py) when
 changing it. READY only describes dependency states, never successful review,
 human acceptance or permission to merge. An already started acceptance or
 Gate must retain its actual attempt; a new task cannot hide it, and a missing
 human decision must not be replaced by an invented rejection.
+
+Preview with `python scripts/task_dependencies.py FEATURE TASK --depends-on REVIEW-02`.
+Inspect the old/new dependencies and retain its exact `expected_index_digest`.
+Apply only with actual session authorization: repeat the command with
+`--apply --authorized --expected-index-digest DIGEST --operation-gist gists/DECLARED.md --authority-source-ref SESSION-REF`
+and explicit `--repo NAME=PATH` overrides when required. These flags attest an
+actual caller decision; Markdown does not grant authority.
+
+The API `replace_dependencies(feature, task_id, expected_index_digest, dependency_ids, ...)`
+verifies the current feature, tracked records and Git refs; it records a bounded
+`dependency-rewire` operation in an existing gist declared by the current task.
+It changes only TASKS.md (index plus derived topology) and, for a Gate, its
+Required tasks contract. Each replacement is atomic, not the whole update.
+The F03 source reader/intent bounds also apply; exceeding them rejects the write.
+Files with links/aliases, unowned or staged edits, stale sources and moved refs
+are refused. No task status, acceptance decision, Git commit or remote is changed.
+
+After interruption, use `task_reconcile.py FEATURE --plan-gist GIST --operation-id UUID`
+for read-only actual-byte inspection. Only a fresh authorized `--apply --authorized`
+may fill the missing side. The dependency CLI accepts the same operation ID with
+`--operation-gist`. A third file value is a conflict, never rolled back or
+overwritten. A completed retry makes no duplicate file writes. Commit the
+coherent management records separately, then run task_context.py. The protocol
+assumes one cooperating writer; it cannot promise filesystem-wide transactions
+against an editor writing in the final read/replace race.
+
+A delivered REVIEW may be DONE with blockers. Only actual findings justify a
+new REWORK → TEST → REVIEW chain; bind every result to its own target and leave
+old reports unchanged. Point a not-yet-started acceptance to the newest complete
+review chain. If an acceptance or Gate is already active, retain its stopped
+attempt and candidate-invalid fact, obtain real human disposition, and then
+continue with a new attempt; never invent REJECTED/REWORK to make it DONE.
+Replacement also refuses to remove an in-flight acceptance/Gate from the target's
+dependency ancestry. Independent finding closure and final quality eligibility
+are separate checks, not consequences of a dependency edit.

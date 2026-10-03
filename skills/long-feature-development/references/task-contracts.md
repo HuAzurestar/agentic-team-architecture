@@ -27,3 +27,9 @@ Required fields for newly created tasks: `Target SHA`, `Acceptance scope`, `Deci
 ## GATE
 
 Required fields: `From phase`, `To phase`, `Required tasks`, and `Decision ref`. The required task list must match the gate's direct dependencies. `Decision ref` is the project-management commit that records the transition; before recording, use `-`.
+
+For an unstarted PENDING Gate, change dependencies only through the controlled
+dependency helper described in [review](review.md); it synchronizes Required
+tasks and records partial effects. An active acceptance/Gate cannot be rewired
+or hidden by a new task. REVIEW DONE means report delivery, not absence of
+blockers; actual findings create a new REWORK → TEST → REVIEW chain.

@@ -27,3 +27,6 @@
 ## GATE
 
 必需字段：`From phase`、`To phase`、`Required tasks`、`Decision ref`。必需 task 必须与 gate 直接依赖一致；`Decision ref` 是记录流转的项目管理 commit，记录前为 `-`。
+
+未启动 PENDING Gate 只按[审查流程](review.md)通过受控依赖 helper 改前置，它同步 Required tasks 并记录部分效果。
+在途接受/Gate 不可就地换依赖，也不能被新任务隐藏。REVIEW DONE 表示报告已交付而非无 blocker；真实 finding 建立新的 REWORK → TEST → REVIEW 链。

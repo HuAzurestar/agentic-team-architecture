@@ -24,6 +24,9 @@
 
 需求/方案点决定读取 [confirmation.md](confirmation.md)。点状态与 task 状态相互独立。
 
+依赖替换不是状态流转；其预览、显式授权和 F03 部分写入对账见[审查流程](review.md)，仅未启动 PENDING 目标符合条件。
+不能用伪造人类决定或新任务掩盖在途接受/Gate attempt。
+
 ## Feature 流转
 
 `STATUS.md` 保存 phase、condition、当前 task/gate 和下一流转。`GATE-*` 是普通 task 节点，其完成授权一次 feature 流转。流转时：

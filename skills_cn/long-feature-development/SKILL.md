@@ -113,7 +113,7 @@ helper 只取[用途提示](references/prompts.md)中的共同节与当前用途
 
 完整报告按[报告语义](references/review-report.md)、[报告模板](templates/REVIEW-REPORT.md)及纯[报告计算器](scripts/review_report.py)处理。未知/未执行检查及历史 blocker 保持可见；schema/数量有效不等于来源已验证或质量批准。修改时运行[报告测试](scripts/test_review_report.py)和随包[模拟 fixtures](scripts/fixtures/review-report.json)。
 
-[依赖规划器](scripts/task_dependencies.py)及[其测试](scripts/test_task_dependencies.py)当前只提供未启动 PENDING 任务的有限只读预览。限制见[审查流程](references/review.md)：持久化和部分写入恢复尚未实现，不能手动应用预览或把依赖 READY 当成质量批准。
+仅对未启动 PENDING 任务按[审查流程](references/review.md)使用[依赖 helper](scripts/task_dependencies.py)。先预览，获授权写入前持久化意图，再逐文件替换；中断后使用 F03 对账。运行[规划测试](scripts/test_task_dependencies.py)和[真实文件 writer 测试](scripts/test_dependency_write.py)。依赖 READY 不等于质量批准。
 
 [本地原文 loader](scripts/context_loader.py)在完整校验前读取所有任务与声明 gist；`task_context.py` 分离真实 Git 校验和聚焦输出，比较 loader 不能代答本地仓库事实。修改该边界时运行 [loader/真实 Git 专项](scripts/test_context_loader.py)及旧 context 回归。结构化 envelope 使用 `lfd-context-v1`，默认 CLI 保持兼容。loader 分离本身不代替审查断点恢复。
 

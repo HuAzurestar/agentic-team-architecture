@@ -25,15 +25,33 @@ API `build_packet(inputs, documents=..., host=..., previous_packets=...)` 接收
 
 旧最小 `review-packet-v1` 恢复记录仍由 `review_resume.py` 读取，不是完整交接包。不能静默升级或补造独立性证据。修改此边界时运行[审查包测试](../scripts/test_review_packet.py)和原有 review/context 回归；模拟宿主 fixture 只验证拒绝逻辑，不证明 F04-T01 的真实空白审查结果。
 
-## 依赖预览（实现中）
+## 受控依赖替换
 
 纯函数[依赖规划器](../scripts/task_dependencies.py)提供
 `plan_dependencies(index_bytes, detail_bytes, task_id, expected_index_digest, dependency_ids)`。
 生成新索引/拓扑与 Gate Required tasks 前，核验原始字节摘要、全图、尚未分配且无 start refs 的 PENDING 目标和原有类型契约；依赖 ID 按输入顺序去重。
 上限为 10000 节点、30000 边、输入合计 4 MiB、2 秒 CPU；超限整体拒绝预览，保留 BOM/换行。
 
-结果中的原始/候选字节只供后续受控 writer 使用，不得作为事件元数据记录。
-本模块当前没有 writer 或 CLI，尚不持久化意图或恢复部分写入；不能手动应用候选来代替缺失的协议。
+纯函数结果含原始/候选字节，不得作为事件元数据记录；CLI 只输出 ID、数量、摘要、变更路径和错误。
 修改时运行[依赖回归测试](../scripts/test_task_dependencies.py)。
 READY 只代表依赖任务状态，不代表审查成功、人工接受或允许合并。
 已启动接受或 Gate 必须保留实际 attempt，不能用新任务隐藏，也不能伪填人类拒绝来代替尚未收到的决定。
+
+先执行 `python scripts/task_dependencies.py FEATURE TASK --depends-on REVIEW-02` 预览，核对旧/新依赖并保留精确的 `expected_index_digest`。
+只有实际会话授权后才重复命令并加 `--apply --authorized --expected-index-digest DIGEST --operation-gist gists/DECLARED.md --authority-source-ref SESSION-REF`；
+必要时显式传 `--repo NAME=PATH`。这些参数声明真实调用者决定，Markdown 不授予权限。
+
+API `replace_dependencies(feature, task_id, expected_index_digest, dependency_ids, ...)` 核验当前 feature、已跟踪记录及 Git refs，
+先在当前任务已声明且存在的 gist 持久化有限 `dependency-rewire` 意图，再修改 TASKS.md 的索引/派生图及 Gate 的 Required tasks。
+每个文件原子替换，不是全事务；F03 来源读取和意图大小上限同样适用，超限拒绝写入。
+链接/别名、非所属或已暂存改动、过期来源和移动 refs 均拒绝；不改变任务状态、接受决定、Git 提交或远端。
+
+中断后用 `task_reconcile.py FEATURE --plan-gist GIST --operation-id UUID` 只读检查实际字节；
+只有新的真实授权 `--apply --authorized` 才补齐缺失一侧。依赖 CLI 也接受 operation ID，gist 参数为 `--operation-gist`。
+第三种文件值一律冲突，不回滚、不覆盖；已经完成的重试不重复写文件。随后单独提交一致的管理记录并运行 task_context.py。
+协议假设单一协作 writer，不能承诺对编辑器在最终读取/替换间竞争的全文件系统事务。
+
+完整交付的 REVIEW 可以带 blocker 而 DONE；只有真实 finding 才建立 REWORK → TEST → REVIEW，每个结果绑定自己的目标，旧报告不改写。
+尚未启动的接受前置可指向最新完整复核链；若接受或 Gate 已在途，保留停止 attempt 和候选失效事实，先取得真实人类处置再建新 attempt，
+不能伪填 REJECTED/REWORK 令旧任务完成。替换还会拒绝从目标依赖祖先中移除在途接受/Gate。
+finding 独立关闭和最终质量资格另行检查，不能从依赖修改推导。

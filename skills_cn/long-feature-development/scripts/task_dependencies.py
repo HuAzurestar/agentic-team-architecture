@@ -1,10 +1,14 @@
 #!/usr/bin/env python3
-"""Bounded, pure dependency preview. Persistence is a separate authorized step."""
+"""Bounded dependency preview, authorized per-file writes and F03 reconciliation."""
 from __future__ import annotations
 
 import re
+import argparse
+import json
+import stat
 import sys
 import time
+import uuid
 from pathlib import Path
 
 sys.dont_write_bytecode = True
@@ -75,6 +79,18 @@ def plan_dependencies(index_bytes, detail_bytes, task_id, expected_index_digest,
         raise Error("TASK_ALREADY_STARTED")
     if any(value not in records for value in dependencies):
         raise Error("UNKNOWN_DEPENDENCY")
+    def ancestors(seeds):
+        reached, pending = set(), list(seeds)
+        while pending:
+            key = pending.pop()
+            if key not in reached:
+                reached.add(key)
+                pending.extend(records[key]["dependencies"])
+        return reached
+    removed = ancestors(target["dependencies"]) - ancestors(dependencies)
+    if any(key.startswith(("ACCEPT-", "GATE-")) and records[key]["state"] in
+           {"WIP", "BLOCKED", "RECORDING"} for key in removed):
+        raise Error("ACTIVE_ATTEMPT_WOULD_BE_HIDDEN")
     try:
         tc.task_detail(Path("."), target, text=detail)
         tc.validate_type_contract(target, detail, records)
@@ -130,3 +146,284 @@ def plan_dependencies(index_bytes, detail_bytes, task_id, expected_index_digest,
     budget()
     return result
 
+
+def interruption_point(name):
+    """Failure-injection seam; production does nothing."""
+
+
+def public_plan(plan):
+    return {key: value for key, value in plan.items() if key not in {"before", "after"}}
+
+
+def read_source(root, relative):
+    path = recovery.safe_path(root, relative)
+    info = path.stat()
+    if not stat.S_ISREG(info.st_mode) or info.st_nlink != 1:
+        raise Error("UNSAFE_SOURCE", path=relative)
+    raw = recovery.bounded_bytes(path, MAX_BYTES)
+    after = path.stat()
+    identity = lambda value: (value.st_dev, value.st_ino, value.st_size,
+                              value.st_mtime_ns, value.st_ctime_ns, value.st_nlink, value.st_mode)
+    if identity(after) != identity(info):
+        raise Error("SOURCE_CHANGED", path=relative)
+    return raw
+
+
+def checked_context(root, gist, overrides, originals=None, saved=None):
+    """Reuse F03's full source/ref checks; no metadata repair is implicit."""
+    kwargs = dict(plan_gist=gist, _allowed_dirty=(".operation.lock", *(originals or {})),
+                  _originals=originals)
+    if saved is not None:
+        kwargs.update(_plan_id=saved["plan_id"], _observed_at=saved["observed_at"])
+    checked = recovery.inspect(root, overrides, **kwargs)
+    if not checked["complete"] or checked["edits"]:
+        raise Error("RECOVERY_REQUIRED", blockers=checked["blockers"])
+    if saved is not None and checked != saved:
+        raise Error("SOURCE_CHANGED")
+    for relative in {*checked["read_set"], gist}:
+        read_source(root, relative)
+    # F03 permits owned dirty paths to reconcile; ownership is not permission
+    # to overwrite an already staged user change.
+    git = recovery.GitProbe()
+    for repo in checked["repositories"]:
+        path = Path(repo["resolved_path"])
+        prefix = root.relative_to(path).as_posix() + "/" if root.is_relative_to(path) else None
+        for entry in git.run(path, "status", "--porcelain=v1", "-z", "--untracked-files=all").split("\0"):
+            if not entry:
+                continue
+            if prefix is not None and not entry[3:].startswith(prefix):
+                continue
+            if entry[0] not in {" ", "?"}:
+                raise Error("PRESTAGED_CHANGES")
+    return checked
+
+
+def error_result(result, exc):
+    result["conflicts"] = [exc.diagnostic if isinstance(exc, Error)
+                           else {"code": "INVALID_DEPENDENCY_OPERATION_OR_IO"}]
+    result["effect"] = "PARTIAL" if result["recorded_fields"] else "NOT_APPLIED"
+    result["next_check"] = "reconcile-operation" if result["operation_id"] else "inspect-conflicts"
+    result["event"] = {"name": "dependency.partial" if result["effect"] == "PARTIAL" else "dependency.rewire",
+                       "task_id": result.get("task_id"), "errors": [item["code"] for item in result["conflicts"]]}
+    return result
+
+
+def empty_result(operation_id=None):
+    return dict(operation_id=operation_id, effect="NOT_APPLIED", changed_paths=[],
+                recorded_fields=[], conflicts=[], observed_result={"status": "unknown"})
+
+
+def guard_sources(root, gist, source, before, after, gist_bytes):
+    """Cheap actual-byte/ref readback between individually atomic replacements."""
+    if read_source(root, gist) != gist_bytes:
+        raise Error("CONTENT_CONFLICT", path=gist)
+    for relative, expected in source["read_set"].items():
+        current = read_source(root, relative)
+        if relative in before:
+            if current not in (before[relative], after[relative]):
+                raise Error("CONTENT_CONFLICT", path=relative)
+        elif recovery.digest(current) != expected:
+            raise Error("SOURCE_CHANGED", path=relative)
+    git = recovery.GitProbe()
+    recovery.verify_observations(source, git)
+    for repo in source["repositories"]:
+        path = Path(repo["resolved_path"])
+        prefix = root.relative_to(path).as_posix() + "/" if root.is_relative_to(path) else None
+        for entry in git.run(path, "status", "--porcelain=v1", "-z", "--untracked-files=all").split("\0"):
+            if not entry:
+                continue
+            if len(entry) < 4 or "R" in entry[:2] or "C" in entry[:2]:
+                raise Error("UNOWNED_CHANGES")
+            if prefix is not None and not entry[3:].startswith(prefix):
+                continue
+            if prefix is None or entry[3:][len(prefix):] not in {gist, ".operation.lock", *before}:
+                raise Error("UNOWNED_CHANGES")
+            if entry[0] not in {" ", "?"}:
+                raise Error("PRESTAGED_CHANGES")
+
+
+def replace_dependencies(feature, task_id, expected_index_digest, dependency_ids, *,
+                         operation_gist, repo_overrides=None, authority=False,
+                         authority_source_ref=""):
+    """Record intent then perform individually atomic writes; never commit."""
+    import task_operation as op
+    result = empty_result()
+    root = Path(feature).resolve()
+    overrides = repo_overrides or {}
+    try:
+        if authority is not True:
+            raise Error("AUTHORITY_REQUIRED")
+        op.cp.safe_line(authority_source_ref, "authority source")
+        if not isinstance(task_id, str) or tc.TASK_ID_RE.fullmatch(task_id) is None:
+            raise Error("INVALID_REQUEST")
+        with op.coordinator(root):
+            before = {"TASKS.md": read_source(root, "TASKS.md"),
+                      f"tasks/{task_id}.md": read_source(root, f"tasks/{task_id}.md")}
+            plan = plan_dependencies(before["TASKS.md"], before[f"tasks/{task_id}.md"],
+                                     task_id, expected_index_digest, dependency_ids)
+            result.update({k: v for k, v in public_plan(plan).items() if k != "changed_paths"})
+            source = checked_context(root, operation_gist, overrides)
+            # Validate the complete candidate too, including gate closure/trace.
+            checked_context(root, operation_gist, overrides, plan["after"])
+            if not plan["changed_paths"]:
+                result.update(effect="UNCHANGED", observed_result={"status": "success"})
+                return result
+            record = dict(operation_version="operation-v1", operation_id=str(uuid.uuid4()),
+                          kind="dependency-rewire", feature=root.name, task=source["task_id"],
+                          target_task=task_id, intent_ref=operation_gist,
+                          authority_source_ref=authority_source_ref,
+                          dependency_ids=plan["new_dependencies"],
+                          expected_source={"context": source,
+                                           "documents": {p: op.raw_snapshot(raw) for p, raw in before.items()}},
+                          owned_paths=plan["changed_paths"], observed_result={"status": "not-observed"},
+                          recorded_fields=[])
+            # Recheck all observations immediately before durable intent.
+            raw, _, _, _ = op.read_gist(root, operation_gist)
+            guard_sources(root, operation_gist, source, before, plan["after"], raw)
+            if any(read_source(root, p) != raw for p, raw in before.items()):
+                raise Error("SOURCE_CHANGED")
+            op.save(root, operation_gist, record, raw)
+            result["operation_id"] = record["operation_id"]
+            result["recorded_fields"] = [operation_gist + "#intent"]
+            result["changed_paths"] = []
+            interruption_point("after-intent")
+            return _reconcile_dependencies(root, operation_gist, record["operation_id"], overrides, True,
+                                          result=result)
+    except (Error, tc.ContextError, OSError, ValueError, KeyError, TypeError) as exc:
+        return error_result(result, exc)
+
+
+def _reconcile_dependencies(root, gist, operation_id, overrides, write=False, *, result=None):
+    """Called under the shared coordinator for writes; reads never replay."""
+    import task_operation as op
+    root = Path(root).resolve()
+    result = empty_result(operation_id) if result is None else result
+    try:
+        raw, _, _, records = op.read_gist(root, gist)
+        record = records[operation_id]
+        if (record["operation_version"] != "operation-v1" or record["kind"] != "dependency-rewire"
+                or record["feature"] != root.name or record["intent_ref"] != gist
+                or record["operation_id"] != operation_id):
+            raise Error("INVALID_INTENT")
+        uuid.UUID(operation_id)
+        target = record["target_task"]
+        if not isinstance(target, str) or tc.TASK_ID_RE.fullmatch(target) is None:
+            raise Error("INVALID_INTENT")
+        snapshots = record["expected_source"]["documents"]
+        if set(snapshots) != {"TASKS.md", f"tasks/{target}.md"}:
+            raise Error("INVALID_INTENT")
+        before = {p: op.original(snapshot) for p, snapshot in snapshots.items()}
+        plan = plan_dependencies(before["TASKS.md"], before[f"tasks/{target}.md"], target,
+                                 recovery.digest(before["TASKS.md"]), record["dependency_ids"])
+        if plan["changed_paths"] != record["owned_paths"] or not plan["changed_paths"]:
+            raise Error("INVALID_INTENT")
+        result.update({k: v for k, v in public_plan(plan).items()
+                       if k not in {"effect", "changed_paths"}})
+        source = record["expected_source"]["context"]
+        if source["task_id"] != record["task"]:
+            raise Error("INVALID_INTENT")
+        # Snapshot claims must describe the original committed records, not
+        # arbitrary user-provided replacement Markdown.
+        management = [r for r in source["repositories"] if root.is_relative_to(Path(r["resolved_path"]))]
+        if len(management) != 1:
+            raise Error("INVALID_REPOSITORY_SET")
+        pm = Path(management[0]["resolved_path"])
+        git = recovery.GitProbe()
+        for relative, content in before.items():
+            blob = (root / relative).relative_to(pm).as_posix()
+            committed = git.run(pm, "show", management[0]["observed_head"] + ":" + blob)
+            if recovery.decode(committed.encode()) != recovery.decode(content).rstrip("\n"):
+                raise Error("INVALID_INTENT")
+
+        def observe():
+            saved, pending = [], []
+            for relative in plan["before"]:
+                current = read_source(root, relative)
+                if current == plan["after"][relative]:
+                    if relative in plan["changed_paths"]:
+                        saved.append(relative)
+                elif current == plan["before"][relative]:
+                    pending.append(relative)
+                else:
+                    raise Error("CONTENT_CONFLICT", path=relative)
+            return dict(status="partial" if saved and pending else "not-observed" if pending else "success",
+                        saved_files=saved, pending_files=pending, evidence="current-bytes-not-commit")
+
+        result["observed_result"] = observe()
+        checked_context(root, gist, overrides, before, source)
+        checked_context(root, gist, overrides, plan["after"])
+        if not write:
+            result["next_check"] = "authorized-resume-dependencies" if result["observed_result"]["pending_files"] else "commit-management-then-task-context"
+            return result
+        # Each file replacement has its own precondition. No all-file rollback.
+        for relative in plan["changed_paths"]:
+            interruption_point("before-" + relative)
+            guard_sources(root, gist, source, before, plan["after"], raw)
+            observed = observe()
+            if relative in observed["pending_files"]:
+                recovery.atomic_replace(recovery.safe_path(root, relative), plan["after"][relative])
+                result["changed_paths"].append(relative)
+                result["recorded_fields"].append(relative)
+            interruption_point("after-" + relative)
+        result["observed_result"] = observe()
+        guard_sources(root, gist, source, before, plan["after"], raw)
+        record["observed_result"] = result["observed_result"]
+        record["recorded_fields"] = list(plan["changed_paths"])
+        if op.save(root, gist, record, raw) != raw:
+            result["recorded_fields"].append(gist + "#observed_result")
+        result.update(effect="APPLIED" if result["recorded_fields"] else "UNCHANGED",
+                      next_check="commit-management-then-task-context",
+                      event={"name": "dependency.rewire", "task_id": target,
+                             "edge_count": plan["edge_count"], "topology_digest": plan["topology_digest"]})
+        return result
+    except (Error, tc.ContextError, OSError, ValueError, KeyError, TypeError) as exc:
+        return error_result(result, exc)
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("feature_directory")
+    parser.add_argument("task_id", nargs="?")
+    parser.add_argument("--depends-on", default="-", help="Comma-separated IDs; '-' removes all")
+    parser.add_argument("--expected-index-digest", help="Exact digest returned by preview; required for writes")
+    parser.add_argument("--operation-gist", help="Existing tracked gist declared by the current task")
+    parser.add_argument("--operation-id", help="Read actual effects or resume this exact recorded operation")
+    parser.add_argument("--repo", action="append", default=[])
+    parser.add_argument("--apply", action="store_true")
+    parser.add_argument("--authorized", action="store_true", help="Caller attests actual session authorization")
+    parser.add_argument("--authority-source-ref", default="")
+    args = parser.parse_args(argv)
+    try:
+        root = Path(args.feature_directory).resolve()
+        overrides = tc.parse_repo_overrides(args.repo)
+        if args.operation_id:
+            if not args.operation_gist or args.task_id or args.expected_index_digest or args.depends_on != "-":
+                raise Error("INVALID_REQUEST")
+            import task_operation as op
+            result = op.reconcile(root, args.operation_gist, args.operation_id, overrides,
+                                  apply=args.apply, authority=args.authorized)
+        else:
+            if not args.task_id or tc.TASK_ID_RE.fullmatch(args.task_id) is None:
+                raise Error("INVALID_REQUEST")
+            dependencies = [] if args.depends_on == "-" else [v.strip() for v in args.depends_on.split(",")]
+            if args.apply:
+                if not args.expected_index_digest or not args.operation_gist:
+                    raise Error("INVALID_REQUEST")
+                result = replace_dependencies(root, args.task_id, args.expected_index_digest, dependencies,
+                    operation_gist=args.operation_gist, repo_overrides=overrides, authority=args.authorized,
+                    authority_source_ref=args.authority_source_ref)
+            else:
+                index = read_source(root, "TASKS.md")
+                result = public_plan(plan_dependencies(index, read_source(root, f"tasks/{args.task_id}.md"),
+                    args.task_id, args.expected_index_digest or recovery.digest(index), dependencies))
+                result["conflicts"] = []
+                result["next_check"] = "authorized-apply-with-returned-index-digest"
+        print(json.dumps(result, ensure_ascii=False))
+        return 2 if result.get("conflicts") else 0
+    except (Error, tc.ContextError, OSError, ValueError, KeyError, TypeError) as exc:
+        print(json.dumps(error_result(empty_result(), exc), ensure_ascii=False))
+        return 2
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

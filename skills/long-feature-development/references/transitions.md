@@ -24,6 +24,11 @@ Normal cross-file order is: prepare the task detail and any changed `STATUS.md` 
 
 For requirement and solution point decisions, read [confirmation.md](confirmation.md). Point state and task state are separate; the Mermaid diagrams there are authoritative for their relationship.
 
+Dependency replacement is not a state transition. Follow [review](review.md)
+for its preview, explicit authorization and F03 partial-write reconciliation;
+only an unstarted PENDING target is eligible. No fabricated human decision or
+new task may conceal an in-flight acceptance/Gate attempt.
+
 ## Feature transition note
 
 `STATUS.md` stores feature phase, condition, current task, current gate, and the next intended transition. A `GATE-*` task is an ordinary task node whose completion authorizes one feature transition. When the transition happens:

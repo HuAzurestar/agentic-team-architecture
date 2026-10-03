@@ -143,6 +143,19 @@ class DependencyPlanTests(unittest.TestCase):
         self.assertEqual(result["changed_paths"], ["TASKS.md"])
         self.assertEqual(result["after"]["tasks/DEV-03.md"], detail)
 
+    def test_pending_gate_cannot_hide_inflight_acceptance(self):
+        row = "| ACCEPT-01 | Acceptance | Actual attempt | `WIP` | human | SOL-001 | now | - | pm@3333333 |\n"
+        text = recovery.decode(self.index).replace(
+            "| - | DEV-02 | - | - | - |", "| - | ACCEPT-01 | - | - | - |")
+        text = text.replace("\n\n## Dependency topology", "\n" + row + "\n## Dependency topology")
+        raw = tc.synchronized_topology(text).encode()
+        detail = self.detail.replace(b"| Required tasks | DEV-02 |", b"| Required tasks | ACCEPT-01 |")
+        with self.assertRaisesRegex(deps.Error, "ACTIVE_ATTEMPT_WOULD_BE_HIDDEN"):
+            self.plan(["SOL-001"], index=raw, detail=detail, expected=recovery.digest(raw))
+        retained = self.plan(["ACCEPT-01", "DEV-02"], index=raw, detail=detail,
+                             expected=recovery.digest(raw))
+        self.assertEqual(retained["readiness"], "WAITING")
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
