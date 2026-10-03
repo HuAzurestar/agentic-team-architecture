@@ -21,10 +21,52 @@ REQUIRED_CONTEXT = (
     "dependencies", "trace", "gists", "type_contract", "acceptance_brief",
 )
 FULL_REPO_REF = re.compile(r"^[^@\s]+@[0-9a-f]{40}(?::[^\s]+)?$")
+C1_SHAPE = {
+    "source_scope": {"environment": str, "project": str, "document_ref": str},
+    "points": [{"id": str, "text": str, "class": str, "state": str,
+                "decided_by": str, "decided_at": str, "decision_history": [str]}],
+    "tasks": [{"id": str, "state": str, "type": str, "detail_ref": str,
+               "owner": str, "started_at": str, "completed_at": str,
+               "depends_on": [str], "repository_refs": [str],
+               "point_selectors": {"requirements": [str], "solutions": [str]}}],
+    "available_evidence": [str], "declared_evidence": [str],
+    "request_acceptance": bool, "request_rework": bool,
+    "review": {
+        "report_id": str, "attempt": str, "reviewer": str,
+        "independent_context": str, "target_repo": str, "scope": str,
+        "source_refs": [str], "report_done": bool,
+        "findings": [{"finding_id": str, "severity": str, "description": str,
+                      "affected_scope": str, "evidence": str, "resolution": str,
+                      "closed_for_candidate": bool, "recheck_ref": str}],
+        "checks": [{"check_id": str, "requirement_or_case": str, "result": str,
+                    "reason": str, "evidence": [str], "finding_ids": [str]}],
+    },
+    "expected_counts": {"all": int, "pass": int, "findings_total": int,
+                        "open_by_severity": {"P0": int, "P1": int, "P2": int}},
+}
 
 
 class BundleError(Exception):
     pass
+
+
+def validate_shape(value: object, shape: object, field: str) -> None:
+    """Check present known fields before collection/key operations.
+
+    Missing facts are classified by the contract evaluator. Wrong JSON types
+    are input errors, with field-only diagnostics rather than source contents.
+    Unknown optional display fields are not interpreted here.
+    """
+    expected = dict if isinstance(shape, dict) else list if isinstance(shape, list) else shape
+    if type(value) is not expected:
+        raise BundleError(f"{field} must be {expected.__name__}")
+    if isinstance(shape, dict):
+        for key, child in shape.items():
+            if key in value:
+                validate_shape(value[key], child, f"{field}.{key}")
+    elif isinstance(shape, list):
+        for index, child in enumerate(value):
+            validate_shape(child, shape[0], f"{field}[{index}]")
 
 
 def fail(case_id: str | None, field: str, expected: object, observed: object, path: str | None = None) -> dict:
@@ -36,6 +78,53 @@ def fail(case_id: str | None, field: str, expected: object, observed: object, pa
 
 def nonempty_string(value: object) -> bool:
     return isinstance(value, str) and bool(value.strip())
+
+
+def full_sha(value: object) -> bool:
+    return isinstance(value, str) and re.fullmatch(r"[0-9a-f]{40}", value) is not None
+
+
+def string_array(value: object, *, allow_empty: bool = False) -> bool:
+    return isinstance(value, list) and (allow_empty or bool(value)) and all(nonempty_string(item) for item in value)
+
+
+def supported_features(case: dict, supported: frozenset[str] = frozenset()) -> bool:
+    required = case.get("required_features", [])
+    if not string_array(required, allow_empty=True):
+        raise BundleError("required_features must be an array of nonempty strings")
+    return set(required).issubset(supported)
+
+
+def execution_facts(context: object) -> bool:
+    """Validate captured facts before comparing a projection to its source.
+
+    Empty dependency/gist sets are facts; missing fields and false scalars are
+    not. This is structural validation, not a replacement for a real Git probe.
+    """
+    if not isinstance(context, dict) or any(key not in context for key in REQUIRED_CONTEXT):
+        return False
+    for key in ("feature", "task", "task_detail", "type_contract", "acceptance_brief"):
+        if not isinstance(context[key], dict) or not context[key]:
+            return False
+    if any(not nonempty_string(context["feature"].get(key)) for key in ("id", "phase")):
+        return False
+    task = context["task"]
+    if not nonempty_string(task.get("id")) or not nonempty_string(task.get("state")) or task["state"] not in {"PENDING", "WIP", "BLOCKED", "RECORDING", "DONE"}:
+        return False
+    if not nonempty_string(context["task_detail"].get("blocker")):
+        return False
+    if not valid_intent(context.get("intent")):
+        return False
+    repositories = context["repositories"]
+    if not isinstance(repositories, list) or not repositories:
+        return False
+    if any(not isinstance(repo, dict) or not nonempty_string(repo.get("id")) or not full_sha(repo.get("sha")) for repo in repositories):
+        return False
+    if len({repo["id"] for repo in repositories}) != len(repositories):
+        return False
+    if not string_array(context["refs"]) or any(FULL_REPO_REF.fullmatch(ref) is None for ref in context["refs"]):
+        return False
+    return all(string_array(context[key], allow_empty=True) for key in ("dependencies", "gists"))
 
 
 def valid_intent(intent: object) -> bool:
@@ -84,14 +173,17 @@ def digest(path: Path) -> tuple[str, int]:
 
 
 def evaluate_c1(case: dict) -> str:
+    if not supported_features(case):
+        return "UNSUPPORTED_FEATURE"
+    validate_shape(case, C1_SHAPE, "C1")
     scope = case.get("source_scope")
-    if not isinstance(scope, dict) or any(not scope.get(key) for key in ("environment", "project", "document_ref")):
+    if not isinstance(scope, dict) or any(not nonempty_string(scope.get(key)) for key in ("environment", "project", "document_ref")):
         return "INVALID_DOCUMENT"
     points = case.get("points")
     if not isinstance(points, list) or not points:
         return "INVALID_DOCUMENT"
     point_ids = [point.get("id") for point in points if isinstance(point, dict)]
-    if len(point_ids) != len(points) or len(set(point_ids)) != len(points):
+    if len(point_ids) != len(points) or any(not nonempty_string(point_id) for point_id in point_ids) or len(set(point_ids)) != len(points):
         return "INVALID_DOCUMENT"
     for point in points:
         if not nonempty_string(point.get("text")) or point.get("class") not in {"ACTIVE", "DEFERRED"} or point.get("state") not in {"PROPOSED", "REOPENED", "CONFIRMED", "REJECTED", "OUT-OF-SCOPE", "INFEASIBLE"}:
@@ -100,7 +192,7 @@ def evaluate_c1(case: dict) -> str:
             return "INVALID_DOCUMENT"
     tasks = case.get("tasks", [])
     ids = [task.get("id") for task in tasks if isinstance(task, dict)]
-    if not ids or len(ids) != len(tasks) or len(ids) != len(set(ids)):
+    if not ids or len(ids) != len(tasks) or any(not nonempty_string(task_id) for task_id in ids) or len(ids) != len(set(ids)):
         return "INVALID_DOCUMENT"
     task_index = {task["id"]: task for task in tasks}
     if any(task.get("state") not in {"PENDING", "WIP", "BLOCKED", "RECORDING", "DONE"} or not isinstance(task.get("depends_on"), list) for task in tasks):
@@ -148,6 +240,8 @@ def evaluate_c1(case: dict) -> str:
         return "INVALID_DOCUMENT"
     if not isinstance(review.get("report_done"), bool) or not isinstance(case.get("request_acceptance"), bool) or not isinstance(case.get("request_rework"), bool):
         return "INVALID_DOCUMENT"
+    if not full_sha(review.get("target_sha")) or not full_sha(case.get("candidate_sha")):
+        return "INVALID_DOCUMENT"
     if review.get("target_sha") != case.get("candidate_sha"):
         return "STALE_EVIDENCE"
     findings = review.get("findings", [])
@@ -155,7 +249,7 @@ def evaluate_c1(case: dict) -> str:
         return "INVALID_DOCUMENT"
     unique_findings: dict[str, dict] = {}
     for item in findings:
-        if not isinstance(item, dict) or not item.get("finding_id") or item.get("severity") not in {"P0", "P1", "P2"}:
+        if not isinstance(item, dict) or not nonempty_string(item.get("finding_id")) or item.get("severity") not in {"P0", "P1", "P2"}:
             return "INVALID_DOCUMENT"
         if not item.get("description") or not item.get("affected_scope") or not item.get("evidence") or not nonempty_string(item.get("resolution")):
             return "MISSING_EVIDENCE"
@@ -173,7 +267,7 @@ def evaluate_c1(case: dict) -> str:
         return "INVALID_DOCUMENT"
     if len({item.get("check_id") for item in checks}) != len(checks):
         return "INVALID_DOCUMENT"
-    if any(not item.get("check_id") or not item.get("requirement_or_case") or item.get("result") not in {"PASS", "FAIL", "UNKNOWN", "NOT-RUN", "N/A"} for item in checks):
+    if any(not nonempty_string(item.get("check_id")) or not nonempty_string(item.get("requirement_or_case")) or item.get("result") not in {"PASS", "FAIL", "UNKNOWN", "NOT-RUN", "N/A"} for item in checks):
         return "INVALID_DOCUMENT"
     if any(item.get("result") == "N/A" and not item.get("reason") for item in checks):
         return "INVALID_DOCUMENT"
@@ -213,6 +307,9 @@ def evaluate_c1(case: dict) -> str:
 
 
 def evaluate_c2(case: dict) -> str:
+    if not supported_features(case):
+        return "UNSUPPORTED_FEATURE"
+    validate_shape(case, {"operation": str}, "C2")
     # Observations are typed facts, never Python truthiness. Validate even fields
     # unused by this operation so another consumer cannot reinterpret the case.
     for key in ("conditional_write", "mapping_changed", "rebind_during_write",
@@ -264,15 +361,19 @@ def evaluate_c2(case: dict) -> str:
 
 
 def evaluate_c3(case: dict) -> str:
-    if case.get("required_features") and not set(case["required_features"]).issubset({"source", "execution"}):
+    if not supported_features(case, frozenset({"source", "execution"})):
         return "UNSUPPORTED_FEATURE"
-    if case.get("display_extension") and not isinstance(case["display_extension"], dict):
+    validate_shape(case, {key: bool for key in ("source_changed", "valid", "service_available",
+                                              "fallback_same_source", "profile_matches")}, "C3")
+    if "display_extension" in case and not isinstance(case["display_extension"], dict):
         return "INVALID_ENVELOPE"
     if case.get("source_changed"):
         return "SOURCE_SET_CHANGED"
+    if case.get("stage") == "execution" and (not full_sha(case.get("recorded_sha")) or not full_sha(case.get("actual_sha"))):
+        return "MISSING_FIELD"
     if case.get("recorded_sha") != case.get("actual_sha"):
         return "STALE_REF"
-    if not case.get("authoritative_source_ref") or case.get("authoritative_source_ref") != case.get("checkout_source_ref"):
+    if not nonempty_string(case.get("authoritative_source_ref")) or case.get("authoritative_source_ref") != case.get("checkout_source_ref"):
         return "SOURCE_CHECKOUT_MISMATCH"
     if case.get("stage") == "source":
         return "SOURCE_ONLY" if case.get("valid") is False else "INVALID_ENVELOPE"
@@ -281,18 +382,14 @@ def evaluate_c3(case: dict) -> str:
     if not case.get("service_available", True) and not case.get("fallback_same_source"):
         return "SOURCE_UNAVAILABLE"
     context = case.get("context")
-    if not isinstance(context, dict) or not case.get("sources"):
+    if not isinstance(context, dict) or not string_array(case.get("sources")):
         return "INVALID_ENVELOPE"
-    if any(key not in context or context[key] in (None, "", [], {}) for key in REQUIRED_CONTEXT):
-        return "MISSING_FIELD"
-    if not valid_intent(context.get("intent")):
-        return "MISSING_FIELD"
-    if not isinstance(context.get("task_detail"), dict) or "blocker" not in context["task_detail"]:
+    if not execution_facts(context):
         return "MISSING_FIELD"
     if context.get("trace") != "VALIDATED":
         return "INVALID_ENVELOPE"
     source_facts = case.get("source_facts")
-    if not isinstance(source_facts, dict) or any(key not in source_facts for key in REQUIRED_CONTEXT) or source_facts.get("sources") != case["sources"] or not valid_intent(source_facts.get("intent")):
+    if not execution_facts(source_facts) or source_facts.get("sources") != case["sources"]:
         return "MISSING_FIELD"
     if any(context[key] != source_facts[key] for key in REQUIRED_CONTEXT) or not case.get("profile_matches", True):
         return "PROFILE_PROJECTION_MISMATCH"
@@ -318,6 +415,7 @@ def validate(root: Path) -> tuple[dict, int]:
     for name, version in VERSIONS.items():
         if contracts.get(name) != version:
             unsupported.append(f"{name}:{contracts.get(name)}")
+    unsupported.extend(f"contract:{name}" for name in contracts if name not in VERSIONS)
     if set(required) != set(VERSIONS) or len(required) != len(VERSIONS):
         unsupported.append("required_features")
     if unsupported:
@@ -334,6 +432,9 @@ def validate(root: Path) -> tuple[dict, int]:
     for entry in files:
         if not isinstance(entry, dict):
             raise BundleError("file entry must be an object")
+        if not supported_features(entry):
+            return {"valid": False, "checked_cases": checked, "failures": failures,
+                    "unsupported_versions": ["file.required_features"]}, 4
         relative = entry.get("path")
         path = safe_file(root, relative)
         if relative in seen_paths:
@@ -348,13 +449,20 @@ def validate(root: Path) -> tuple[dict, int]:
             failures.append(fail(entry.get("case_id"), "sha256", entry.get("sha256"), actual_hash, relative))
             continue
         case_id = entry.get("case_id")
+        contract = entry.get("contract")
+        if not nonempty_string(contract):
+            raise BundleError(f"contract must be a nonempty string: {relative}")
+        if contract not in VERSIONS:
+            return {"valid": False, "checked_cases": checked, "failures": failures,
+                    "unsupported_versions": [f"contract:{contract}"]}, 4
         if case_id is None:
+            if relative in {f"{name}.md" for name in VERSIONS} and relative != f"{contract}.md":
+                raise BundleError(f"specification/contract mismatch: {relative}")
             continue
         if not isinstance(case_id, str) or case_id in seen_cases:
             raise BundleError(f"duplicate or invalid case_id: {case_id}")
         seen_cases.add(case_id)
-        contract = entry.get("contract")
-        if contract not in VERSIONS or not case_id.startswith(contract.upper() + "-"):
+        if not case_id.startswith(contract.upper() + "-"):
             raise BundleError(f"contract/case mismatch: {case_id}")
         data = json.loads(path.read_text(encoding="utf-8"))
         if not isinstance(data, dict) or data.get("case_id") != case_id:

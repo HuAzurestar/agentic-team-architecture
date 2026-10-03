@@ -11,6 +11,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
+import check_long_feature_contracts as checker
+
 
 ROOT = Path(__file__).resolve().parents[1]
 BUNDLE = ROOT / "examples/long-feature/contracts/v0.2-draft"
@@ -250,6 +252,13 @@ class BundleTest(unittest.TestCase):
         self.assertFalse(result["valid"])
         self.assertIn("required_features", result["failures"][0]["observed"])
 
+    def test_unhashable_task_id_returns_json_input_error(self) -> None:
+        self.rewrite_case("C1-01", lambda case: case["tasks"][0].update(id=[]))
+        code, result = self.check_bundle()
+        self.assertEqual(code, 2)
+        self.assertFalse(result["valid"])
+        self.assertIn("tasks[0].id", result["failures"][0]["observed"])
+
     def test_c2_non_boolean_observations_cannot_certify_write(self) -> None:
         fields = ("conditional_write", "mapping_changed", "rebind_during_write",
                   "lock_serialized", "target_exists", "preview_alive",
@@ -294,6 +303,50 @@ class BundleTest(unittest.TestCase):
         self.assertEqual(code, 2)
         self.assertIn("duplicate", result["failures"][0]["observed"])
 
+    def test_spec_contract_label_is_validated_without_case_id(self) -> None:
+        value = self.manifest()
+        value["files"][0]["contract"] = "unknown-contract"
+        self.save_manifest(value)
+        code, result = self.check_bundle()
+        self.assertEqual(code, 4)
+        self.assertFalse(result["valid"])
+        self.assertTrue(result["unsupported_versions"])
+
+    def test_spec_cannot_be_relabelled_as_another_supported_contract(self) -> None:
+        value = self.manifest()
+        value["files"][0]["contract"] = "c2"
+        self.save_manifest(value)
+        code, result = self.check_bundle()
+        self.assertEqual(code, 2)
+        self.assertFalse(result["valid"])
+
+    def test_file_entry_required_features_are_not_silently_ignored(self) -> None:
+        for index in (0, 3):
+            with self.subTest(index=index):
+                value = json.loads((BUNDLE / "manifest.json").read_text(encoding="utf-8"))
+                value["files"][index]["required_features"] = ["unknown-required-semantic"]
+                self.save_manifest(value)
+                code, result = self.check_bundle()
+                self.assertEqual(code, 4)
+                self.assertFalse(result["valid"])
+
+    def test_extra_contract_version_declaration_is_rejected(self) -> None:
+        value = self.manifest()
+        value["contracts"]["c9"] = "c9/0.1"
+        self.save_manifest(value)
+        code, result = self.check_bundle()
+        self.assertEqual(code, 4)
+        self.assertFalse(result["valid"])
+
+    def test_required_semantics_are_not_ignored_by_c1_or_c2(self) -> None:
+        for case_id in ("C1-01", "C2-03"):
+            with self.subTest(case_id=case_id):
+                shutil.copytree(BUNDLE, self.bundle, dirs_exist_ok=True)
+                self.rewrite_case(case_id, lambda case: case.update(required_features=["unknown-required-semantic"]))
+                code, result = self.check_bundle()
+                self.assertEqual(code, 3)
+                self.assertEqual(result["failures"][0]["observed"], "UNSUPPORTED_FEATURE")
+
     def test_escape_path_is_rejected(self) -> None:
         value = self.manifest()
         value["files"][3]["path"] = "../outside.json"
@@ -301,6 +354,110 @@ class BundleTest(unittest.TestCase):
         code, result = self.check_bundle()
         self.assertEqual(code, 2)
         self.assertIn("unsafe relative path", result["failures"][0]["observed"])
+
+
+class ExecutionFactsTest(unittest.TestCase):
+    def case(self, name="c3-01"):
+        return json.loads((BUNDLE / "cases" / f"{name}.json").read_text(encoding="utf-8"))
+
+    def test_c1_requires_complete_candidate_and_review_sha(self):
+        for value in (None, "", "a" * 39, "g" * 40, False, []):
+            with self.subTest(value=value):
+                case = self.case("c1-01")
+                case["candidate_sha"] = case["review"]["target_sha"] = value
+                self.assertEqual(checker.evaluate_c1(case), "INVALID_DOCUMENT")
+        case = self.case("c1-01")
+        del case["candidate_sha"]
+        del case["review"]["target_sha"]
+        self.assertEqual(checker.evaluate_c1(case), "INVALID_DOCUMENT")
+
+    def test_c3_requires_complete_execution_shas(self):
+        for value in (None, "", "a" * 39, "g" * 40, False, []):
+            with self.subTest(value=value):
+                case = self.case()
+                case["recorded_sha"] = case["actual_sha"] = value
+                self.assertEqual(checker.evaluate_c3(case), "MISSING_FIELD")
+        case = self.case()
+        del case["recorded_sha"]
+        del case["actual_sha"]
+        self.assertEqual(checker.evaluate_c3(case), "MISSING_FIELD")
+
+    def test_false_facts_cannot_validate_by_matching_each_other(self):
+        for key in checker.REQUIRED_CONTEXT:
+            with self.subTest(key=key):
+                case = self.case()
+                case["context"][key] = case["source_facts"][key] = False
+                self.assertNotIn(checker.evaluate_c3(case), ("VALID", "VALID_FALLBACK"))
+
+    def test_matching_but_invalid_nested_execution_identity_is_rejected(self):
+        mutations = (
+            lambda c: c["feature"].update(id=""),
+            lambda c: c["task"].update(id=""),
+            lambda c: c["task"].update(state="READY"),
+            lambda c: c["repositories"][0].update(sha="short"),
+            lambda c: c.update(refs=[False]),
+            lambda c: c.update(dependencies=[{}]),
+            lambda c: c.update(gists=[None]),
+        )
+        for i, change in enumerate(mutations):
+            with self.subTest(mutation=i):
+                case = self.case()
+                change(case["context"])
+                change(case["source_facts"])
+                self.assertNotIn(checker.evaluate_c3(case), ("VALID", "VALID_FALLBACK"))
+
+    def test_sources_are_a_nonempty_string_array(self):
+        for sources in ("STATUS.md", False, {}, [], [False], [""]):
+            with self.subTest(sources=sources):
+                case = self.case()
+                case["sources"] = case["source_facts"]["sources"] = sources
+                self.assertEqual(checker.evaluate_c3(case), "INVALID_ENVELOPE")
+
+    def test_known_empty_dependency_and_gist_sets_are_valid(self):
+        for keys in (("dependencies",), ("gists",), ("dependencies", "gists")):
+            case = self.case()
+            for key in keys:
+                case["context"][key] = case["source_facts"][key] = []
+            self.assertEqual(checker.evaluate_c3(case), "VALID")
+        case["context"].pop("dependencies")
+        self.assertEqual(checker.evaluate_c3(case), "MISSING_FIELD")
+
+    def test_all_evaluators_reject_malformed_required_feature_arrays(self):
+        for name, evaluate in (("c1-01", checker.evaluate_c1),
+                               ("c2-03", checker.evaluate_c2),
+                               ("c3-01", checker.evaluate_c3)):
+            for value in ("execution", [{}], [False], None):
+                with self.subTest(name=name, value=value):
+                    case = self.case(name)
+                    case["required_features"] = value
+                    with self.assertRaises(checker.BundleError):
+                        evaluate(case)
+
+    def test_c1_nested_wrong_types_are_controlled(self):
+        mutations = (
+            lambda c: c.update(tasks=False),
+            lambda c: c["tasks"][0].update(id=[]),
+            lambda c: c["tasks"][0].update(state={}),
+            lambda c: c["tasks"][0].update(depends_on=[{}]),
+            lambda c: c["points"][0].update(id=[]),
+            lambda c: c["points"][0].update(state=[]),
+            lambda c: c["points"][0].update(decided_by=True),
+            lambda c: c["source_scope"].update(project=False),
+            lambda c: c.update(available_evidence=True),
+            lambda c: c["review"].update(source_refs="not-an-array"),
+            lambda c: c["review"]["findings"][0].update(finding_id=[]),
+            lambda c: c["review"]["findings"][0].update(evidence=["reference"]),
+            lambda c: c["review"]["findings"][0].update(closed_for_candidate="false"),
+            lambda c: c["review"]["checks"][0].update(check_id={}),
+            lambda c: c["review"]["checks"][0].update(finding_ids=[{}]),
+            lambda c: c["expected_counts"].update(findings_total=True),
+        )
+        for i, change in enumerate(mutations):
+            with self.subTest(mutation=i):
+                case = self.case("c1-01")
+                change(case)
+                with self.assertRaises(checker.BundleError):
+                    checker.evaluate_c1(case)
 
 
 if __name__ == "__main__":
