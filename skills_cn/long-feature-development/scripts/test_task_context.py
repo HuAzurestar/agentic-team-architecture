@@ -654,6 +654,19 @@ class TaskContextTests(unittest.TestCase):
             with patch.object(review_source, "_run", side_effect=review_source.ReviewSourceError("unavailable")):
                 with self.assertRaisesRegex(task_context.ContextError, "Git verification failed"):
                     task_context.validate_shared_records(feature, resolved)
+            # Preparation is computation, not Git waiting. An expensive wrapper
+            # must not disappear from the cumulative recovery allowance.
+            import context_loader
+            clock = [0.0]
+            real_temporary = review_source.tempfile.TemporaryFile
+            def expensive_preparation(*args, **kwargs):
+                clock[0] += 3.0
+                return real_temporary(*args, **kwargs)
+            with patch.object(context_loader.time, "process_time", side_effect=lambda: clock[0]):
+                with patch.object(review_source.tempfile, "TemporaryFile", side_effect=expensive_preparation):
+                    with self.assertRaisesRegex(context_loader.LoaderError, "budget exceeded"):
+                        with context_loader.ComputationBudget().measure():
+                            task_context.validate_shared_records(feature, resolved)
             ignored = feature / "gists" / "ignored.log"
             ignored.write_text("ignored", encoding="utf-8")
             (repo / ".git" / "info" / "exclude").write_text(

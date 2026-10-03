@@ -643,16 +643,14 @@ def validate_shared_records(feature_root: Path, resolved: dict[str, dict[str, An
         relatives.append(relative)
     # Two bounded Git queries instead of two process launches per file.
     # check-ignore's stdin paths are literal names, not ls-files pathspecs.
-    from context_loader import git_io
     from review_source import _run, ReviewSourceError
     try:
-        with git_io():
-            _, ignored_raw = _run(repository_root, "--no-literal-pathspecs", "check-ignore",
-                "-z", "--stdin", accepted=(0, 1), configured=True,
-                input_bytes=b"".join(name.encode("utf-8") + b"\0" for name in relatives))
-            prefix = feature_root.resolve().relative_to(repository_root).as_posix()
-            _, tracked_raw = _run(repository_root, "ls-files", "--cached", "--full-name",
-                "-z", "--", prefix, configured=True)
+        _, ignored_raw = _run(repository_root, "--no-literal-pathspecs", "check-ignore",
+            "-z", "--stdin", accepted=(0, 1), configured=True,
+            input_bytes=b"".join(name.encode("utf-8") + b"\0" for name in relatives))
+        prefix = feature_root.resolve().relative_to(repository_root).as_posix()
+        _, tracked_raw = _run(repository_root, "ls-files", "--cached", "--full-name",
+            "-z", "--", prefix, configured=True)
         ignored = set(ignored_raw.decode("utf-8").split("\0")) - {""}
         tracked = set(tracked_raw.decode("utf-8").split("\0")) - {""}
     except (ReviewSourceError, UnicodeError) as exc:
@@ -685,13 +683,11 @@ def validate_recovery_cleanliness(
         # A clean status is insufficient when index flags suppress observation.
         # Scope management checks to this feature; do not disturb other features.
         from review_source import _run, ReviewSourceError
-        from context_loader import git_io
         index_scope = ["--"]
         if item.get("role") == "project-management":
             index_scope.append(feature_root.relative_to(path).as_posix())
         try:
-            with git_io():
-                entries = _run(path, "ls-files", "-v", "-z", *index_scope, configured=True)[1]
+            entries = _run(path, "ls-files", "-v", "-z", *index_scope, configured=True)[1]
         except ReviewSourceError:
             raise ContextError("INDEX_STATE_UNAVAILABLE") from None
         if any(entry[:1] == b"S" or entry[:1].islower() for entry in entries.split(b"\0") if entry):

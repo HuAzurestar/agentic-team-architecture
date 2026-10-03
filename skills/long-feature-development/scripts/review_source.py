@@ -9,7 +9,7 @@ import subprocess
 import sys
 import tempfile
 sys.dont_write_bytecode = True
-from context_loader import safe_relative, LoaderError
+from context_loader import safe_relative, LoaderError, git_io
 from decision_evidence import line
 from review_comments import MAX_BYTES, parse, select, ReviewCommentError
 
@@ -51,8 +51,12 @@ def _run(repo, *args, accepted=(0,), configured=False, input_bytes=None):
     try:
         # Bound returned data; do not include remote diagnostics or credentials.
         with tempfile.TemporaryFile() as output:
-            process = subprocess.run(['git', '--no-pager', '--literal-pathspecs', '-C', str(repo), *args],
-                                     env=env, input=input_bytes, stdout=output, stderr=subprocess.DEVNULL, timeout=50)
+            command = ['git', '--no-pager', '--literal-pathspecs', '-C', str(repo), *args]
+            # Only the concrete subprocess call is external waiting. Preparation,
+            # bounded output handling and caller parsing retain their CPU cost.
+            with git_io():
+                process = subprocess.run(command, env=env, input=input_bytes, stdout=output,
+                                         stderr=subprocess.DEVNULL, timeout=50)
             _require(process.returncode in accepted, 'REVIEW_SOURCE_UNAVAILABLE')
             _require(output.tell() <= MAX_BYTES, 'RESOURCE_LIMIT')
             output.seek(0)
