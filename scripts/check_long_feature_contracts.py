@@ -213,12 +213,21 @@ def evaluate_c1(case: dict) -> str:
 
 
 def evaluate_c2(case: dict) -> str:
+    # Observations are typed facts, never Python truthiness. Validate even fields
+    # unused by this operation so another consumer cannot reinterpret the case.
+    for key in ("conditional_write", "mapping_changed", "rebind_during_write",
+                "lock_serialized", "target_exists", "preview_alive",
+                "known_partial", "response_lost"):
+        if key in case and not isinstance(case[key], bool):
+            raise BundleError(f"{case.get('case_id')}: {key} must be a boolean")
     operation = case.get("operation")
     if operation == "list":
         return "CURSOR_INVALID" if case.get("mapping_changed") else "VALID"
     if operation == "config_write":
         if "expected_config" not in case or "current_config" not in case or not isinstance(case["expected_config"], (dict, str)) or not isinstance(case["current_config"], (dict, str)):
             return "MISSING_CONDITION"
+        if case.get("rebind_during_write") and not case.get("lock_serialized"):
+            return "UNSAFE_INTERLEAVING"
         return "CONFIG_CONFLICT" if case.get("expected_config") != case.get("current_config") else "SAVED"
     if operation not in {"update", "create", "preview_apply"}:
         return "UNSUPPORTED_OPERATION"
@@ -297,14 +306,19 @@ def validate(root: Path) -> tuple[dict, int]:
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     if not isinstance(manifest, dict):
         raise BundleError("manifest must be an object")
+    contracts = manifest.get("contracts", {})
+    if not isinstance(contracts, dict):
+        raise BundleError("manifest contracts must be an object")
+    required = manifest.get("required_features", [])
+    if not isinstance(required, list) or any(not nonempty_string(item) for item in required):
+        raise BundleError("manifest required_features must be an array of nonempty strings")
     unsupported = []
     if manifest.get("schema_version") != SCHEMA:
         unsupported.append(str(manifest.get("schema_version")))
     for name, version in VERSIONS.items():
-        if manifest.get("contracts", {}).get(name) != version:
-            unsupported.append(f"{name}:{manifest.get('contracts', {}).get(name)}")
-    required = manifest.get("required_features", [])
-    if not isinstance(required, list) or set(required) != set(VERSIONS) or len(required) != len(VERSIONS):
+        if contracts.get(name) != version:
+            unsupported.append(f"{name}:{contracts.get(name)}")
+    if set(required) != set(VERSIONS) or len(required) != len(VERSIONS):
         unsupported.append("required_features")
     if unsupported:
         return {"valid": False, "checked_cases": 0, "failures": [], "unsupported_versions": unsupported}, 4
@@ -316,6 +330,7 @@ def validate(root: Path) -> tuple[dict, int]:
     failures: list[dict] = []
     checked = 0
     total = 0
+    broken_hash = False
     for entry in files:
         if not isinstance(entry, dict):
             raise BundleError("file entry must be an object")
@@ -329,6 +344,7 @@ def validate(root: Path) -> tuple[dict, int]:
         if total > MAX_TOTAL:
             raise BundleError("bundle exceeds 64 MiB")
         if entry.get("sha256") != actual_hash:
+            broken_hash = True
             failures.append(fail(entry.get("case_id"), "sha256", entry.get("sha256"), actual_hash, relative))
             continue
         case_id = entry.get("case_id")
@@ -354,7 +370,8 @@ def validate(root: Path) -> tuple[dict, int]:
     for name in VERSIONS:
         if f"{name}.md" not in seen_paths:
             failures.append(fail(None, "contract_file", f"{name}.md", "missing"))
-    return {"valid": not failures, "checked_cases": checked, "failures": failures, "unsupported_versions": []}, 0 if not failures else 3
+    code = 2 if broken_hash else (3 if failures else 0)
+    return {"valid": not failures, "checked_cases": checked, "failures": failures, "unsupported_versions": []}, code
 
 
 def main() -> int:

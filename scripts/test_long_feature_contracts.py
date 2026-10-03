@@ -58,7 +58,7 @@ class BundleTest(unittest.TestCase):
         target = self.bundle / "cases/c1-01.json"
         target.write_bytes(target.read_bytes() + b" ")
         code, result = self.check_bundle()
-        self.assertEqual(code, 3)
+        self.assertEqual(code, 2)
         self.assertEqual(result["failures"][0]["field"], "sha256")
 
     def test_unsupported_version_is_rejected(self) -> None:
@@ -229,8 +229,62 @@ class BundleTest(unittest.TestCase):
         target = self.bundle / "c1.md"
         target.write_bytes(target.read_bytes() + b" ")
         code, result = self.check_bundle()
-        self.assertEqual(code, 3)
+        self.assertEqual(code, 2)
         self.assertEqual(result["failures"][0]["path"], "c1.md")
+
+    def test_manifest_contracts_wrong_type_is_controlled_input_error(self) -> None:
+        value = self.manifest()
+        value["contracts"] = []
+        self.save_manifest(value)
+        code, result = self.check_bundle()
+        self.assertEqual(code, 2)
+        self.assertFalse(result["valid"])
+        self.assertIn("contracts", result["failures"][0]["observed"])
+
+    def test_manifest_required_feature_wrong_type_is_controlled(self) -> None:
+        value = self.manifest()
+        value["required_features"] = [{}]
+        self.save_manifest(value)
+        code, result = self.check_bundle()
+        self.assertEqual(code, 2)
+        self.assertFalse(result["valid"])
+        self.assertIn("required_features", result["failures"][0]["observed"])
+
+    def test_c2_non_boolean_observations_cannot_certify_write(self) -> None:
+        fields = ("conditional_write", "mapping_changed", "rebind_during_write",
+                  "lock_serialized", "target_exists", "preview_alive",
+                  "known_partial", "response_lost")
+        for field in fields:
+            for value in ("false", "true", 0, 1, [], {}, None):
+                with self.subTest(field=field, value=value):
+                    # Always start from the original positive, not another mutation.
+                    shutil.copytree(BUNDLE, self.bundle, dirs_exist_ok=True)
+                    self.rewrite_case("C2-03", lambda case: case.update({field: value}))
+                    code, result = self.check_bundle()
+                    self.assertEqual(code, 2)
+                    self.assertFalse(result["valid"])
+                    self.assertIn(field, result["failures"][0]["observed"])
+
+    def test_c2_config_write_checks_rebind_serialization(self) -> None:
+        def unsafe(case: dict) -> None:
+            case.update(current_config=case["expected_config"],
+                        rebind_during_write=True, lock_serialized=False)
+        self.rewrite_case("C2-02", unsafe)
+        code, result = self.check_bundle()
+        self.assertEqual(code, 3)
+        self.assertEqual(result["failures"][0]["observed"], "UNSAFE_INTERLEAVING")
+
+    def test_c2_serialized_config_write_can_match_declared_success(self) -> None:
+        def safe(case: dict) -> None:
+            case.update(current_config=case["expected_config"],
+                        rebind_during_write=True, lock_serialized=True)
+        self.rewrite_case("C2-02", safe)
+        manifest = self.manifest()
+        next(item for item in manifest["files"] if item["case_id"] == "C2-02")["expected_result"] = "SAVED"
+        self.save_manifest(manifest)
+        code, result = self.check_bundle()
+        self.assertEqual(code, 0)
+        self.assertTrue(result["valid"])
 
     def test_duplicate_case_id_is_rejected(self) -> None:
         value = self.manifest()
