@@ -567,6 +567,7 @@ class TaskContextTests(unittest.TestCase):
             scripts.mkdir()
             shutil.copy2(Path(task_state.__file__), scripts / "task_state.py")
             shutil.copy2(Path(task_context.__file__), scripts / "task_context.py")
+            shutil.copy2(Path(task_context.__file__).with_name("review_context.py"), scripts / "review_context.py")
             process = subprocess.run(
                 [sys.executable, str(scripts / "task_state.py"), "--help"],
                 stdout=subprocess.PIPE,

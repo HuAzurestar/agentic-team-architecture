@@ -16,6 +16,12 @@ This status is derived, not globally approved. Confirmed solution points are imm
 
 ## Solution points
 
+### Review scope
+
+- Review scope: review/v1
+
+Keep only this short selection; `mode=strong` and all applicable topics are defaults. Use `exclude=ui` when UI is excluded, and optional `topics`/`focus` for scope and emphasis. Weak detail stays in the review skill. A task snapshot must match this authoritative line.
+
 ## SOL-001 — <point-title>
 
 | Item | Value |
