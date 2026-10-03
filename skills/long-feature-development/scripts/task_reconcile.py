@@ -85,9 +85,7 @@ def encode(text, original):
 
 
 def remote_identity(value):
-    # Preserve path case; a case-insensitive comparison can accept another repo.
-    value = value.strip().replace("\\", "/").rstrip("/")
-    return value[:-4] if value.endswith(".git") else value
+    return tc.normalize_remote(value)
 
 
 def public_remote(value):
@@ -219,7 +217,7 @@ def resolve_repositories(root, registry, overrides, git):
             remotes = git.run(candidate, "remote").splitlines()
             if any(remote_identity(git.run(candidate, "remote", "get-url", remote)) == remote_identity(item["remote"])
                    for remote in remotes):
-                matches[str(candidate)] = candidate
+                matches[candidate] = candidate
         if len(matches) != 1:
             raise RecoveryError("AMBIGUOUS_REPOSITORY" if len(matches) > 1 else "REPO_IDENTITY_MISMATCH", repository=name)
         path = next(iter(matches.values()))

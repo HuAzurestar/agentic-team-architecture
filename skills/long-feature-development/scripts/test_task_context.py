@@ -323,6 +323,57 @@ class TaskContextTests(unittest.TestCase):
             self.assertEqual(points[0]["id"], "CORR-REQ-02")
             self.assertEqual(points[0]["state"], "CONFIRMED")
 
+    def test_task_heading_accepts_one_leading_bom_without_rewriting_source(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = self.make_feature(Path(temp))
+            path = root / "tasks/DEV-02.md"
+            raw = b"\xef\xbb\xbf" + path.read_bytes()
+            path.write_bytes(raw)
+            context = task_context.build_context(root)
+            self.assertTrue(context["task_detail"].startswith("\ufeff# DEV-02"))
+            self.assertEqual(path.read_bytes(), raw)
+            path.write_bytes(b"\xef\xbb\xbf" + raw)
+            with self.assertRaisesRegex(task_context.ContextError, "level-one task heading"):
+                task_context.build_context(root)
+
+    def test_nonfocused_tasks_must_have_valid_point_selectors(self) -> None:
+        for task_id in ("REQ-001", "SOL-001", "GATE-ACCEPT"):
+            for label, value in (("Requirement points", "REQ-999"),
+                                 ("Solution points", "SOL-999"),
+                                 ("Requirement points", "SOL-001"),
+                                 ("Requirement points", "REQ-001, REQ-001")):
+                with self.subTest(task=task_id, label=label, value=value), tempfile.TemporaryDirectory() as temp:
+                    root = self.make_feature(Path(temp))
+                    path = root / "tasks" / (task_id + ".md")
+                    text = path.read_text(encoding="utf-8")
+                    lines = [f"- {label}: {value}" if line.startswith(f"- {label}:") else line
+                             for line in text.splitlines()]
+                    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+                    with self.assertRaises(task_context.ContextError):
+                        task_context.build_context(root)
+        for mode in ("missing", "duplicate"):
+            with self.subTest(mode=mode), tempfile.TemporaryDirectory() as temp:
+                root = self.make_feature(Path(temp))
+                path = root / "tasks/GATE-ACCEPT.md"
+                text = path.read_text(encoding="utf-8")
+                text = (text.replace("- Solution points: none\n", "") if mode == "missing"
+                        else text + "\n- Solution points: none\n")
+                path.write_text(text, encoding="utf-8")
+                with self.assertRaisesRegex(task_context.ContextError, "exactly one"):
+                    task_context.build_context(root)
+
+    def test_remote_identity_preserves_repository_path_case(self) -> None:
+        import task_reconcile
+        for remote in ("https://host.test/Owner/Repo.git", "git@host.test:Owner/Repo.git",
+                       "C:/Repos/Repo.git", "https://host.test/Repo.GIT"):
+            with self.subTest(remote=remote):
+                self.assertEqual(task_context.normalize_remote(remote),
+                                 task_reconcile.remote_identity(remote))
+                self.assertNotEqual(task_context.normalize_remote(remote),
+                                    task_context.normalize_remote(remote.replace("Repo", "repo")))
+        self.assertEqual(task_context.normalize_remote(" https://host.test/Owner/Repo.git/ "),
+                         "https://host.test/Owner/Repo")
+
     def test_missing_current_task_fails(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             status = STATUS.replace("| Current task | DEV-02 | Restore this task |\n", "")
@@ -448,12 +499,41 @@ class TaskContextTests(unittest.TestCase):
             resolved = task_context.resolve_repositories(feature, registry, {"app": app})
             self.assertEqual(Path(resolved["pm"]["path"]), pm.resolve())
             self.assertEqual(Path(resolved["app"]["path"]), app.resolve())
+            git(app, "remote", "set-url", "origin", "https://example.invalid/App.git")
+            with self.assertRaisesRegex(task_context.ContextError, "cannot be located"):
+                task_context.resolve_repositories(feature, registry, {"app": app})
+            git(app, "remote", "set-url", "origin", "https://example.invalid/app.git")
             with self.assertRaisesRegex(task_context.ContextError, "cannot be located"):
                 task_context.resolve_repositories(feature, registry, {"app": parent / "absent"})
             duplicate = parent / "duplicate-app"
             make_git_repo(duplicate, "https://example.invalid/app.git", 1)
             with self.assertRaisesRegex(task_context.ContextError, "location is ambiguous"):
                 task_context.resolve_repositories(feature, registry, {})
+
+    def test_case_distinct_local_repositories_are_not_collapsed(self) -> None:
+        if Path("Repo") == Path("repo"):
+            self.skipTest("platform Path semantics are case-insensitive")
+        with tempfile.TemporaryDirectory() as temp:
+            parent = Path(temp)
+            pm, upper, lower = parent / "pm", parent / "Repo", parent / "repo"
+            make_git_repo(pm, "https://example.invalid/pm.git", 1)
+            make_git_repo(upper, "https://example.invalid/app.git", 1)
+            make_git_repo(lower, "https://example.invalid/app.git", 1)
+            feature = pm / "project/PIRC-23"
+            feature.mkdir(parents=True)
+            registry = {
+                "pm": dict(repository="pm", role="project-management",
+                           remote="https://example.invalid/pm.git", path_hints=".",
+                           stable_branch="main", integration_branch="main"),
+                "app": dict(repository="app", role="implementation",
+                            remote="https://example.invalid/app.git", path_hints="../Repo",
+                            stable_branch="main", integration_branch="main"),
+            }
+            with self.assertRaisesRegex(task_context.ContextError, "location is ambiguous"):
+                task_context.resolve_repositories(feature, registry, {})
+            import task_reconcile
+            with self.assertRaisesRegex(task_reconcile.RecoveryError, "AMBIGUOUS_REPOSITORY"):
+                task_reconcile.resolve_repositories(feature, registry, {}, task_reconcile.GitProbe())
 
     def test_trace_graph_rejects_missing_ancestry_and_disconnected_pending_task(self) -> None:
         with tempfile.TemporaryDirectory() as temp:

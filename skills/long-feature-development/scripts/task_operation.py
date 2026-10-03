@@ -125,7 +125,9 @@ def refs(root, record, overrides, git):
         raw = original(snapshot)
         blob_path = recovery.safe_path(root, relative).relative_to(management[0]).as_posix()
         recorded = git.run(management[0], "show", f"{base}:{blob_path}")
-        if recorded.lstrip("\ufeff") != recovery.decode(raw).rstrip("\n"):
+        # Git may retain CRLF (-text) or normalize it via attributes. Compare
+        # decoded text symmetrically; snapshots/CAS still use exact raw bytes.
+        if recovery.decode(recorded.encode("utf-8")) != recovery.decode(raw).rstrip("\n"):
             raise Error("INVALID_INTENT", path=relative)
     allowed = {record["intent_ref"], ".operation.lock", *record["expected_source"]["documents"]}
     prefix = root.relative_to(management[0]).as_posix() + "/"

@@ -351,7 +351,8 @@ def task_detail(root: Path, record: dict[str, Any], *, text: str | None = None) 
     task_id = record["id"]
     path = root / "tasks" / f"{task_id}.md"
     text = read_utf8(path) if text is None else text
-    title = re.findall(r"^#[ \t]+`?([^` \t]+)`?[ \t]+(?:—|–|-)[ \t]+(.+?)[ \t]*$", text, re.MULTILINE)
+    title = re.findall(r"^#[ \t]+`?([^` \t]+)`?[ \t]+(?:—|–|-)[ \t]+(.+?)[ \t]*$",
+                       text.removeprefix("\ufeff"), re.MULTILINE)
     if len(title) != 1 or title[0][0] != task_id:
         raise ContextError(f"tasks/{task_id}.md must have exactly one matching level-one task heading")
     rows = unique_table(markdown_tables(text), REPO_TABLE_HEADERS, f"{task_id} repository-refs")
@@ -546,10 +547,11 @@ def git_root(path: Path) -> Path | None:
 
 
 def normalize_remote(value: str) -> str:
+    # Repository paths can be case-sensitive, including local Git remotes.
     normalized = value.strip().replace("\\", "/").rstrip("/")
-    if normalized.casefold().endswith(".git"):
+    if normalized.endswith(".git"):
         normalized = normalized[:-4]
-    return normalized.casefold()
+    return normalized
 
 
 def repository_remotes(path: Path) -> set[str]:
@@ -592,7 +594,7 @@ def resolve_repositories(
             )
             if item["role"] == "project-management":
                 candidates.insert(0, management_root)
-        matches: dict[str, Path] = {}
+        matches: dict[Path, Path] = {}
         expected_remote = normalize_remote(item["remote"])
         for candidate in candidates:
             root = git_root(candidate) if candidate.exists() else None
@@ -603,7 +605,7 @@ def resolve_repositories(
             except ContextError:
                 remote_match = False
             if remote_match:
-                matches[str(root).casefold()] = root
+                matches[root] = root
         if not matches:
             raise ContextError(f"repository {name} cannot be located with remote {item['remote']!r}")
         if len(matches) != 1:
@@ -1044,6 +1046,25 @@ def point_selectors(detail: str, label: str, aliases: tuple[str, ...]) -> list[s
     return values
 
 
+def validate_all_point_selectors(details, requirement_text: str, solution_text: str) -> None:
+    # Build each target index once; full validation must not depend on focus.
+    for text, prefix, label, aliases in (
+        (requirement_text, "REQ", "Requirement points", ("Requirement points", "需求点")),
+        (solution_text, "SOL", "Solution points", ("Solution points", "方案点")),
+    ):
+        counts = {point_id: 1 for point_id in point_sections(text, prefix)}
+        for _, rows in markdown_tables(text):
+            for row in rows:
+                if row:
+                    counts[row[0]] = counts.get(row[0], 0) + 1
+        for task_id, (detail, _) in details.items():
+            for point_id in point_selectors(detail, label, aliases):
+                matches = counts.get(point_id, 0)
+                if matches != 1:
+                    kind = "unknown" if matches == 0 else "ambiguous"
+                    raise ContextError(f"task {task_id} selects {kind} {prefix} points: {point_id}")
+
+
 def focused_document(
     document_text: str,
     prefix: str,
@@ -1348,6 +1369,7 @@ def _validate_feature(documents: Any, git_probe: LocalGitProbe, *, include_selec
     validate_topology(tasks_text, records)
     details = validate_task_files(root, records, documents=documents)
     validate_decision_mapping(records, requirement_text, solution_text)
+    validate_all_point_selectors(details, requirement_text, solution_text)
     validate_feature_state(status_text, records)
     # Check every declaration, not just the focused task or quality task subset.
     for detail, _ in details.values():

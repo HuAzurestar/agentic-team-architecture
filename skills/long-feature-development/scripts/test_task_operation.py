@@ -63,6 +63,51 @@ class OperationTests(unittest.TestCase):
         self.assertEqual(cp.checkpoint(self.args(self.record()["operation_id"])), sha)
         self.assertEqual(git(self.app, "rev-list", "--count", "HEAD"), count)
 
+    def crlf_records(self, bom=False):
+        git(self.pm, "config", "core.autocrlf", "false")
+        (self.pm / ".gitattributes").write_bytes(b"*.md -text\n")
+        for path in self.root.rglob("*.md"):
+            text = path.read_text(encoding="utf-8-sig")
+            path.write_bytes((b"\xef\xbb\xbf" if bom else b"") + text.replace("\n", "\r\n").encode("utf-8"))
+        git(self.pm, "add", ".gitattributes", "project/PIRC-23")
+        git(self.pm, "commit", "-m", "preserve raw CRLF management documents")
+        stored = subprocess.run(
+            ["git", "-C", str(self.pm), "show", "HEAD:project/PIRC-23/STATUS.md"],
+            check=True, capture_output=True).stdout
+        self.assertIn(b"\r\n", stored)
+        self.assertEqual(stored, (self.root / "STATUS.md").read_bytes())
+
+    def check_crlf_checkpoint(self, bom=False):
+        self.crlf_records(bom)
+        originals = {name: (self.root / name).read_bytes()
+                     for name in ("STATUS.md", "TASKS.md", "tasks/DEV-02.md")}
+        self.change()
+        sha = cp.checkpoint(self.args())
+        for name, snapshot in self.record()["expected_source"]["documents"].items():
+            self.assertEqual(op.original(snapshot), originals[name])
+            updated = (self.root / name).read_bytes()
+            self.assertIn(b"\r\n", updated)
+            self.assertNotIn(b"\n", updated.replace(b"\r\n", b""))
+            self.assertEqual(updated.startswith(b"\xef\xbb\xbf"), bom)
+        self.commit_records()
+        self.assertEqual(tc.build_context(self.root)["task"]["head_refs"]["app"], sha)
+        self.assertEqual(cp.checkpoint(self.args(self.record()["operation_id"])), sha)
+        self.assertEqual(git(self.app, "rev-list", "--count", f"{self.app_head}..HEAD"), "1")
+
+    def test_raw_crlf_management_documents_checkpoint(self):
+        self.check_crlf_checkpoint()
+
+    def test_raw_crlf_bom_management_documents_checkpoint(self):
+        self.check_crlf_checkpoint(bom=True)
+
+    def test_raw_crlf_after_commit_interruption_records_once(self):
+        self.crlf_records()
+        self.test_F03_T05_after_commit_only_records_without_second_commit()
+
+    def test_raw_crlf_forged_original_is_still_rejected(self):
+        self.crlf_records()
+        self.test_forged_original_document_cannot_be_written_back()
+
     def test_F03_T04_unowned_residue_is_not_absorbed(self):
         self.change()
         (self.app / "user.txt").write_bytes(b"PRIVATE USER CONTENT")
@@ -154,7 +199,9 @@ class OperationTests(unittest.TestCase):
         raw, _, _, records = op.read_gist(self.root, self.plan_ref)
         record = copy.deepcopy(self.record())
         snap = record["expected_source"]["documents"]["TASKS.md"]
-        record["expected_source"]["documents"]["TASKS.md"] = op.raw_snapshot(op.original(snap) + b"\nFORGED\n")
+        before = op.original(snap)
+        suffix = b"\r\nFORGED\r\n" if b"\r\n" in before else b"\nFORGED\n"
+        record["expected_source"]["documents"]["TASKS.md"] = op.raw_snapshot(before + suffix)
         op.save(self.root, self.plan_ref, record, raw)
         result = self.recover(apply=True, authority=True)
         self.assertEqual(result["conflicts"][0]["code"], "INVALID_INTENT")
