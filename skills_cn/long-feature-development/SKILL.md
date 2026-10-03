@@ -113,6 +113,8 @@ helper 只取[用途提示](references/prompts.md)中的共同节与当前用途
 
 完整报告按[报告语义](references/review-report.md)、[报告模板](templates/REVIEW-REPORT.md)及纯[报告计算器](scripts/review_report.py)处理。未知/未执行检查及历史 blocker 保持可见；schema/数量有效不等于来源已验证或质量批准。修改时运行[报告测试](scripts/test_review_report.py)和随包[模拟 fixtures](scripts/fixtures/review-report.json)。
 
+[依赖规划器](scripts/task_dependencies.py)及[其测试](scripts/test_task_dependencies.py)当前只提供未启动 PENDING 任务的有限只读预览。限制见[审查流程](references/review.md)：持久化和部分写入恢复尚未实现，不能手动应用预览或把依赖 READY 当成质量批准。
+
 [本地原文 loader](scripts/context_loader.py)在完整校验前读取所有任务与声明 gist；`task_context.py` 分离真实 Git 校验和聚焦输出，比较 loader 不能代答本地仓库事实。修改该边界时运行 [loader/真实 Git 专项](scripts/test_context_loader.py)及旧 context 回归。结构化 envelope 使用 `lfd-context-v1`，默认 CLI 保持兼容。loader 分离本身不代替审查断点恢复。
 
 恢复后选择下一动作时，阅读 [references/selection.md](references/selection.md)。[纯函数核心/CLI](scripts/task_next.py)通过[严格读取适配器](scripts/selection_context.py)恢复；运行[核心测试](scripts/test_task_next.py)及[真实 Git/CLI 测试](scripts/test_selection_context.py)验证。选择结果不授予执行权限，也不修改任务状态。
