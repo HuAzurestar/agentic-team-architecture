@@ -92,7 +92,8 @@ helper 只取[用途提示](references/prompts.md)中的共同节与当前用途
 改变 task 状态或下一流转时读取 [references/transitions.md](references/transitions.md)。创建、接取、记录或完成质量 task 时读取 [references/task-contracts.md](references/task-contracts.md)。创建/执行 gate 或改变 feature phase/condition 时读取 [references/feature-gates.md](references/feature-gates.md)。验收 task 还需按 [references/acceptance.md](references/acceptance.md) 创建并主动展示普通用户可理解的短验收包；不得要求用户理解 `ACCEPT-*`、point ID、合同或内部命令。
 
 处理决策适用性时，读取[决策证据](references/decision-evidence.md)，使用纯[校验器](scripts/decision_evidence.py)及其[测试](scripts/test_decision_evidence.py)。
-该模块尚未集成来源读写器或质量策略；文件自述不能认证人类决定。
+使用 [Git 来源读取器](scripts/decision_source.py)读取本地当前材料，覆盖[真实 Git 测试](scripts/test_decision_source.py)。
+人类来源认证、写入器与质量策略尚未集成；文件自述不能认证人类决定。
 
 ## Git 与平台边界
 

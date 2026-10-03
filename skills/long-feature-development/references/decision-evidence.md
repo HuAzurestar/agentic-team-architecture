@@ -1,6 +1,12 @@
 # Decision evidence and applicability
 
-`scripts/decision_evidence.py` is a pure applicability checker. It does not read sources, write decisions, update task states, or assess quality. Source adapters and policy integration are still required.
+`scripts/decision_evidence.py` is a pure applicability checker. It does not write decisions, update task states, or assess quality. The local Git current-material reader is [decision_source.py](../scripts/decision_source.py), with [real Git tests](../scripts/test_decision_source.py). Human-source adapters, native-provider readers, writers and policy integration are still required.
+
+## Local Git current material
+
+`read_git_current(repo, relative_path, source_key=..., feature=..., decision_kind=..., exact_scope=..., expected_head=...)` reads a registered local repository and an independently observed full HEAD. The coordinator must resolve that binding independently, not blindly copy an uploaded decision's target. The reader verifies the repository root, HEAD, regular committed blob, index and working file; then rechecks index, file identity/content and HEAD. It refuses missing, dirty, ambiguous, changed, linked, unsafe or oversized sources without writing anything. Git environment overrides cannot redirect the read. Git pathspecs are literal, and replacement objects are disabled.
+
+Text CRLF is normalized to LF in both committed and working material, without trimming or other body normalization. A point read selects exactly one H2 REQ/SOL section, ignoring fenced/quoted headings; other kinds retain the entire document. The return value is current material for `check_decision`, not a verified human credential. It proves a bounded local observation only, not remote freshness or an atomic lock through a later write. The writer must repeat verification immediately before mutation and use its own conditional write protocol.
 
 The `decision-evidence-v1` record retains `decision_id`, `feature`, `human_source_ref`, `actor`, timezone-aware `received_at`, `decision_kind`, `target_ref`, `exact_scope`, `outcome`, `original_reply`, and `approved_body`. A target identifies its source and either a full Git SHA or an actual provider-native conditional version. Never fabricate a Git SHA for a provider object.
 
