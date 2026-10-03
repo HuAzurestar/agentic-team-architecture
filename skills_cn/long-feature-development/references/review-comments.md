@@ -2,11 +2,19 @@
 
 ## 原生原文档传输层
 
+### 持久化发布
+
+`review_native_publish.prepare(feature, gist, endpoint, observation, draft, authority_source_ref, authority=True)` 在已声明 F03 gist 中保存完整原文、规范草稿、变化的 RV 记录、真实原生版本和 feature/仓库读集。宿主须独立保留返回的 intent digest，绑定精确批准范围，重启时不能从日志自行推导授权。每次调用独立传入宿主配置的端点；日志只保存非敏感身份和 URL 摘要，不保存 URL 或凭据请求头。摘要本身不认证宿主或 provider。
+
+`execute(..., endpoint, authority=True, expected_intent_digest=...)` 核对范围、绑定、feature 上下文及实际来源，先持久化 dispatch，再只发一次条件 PUT。丢失响应或重入时读取同一 RV UUID 并比较完整记录，不重新发送。观察到版本/正文冲突（包括 HTTP 409/412）永久停止该次尝试，完整草稿留在 intent。不可回读保持 unknown；present 只证明记录当前存在，不证明谁写入或原调用成功返回。任何结果都不改变任务决定、质量、接受或 Agent 消费状态。
+
+只有实际冲突观察后，才允许明确新授权的 `prepare(..., supersedes=old_id)`，保留 RV 身份及旧草稿；被替代尝试不能再次执行。来源未变的 unknown 不能另建 intent 绕过。`task_operation.reconcile(..., native_endpoint=endpoint)` 支持只读回查或有授权的日志记录；缺失/不匹配宿主绑定即停止，不从不可信日志解析端点。管理 checkpoint 可在读集不变时推进；实现 HEAD 移动仍须恢复。测试组合真实临时 Git 日志和本地 HTTP，包括远端写入后真实进程突然退出；真实宿主/provider 认证和 UI 工作流接线另行验证。
+
 `review_native.NativeDocument` 是宿主配置的 UTF-8 原文档端点，不是任意 provider JSON API 的通用适配器。只绑定确实实现强条件写的既有端点。GET 返回实际唯一强 ETag 作为原生版本、原文及 SHA-256 内容摘要；摘要不是 provider 版本。[RFC 9110 第 13.1.1 节](https://www.rfc-editor.org/rfc/rfc9110.html#section-13.1.1)要求 `If-Match` 使用强比较，条件不符时不得执行所请求的修改。弱/缺失/重复 ETag 一律拒绝，不伪造 Git SHA 或替换成通配条件。
 
 宿主独立绑定 provider/source/feature/review 身份、HTTPS URL 与凭据，不从评论中取这些配置。拒绝含用户信息、查询串、片段或控制字符的 URL；凭据只放宿主持有的请求头，不进入日志或 intent。不跟随重定向；测试可明确启用仅字面 loopback 地址的 HTTP。仅接收 text/plain 或 text/markdown 的 UTF-8、identity 表示，正文上限 4 MiB。每次请求放入独立 spawn 子进程，连接最多 3 秒、读取最多 10 秒、总预算最多 15 秒并预留清理时间；无轮询或自动重试。异常仅返回脱敏代码。本地 HTTP 夹具不证明真实 provider 身份或权限。
 
-`read_for_purpose` 与 Git 读取使用相同的前台触发、默认 PENDING、显式 ID 选择规则。未绑定才为空；既有绑定返回 404、拒绝访问、重定向或传输错误不是空态。`conditional_put(text, actual_condition, authority=True)` 只发送一次 PUT。200/204 为 `acknowledged`，不是验证后的回读；409/412 统一为 conflict/409；其他或丢失响应为 unknown。始终返回 `draft_persisted=false`、`agent_consumed=false`、`decision_effect=NONE`，调用方仍负责草稿。这个低层方法不是另一条发布流程：接入工作流前仍需完成原生 F03 持久 intent、dispatch 标记、同 UUID 回读、永久冲突/新尝试策略和宿主/UI 接线，不得作为无日志写入的绕行入口。
+`read_for_purpose` 与 Git 读取使用相同的前台触发、默认 PENDING、显式 ID 选择规则。未绑定才为空；既有绑定返回 404、拒绝访问、重定向或传输错误不是空态。`conditional_put(text, actual_condition, authority=True)` 只发送一次 PUT。200/204 为 `acknowledged`，不是验证后的回读；409/412 统一为 conflict/409；其他或丢失响应为 unknown。始终返回 `draft_persisted=false`、`agent_consumed=false`、`decision_effect=NONE`，调用方仍负责草稿。这个低层方法不是另一条发布流程：持久 intent、dispatch 标记、同 UUID 回读及永久冲突/新尝试策略须走上述原生日志发布器；端到端工作流的宿主/UI 接线仍待完成，不得作为无日志写入的绕行入口。
 
 `review_comments.py` 提供有界内存 Markdown 编解码、筛选和转换预览，不读取远端权威源、不发布意见、不改变点决定/任务、不评估质量，也不因记录写着 VERIFIED 就证明已复核。这些流程集成仍需完成。
 

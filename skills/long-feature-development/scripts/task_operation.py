@@ -276,7 +276,8 @@ def desired(root, record, sha):
             [(detail_ref, detail), ("TASKS.md", tasks), ("STATUS.md", status)]}
 
 
-def reconcile(root, gist, operation_id, overrides=None, *, apply=False, authority=False, remote_reader=None):
+def reconcile(root, gist, operation_id, overrides=None, *, apply=False, authority=False, remote_reader=None,
+              native_endpoint=None):
     root = Path(root).resolve()
     result = dict(operation_id=operation_id, observed_result={"status": "unknown"},
                   next_check="inspect-conflicts", effect="NOT_APPLIED", recorded_fields=[], conflicts=[])
@@ -284,6 +285,12 @@ def reconcile(root, gist, operation_id, overrides=None, *, apply=False, authorit
         if apply and authority is not True:
             raise Error("AUTHORITY_REQUIRED")
         _, _, _, records = read_gist(root, gist)
+        if records[operation_id]['kind'] == 'review-native-publish':
+            import review_native_publish
+            if apply:
+                with coordinator(root):
+                    return review_native_publish.reconcile(root, gist, operation_id, overrides or {}, True, native_endpoint)
+            return review_native_publish.reconcile(root, gist, operation_id, overrides or {}, False, native_endpoint)
         if records[operation_id]['kind'] == 'review-publish':
             import review_publish
             if apply:

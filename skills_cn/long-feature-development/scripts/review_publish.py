@@ -27,13 +27,13 @@ def intent_digest(record):
     return hashlib.sha256(json.dumps(immutable, sort_keys=True, ensure_ascii=False, separators=(',', ':')).encode()).hexdigest()
 
 
-def _context(root, gist, overrides, record=None):
+def _context(root, gist, overrides, record=None, *, kind='review-publish'):
     plan = recovery.inspect(root, overrides, plan_gist=gist, _allowed_dirty=('.operation.lock',))
     if not plan['complete'] or plan['edits']:
         raise Error('RECOVERY_REQUIRED', blockers=plan['blockers'])
     if record is not None:
         source = record['expected_source']
-        if (record['operation_version'] != 'operation-v1' or record['kind'] != 'review-publish'
+        if (record['operation_version'] != 'operation-v1' or record['kind'] != kind
                 or record['feature'] != root.name or record['intent_ref'] != gist
                 or record['task'] != plan['task_id'] or record['owned_paths']
                 or type(record['dispatched']) is not bool
