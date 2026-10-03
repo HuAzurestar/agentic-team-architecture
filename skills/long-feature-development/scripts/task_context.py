@@ -634,14 +634,33 @@ def validate_shared_records(feature_root: Path, resolved: dict[str, dict[str, An
         if not directory.is_dir():
             raise ContextError(f"required shared directory is missing: {directory_name}")
         required.extend(path for path in directory.rglob("*") if path.is_file())
+    relatives = []
     for path in required:
         try:
             relative = path.resolve().relative_to(repository_root).as_posix()
         except ValueError as exc:
             raise ContextError(f"shared record is outside project-management repository: {path}") from exc
-        if git_succeeds(repository_root, "check-ignore", "-q", "--", relative):
+        relatives.append(relative)
+    # Two bounded Git queries instead of two process launches per file.
+    # check-ignore's stdin paths are literal names, not ls-files pathspecs.
+    from context_loader import git_io
+    from review_source import _run, ReviewSourceError
+    try:
+        with git_io():
+            _, ignored_raw = _run(repository_root, "--no-literal-pathspecs", "check-ignore",
+                "-z", "--stdin", accepted=(0, 1), configured=True,
+                input_bytes=b"".join(name.encode("utf-8") + b"\0" for name in relatives))
+            prefix = feature_root.resolve().relative_to(repository_root).as_posix()
+            _, tracked_raw = _run(repository_root, "ls-files", "--cached", "--full-name",
+                "-z", "--", prefix, configured=True)
+        ignored = set(ignored_raw.decode("utf-8").split("\0")) - {""}
+        tracked = set(tracked_raw.decode("utf-8").split("\0")) - {""}
+    except (ReviewSourceError, UnicodeError) as exc:
+        raise ContextError("shared record Git verification failed") from exc
+    for relative in relatives:
+        if relative in ignored:
             raise ContextError(f"shared project-management record is ignored: {relative}")
-        if not git_succeeds(repository_root, "ls-files", "--error-unmatch", relative):
+        if relative not in tracked:
             raise ContextError(f"shared project-management record is not tracked: {relative}")
 
 

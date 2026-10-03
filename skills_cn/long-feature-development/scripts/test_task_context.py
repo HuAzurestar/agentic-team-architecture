@@ -12,6 +12,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 import task_context
@@ -633,6 +634,26 @@ class TaskContextTests(unittest.TestCase):
             git(repo, "add", "project/PIRC-23")
             git(repo, "commit", "-m", "track feature")
             task_context.validate_shared_records(feature, resolved)
+            # Batch size must not scale the subprocess count, and NUL-delimited
+            # UTF-8 paths must not be interpreted as wildcard pathspecs.
+            import review_source
+            for index in range(30):
+                (feature / "gists" / f"bulk-{index}.md").write_text("shared", encoding="utf-8")
+            (feature / "gists" / "空 格.md").write_text("shared", encoding="utf-8")
+            (feature / "gists" / "literal1.md").write_text("tracked", encoding="utf-8")
+            git(repo, "add", "project/PIRC-23")
+            with patch.object(review_source, "_run", wraps=review_source._run) as commands:
+                task_context.validate_shared_records(feature, resolved)
+            self.assertEqual(commands.call_count, 2)
+            literal = feature / "gists" / "literal[1].md"
+            literal.write_text("untracked literal name", encoding="utf-8")
+            with self.assertRaisesRegex(task_context.ContextError, "not tracked"):
+                task_context.validate_shared_records(feature, resolved)
+            git(repo, "--literal-pathspecs", "add", "project/PIRC-23/gists/literal[1].md")
+            task_context.validate_shared_records(feature, resolved)
+            with patch.object(review_source, "_run", side_effect=review_source.ReviewSourceError("unavailable")):
+                with self.assertRaisesRegex(task_context.ContextError, "Git verification failed"):
+                    task_context.validate_shared_records(feature, resolved)
             ignored = feature / "gists" / "ignored.log"
             ignored.write_text("ignored", encoding="utf-8")
             (repo / ".git" / "info" / "exclude").write_text(
