@@ -1,5 +1,7 @@
 # Skill-only installation and lifecycle
 
+For the first project-management records, follow [first-record bootstrap](bootstrap.md). Installation and feature initialization are separate: strict task recovery requires a clean initial checkpoint, and creating it does not approve a requirement or grant execution authority.
+
 The `context.py` and `task_context.py` command-line outputs (stdout and stderr) use UTF-8 with LF line endings, including redirected pipes on Windows. Consumers must decode them as UTF-8. Chinese paths and Unicode background text do not require `PYTHONUTF8` or `PYTHONIOENCODING` workarounds. The context size budget measures the JSON payload; its trailing LF is framing, not selected content.
 
 Use the repository's existing `skills/long-feature-development` directory (or `skills_cn/long-feature-development` for the Chinese entry) with your host's directory-based skill installation. No installer service, SMMD, UI, Docker or provider credentials are required. Python and Git are needed for the local helpers. Use an explicit full 40-character commit and record it outside the installed directory; a moving branch is not an installation version. The release/test evidence must specify which commit was actually tested.

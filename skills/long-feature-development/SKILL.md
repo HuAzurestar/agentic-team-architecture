@@ -33,9 +33,9 @@ All six entries are shared project-management records when `<Project-Manage>` is
 1. Resolve `<Project-Manage>`. If the developer has not assigned a feature ID, use `NO-FEAT` when unique or `NO-FEAT-<6-char-random>` when collision is possible. Do not delay initialization to invent an official ID.
 2. Copy the four matching files from `templates/`, then copy `templates/TASK.md` once per initial task into local `tasks/<task-id>.md`.
 3. Replace or remove every angle-bracket placeholder. Keep exactly one `TASKS.md` index row and one `tasks/<task-id>.md` detail file per task; the supplied `REQ-001` and `SOL-001` point tasks are mandatory until replaced by real point IDs.
-4. Create `gists/` only when a task needs one; keep every gist bounded and trace-oriented.
+4. Create `gists/` at initialization; track an empty `gists/.gitkeep` until real gists exist so a clone retains the required directory. Gist content is optional and must remain bounded and trace-oriented.
 5. If `<Project-Manage>` is a Git repository, verify that `TASKS.md`, `tasks/`, and `gists/` are not ignored and add them to version control with the other feature records.
-6. Run the [task context helper](scripts/task_context.py) as `python <skill-root>/scripts/task_context.py <feature-directory>` before the first project-management commit. Fix every reported mismatch.
+6. Follow the [first-record bootstrap](references/bootstrap.md): inspect the initial records and observed refs, make a scoped local initialization commit explicitly pending validation, then run the [task context helper](scripts/task_context.py) as `python <skill-root>/scripts/task_context.py <feature-directory>`. Do not assign tasks, decide points or advance a Gate until strict recovery passes. Normal dirty-tree recovery is never bypassed.
 7. Leave requirement and solution in `DRAFT`. Their overall states are derived from point states, never set by a global approval.
 
 The Agent owns initial task IDs, types, dependencies, and selectors. The user supplies business intent and decisions, not internal bookkeeping labels.
@@ -150,6 +150,8 @@ Before ending, rerun `task_context.py` for the current task. A failed context ch
 Before that final recovery check, checkpoint every coherent owned implementation change. Unexpected power loss can recover through the last successful checkpoint; do not claim zero-loss recovery beyond that boundary.
 
 ## Validate this Skill
+
+After changing initialization instructions or templates, run the real-Git [bootstrap regression](scripts/test_bootstrap.py).
 
 After changing task orchestration, recovery, or checkpoint behavior, run the [context regression tests](scripts/test_task_context.py), [task creation tests](scripts/test_task_create.py), [checkpoint tests](scripts/test_task_checkpoint.py), and deterministic audit:
 
