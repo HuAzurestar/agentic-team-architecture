@@ -7,9 +7,16 @@ import sys
 import threading
 import time
 import unittest
+from unittest.mock import patch
 sys.dont_write_bytecode = True
 import review_comments as rv
 import review_native as native
+
+
+def slow_start_worker(*args):
+    # Actual spawned process: interpreter/module startup is not socket connect.
+    time.sleep(0.6)
+    native._worker(*args)
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -187,6 +194,20 @@ class NativeTests(unittest.TestCase):
             self.endpoint(read_timeout=0.2, total_timeout=2).read_document()
         self.assertLess(time.monotonic() - start, 3)
         self.assertLessEqual(self.state['gets'], 1)
+
+    def test_worker_startup_does_not_consume_socket_connect_budget(self):
+        with patch.object(native, '_worker', slow_start_worker):
+            result = self.endpoint(connect_timeout=0.2, total_timeout=5).read_document()
+        self.assertEqual(result['condition'], '"opaque-one"')
+        self.assertEqual(self.state['gets'], 1)
+
+    def test_worker_startup_still_obeys_total_deadline(self):
+        started = time.monotonic()
+        with patch.object(native, '_worker', slow_start_worker):
+            with self.assertRaisesRegex(native.NativeSourceError, 'NATIVE_START_TIMEOUT'):
+                self.endpoint(total_timeout=0.8).read_document()
+        self.assertLess(time.monotonic() - started, 2)
+        self.assertEqual(self.state['gets'], 0)
 
     def test_foreground_default_and_explicit_status_selection(self):
         endpoint = self.endpoint()

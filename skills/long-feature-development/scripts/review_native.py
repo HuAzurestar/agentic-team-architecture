@@ -29,6 +29,7 @@ def condition(value):
 def _worker(pipe, url, headers, method, body, expected, connect_timeout, read_timeout):
     connection = None
     try:
+        pipe.send(('started', None))
         parsed = urlsplit(url)
         cls = http.client.HTTPSConnection if parsed.scheme == 'https' else http.client.HTTPConnection
         connection = cls(parsed.hostname, parsed.port, timeout=connect_timeout)
@@ -127,10 +128,17 @@ class NativeDocument:
         try:
             process.start()
             send.close()
-            remaining = min(self.connect_timeout, deadline - time.monotonic() - 0.5)
+            # Spawn/import startup has its own place in the total budget. The
+            # socket-connect budget starts only when the worker is ready.
+            remaining = deadline - time.monotonic() - 0.5
             if remaining <= 0 or not receive.poll(remaining):
-                raise NativeSourceError('NATIVE_CONNECT_TIMEOUT')
+                raise NativeSourceError('NATIVE_START_TIMEOUT')
             kind, payload = receive.recv()
+            if kind == 'started':
+                remaining = min(self.connect_timeout, deadline - time.monotonic() - 0.5)
+                if remaining <= 0 or not receive.poll(remaining):
+                    raise NativeSourceError('NATIVE_CONNECT_TIMEOUT')
+                kind, payload = receive.recv()
             if kind == 'connected':
                 remaining = min(self.read_timeout, deadline - time.monotonic() - 0.5)
                 if remaining <= 0 or not receive.poll(remaining):
