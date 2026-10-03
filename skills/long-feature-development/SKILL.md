@@ -7,6 +7,8 @@ description: Help Codex resume and advance a multi-session software feature from
 
 Use the [decision workflow entry](references/decision-workflow.md) for host/workbench inspection, single-point application and recovery. The [native human-source adapter](scripts/decision_native.py) reads independently configured message and authorization services and connects the existing acceptance reader; account mapping and endpoint credentials are runtime host configuration.
 
+Use the [foreground review workflow](references/review-workflow.md) to read selected authoritative comments, check actual targets, prepare/execute an authorized exact-master synchronization, and prepare/publish/reconcile retained drafts through either Git or native sources. Its standalone CLI only reads; operation permissions come from the configured host.
+
 The [quality host composition](scripts/quality_host.py) reads strict feature records, committed original report/test/checklist objects and actual delivery Git facts before assessing quality. Its [real-source regressions](scripts/test_quality_host.py) use synthetic identity transport; an authenticated provenance reader is still required. See [quality boundaries](references/quality.md).
 
 Protected state writes use the [state evidence guard](scripts/state_guard.py), [writer tests](scripts/test_state_guard.py) and [quality boundary](references/quality.md). A human-looking actor label is not decision provenance; configured host readback is required.
