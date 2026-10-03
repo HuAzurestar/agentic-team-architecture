@@ -9,6 +9,8 @@ The [quality host composition](scripts/quality_host.py) reads strict feature rec
 
 Protected state writes use the [state evidence guard](scripts/state_guard.py), [writer tests](scripts/test_state_guard.py) and [quality boundary](references/quality.md). A human-looking actor label is not decision provenance; configured host readback is required.
 
+Record an acceptance decision through the [actual acceptance-source adapter](scripts/state_acceptance.py) and its [real-original regressions](scripts/test_state_acceptance.py). It joins committed decision/brief originals, the product candidate and configured human readback without equating a recorded rejection with quality success. Authentication and interpretation remain host responsibilities.
+
 For metadata prepared before a protected write, use the [exact prepared-state reader](scripts/state_prepared.py) and its [real-Git regressions](scripts/test_state_prepared.py). Capture the clean baseline before preparing files; never substitute an ignore-dirty flag. See the quality boundary for host composition and remaining authentication/UI work.
 
 The [quality/selector composition tests](scripts/test_quality_selection.py) cover stage-specific policy consumption; a ready summary cannot replace complete quality inputs for delivery. See [quality integration](references/quality.md).

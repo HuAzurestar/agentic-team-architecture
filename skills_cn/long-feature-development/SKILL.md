@@ -9,6 +9,8 @@ description: 从项目管理目录恢复并推进跨会话的软件 feature，�
 
 受保护状态写入使用[状态证据检查](scripts/state_guard.py)、[writer 测试](scripts/test_state_guard.py)和[质量边界](references/quality.md)。像人名的 actor 字段不是决定出处，必须经已配置宿主读回核验。
 
+记录接受决定时使用[实际接受来源适配器](scripts/state_acceptance.py)及[原件回归](scripts/test_state_acceptance.py)，组合已提交决定/brief 原件、产品候选与已配置真人读回；记录拒绝不等于质量成功。认证与自然语言解释仍由真实宿主负责。
+
 准备受保护写入的元数据时，使用[精确准备状态读取器](scripts/state_prepared.py)及其[真实 Git 回归](scripts/test_state_prepared.py)。必须在准备文件前捕获干净基线，不得替换成忽略 dirty 的开关；宿主组合及尚需完成的认证/UI 工作见质量边界。
 
 [质量/选择器组合测试](scripts/test_quality_selection.py)覆盖分阶段策略消费；交付时 ready 摘要不能替代完整质量输入。详见[质量接入](references/quality.md)。

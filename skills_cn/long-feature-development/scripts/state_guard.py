@@ -59,6 +59,7 @@ class TransitionEvidence:
     request_digest: str
     quality_inputs: object = None
     human_decision: object = None
+    revalidate: object = None
 
 
 def requirements(task_id, target, fields):
@@ -146,3 +147,8 @@ def _verify(request, callback, records, fields, brief_body=None):
             interpret=inputs.interpret, grant=inputs.grant)
         require(result['applicable'] is True and result['source_verified'] is True,
                 result['reason_codes'][0] if result['reason_codes'] else 'HUMAN_SOURCE_UNVERIFIED')
+    # Actual host adapters close their source/ref envelope after the last human
+    # callback, not before inspect_decision performs its final external read.
+    if evidence.revalidate is not None:
+        require(callable(evidence.revalidate), 'STATE_EVIDENCE_INVALID')
+        evidence.revalidate(request)
