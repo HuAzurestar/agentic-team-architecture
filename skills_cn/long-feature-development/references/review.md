@@ -23,4 +23,4 @@ API `build_packet(inputs, documents=..., host=..., previous_packets=...)` 接收
 
 `packet.build` 日志仅含 attempt ID、来源/检查数、字节数、耗时和错误码。CLI 不输出包/来源正文或授权文本；拒绝时也不能记录完整输入。
 
-旧最小 `review-packet-v1` 恢复记录仍由 `review_resume.py` 读取，不是完整交接包。不能静默升级或补造独立性证据。修改此边界时运行 `test_review_packet.py` 和原有 review/context 回归；模拟宿主 fixture 只验证拒绝逻辑，不证明 F04-T01 的真实空白审查结果。
+旧最小 `review-packet-v1` 恢复记录仍由 `review_resume.py` 读取，不是完整交接包。不能静默升级或补造独立性证据。修改此边界时运行[审查包测试](../scripts/test_review_packet.py)和原有 review/context 回归；模拟宿主 fixture 只验证拒绝逻辑，不证明 F04-T01 的真实空白审查结果。

@@ -78,6 +78,6 @@ authority text. Don't log the full input on rejection.
 
 Legacy minimal `review-packet-v1` recovery records remain readable by
 `review_resume.py`; they are not complete handoff packets. Do not silently upgrade
-them or invent missing independence evidence. Run `test_review_packet.py` plus
+them or invent missing independence evidence. Run [packet tests](../scripts/test_review_packet.py) plus
 the existing review/context regressions when changing this boundary. Synthetic
 host fixtures verify rejection logic, not F04-T01's real blank-review outcome.

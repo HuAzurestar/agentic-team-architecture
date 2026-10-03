@@ -349,6 +349,7 @@ def main(argv=None):
         draft = build_packet(packet)
         documents = {}
         identities = {}
+        seen_identities = {packet_identity, detail_identity}
         total = len(raw) + len(detail)
         if len(draft['initial_source_paths']) + 2 > MAX_FILES:
             raise LoaderError('RESOURCE_LIMIT', 'packet file budget exceeded')
@@ -361,6 +362,9 @@ def main(argv=None):
                 if error.code == 'INCOMPLETE_CONTEXT':
                     continue
                 raise
+            if identity in seen_identities:
+                raise LoaderError('DUPLICATE_IDENTITY', 'packet sources alias one file')
+            seen_identities.add(identity)
             documents[path] = value
             identities[path] = identity
             total += len(value)

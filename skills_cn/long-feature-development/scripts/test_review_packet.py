@@ -3,6 +3,7 @@
 import copy
 import hashlib
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -297,6 +298,14 @@ class PacketCliTests(unittest.TestCase):
         except OSError:
             self.skipTest('host does not allow symlink creation')
         self.assertIn('UNSAFE_PATH', self.run_cli(2)['reason_codes'])
+
+    def test_hardlinked_source_alias_is_rejected(self):
+        contract = self.root / 'gists/contract.md'
+        contract.unlink()
+        os.link(self.root / 'gists/test.md', contract)
+        self.packet['evidence_refs'][1]['sha256'] = self.packet['evidence_refs'][0]['sha256']
+        self.save()
+        self.assertIn('DUPLICATE_IDENTITY', self.run_cli(2)['reason_codes'])
 
     def test_duplicate_json_and_oversize_manifest(self):
         path = self.root / 'gists/packet.md'
