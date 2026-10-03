@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Write-time quality/decision checks; host readers are never loaded from files."""
 from dataclasses import dataclass, asdict
+from contextlib import contextmanager
+from contextvars import ContextVar
 from pathlib import Path
 import re
 import sys
@@ -9,6 +11,18 @@ import task_context as tc
 import task_next as selection
 import quality_policy as quality
 import decision_host as human
+
+_TEMPORARY = ContextVar('state_writer_temporary', default=None)
+
+
+@contextmanager
+def _writer_temporary(request, path, identity):
+    """Expose only this writer's concrete temporary artifact to host readers."""
+    token = _TEMPORARY.set((request.digest, path, *identity))
+    try:
+        yield
+    finally:
+        _TEMPORARY.reset(token)
 
 
 @dataclass(frozen=True)

@@ -99,6 +99,22 @@ class WriterTests(unittest.TestCase):
         with self.assertRaisesRegex(tc.ContextError, '^STATE_SOURCE_UNAVAILABLE$'):
             state.update(self.root, self.args, evidence_reader=reader)
 
+    def test_temporary_content_change_cannot_be_published(self):
+        self.prepare()
+        before = (self.root / 'TASKS.md').read_bytes()
+        def reader(request):
+            evidence = self.reader(request)
+            temporary = guard._TEMPORARY.get()
+            if temporary is not None:
+                path = temporary[1]
+                raw = path.read_bytes()
+                path.write_bytes(b'X' + raw[1:])
+            return evidence
+        with self.assertRaisesRegex(tc.ContextError, 'STATE_TEMPORARY_CHANGED'):
+            state.update(self.root, self.args, evidence_reader=reader)
+        self.assertEqual((self.root / 'TASKS.md').read_bytes(), before)
+        self.assertFalse(list(self.root.glob('TASKS.*.tmp')))
+
     def test_brief_actor_outcome_and_target_cannot_be_swapped(self):
         for key, value in (('approved_body', 'different'), ('actor', 'someone-else'), ('outcome', 'CONFIRMED')):
             case = WriterTests()

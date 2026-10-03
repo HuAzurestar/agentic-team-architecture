@@ -9,6 +9,8 @@ The [quality host composition](scripts/quality_host.py) reads strict feature rec
 
 Protected state writes use the [state evidence guard](scripts/state_guard.py), [writer tests](scripts/test_state_guard.py) and [quality boundary](references/quality.md). A human-looking actor label is not decision provenance; configured host readback is required.
 
+For metadata prepared before a protected write, use the [exact prepared-state reader](scripts/state_prepared.py) and its [real-Git regressions](scripts/test_state_prepared.py). Capture the clean baseline before preparing files; never substitute an ignore-dirty flag. See the quality boundary for host composition and remaining authentication/UI work.
+
 The [quality/selector composition tests](scripts/test_quality_selection.py) cover stage-specific policy consumption; a ready summary cannot replace complete quality inputs for delivery. See [quality integration](references/quality.md).
 
 The [actual quality source reader](scripts/quality_source.py) and [real Git source tests](scripts/test_quality_source.py) bind complete policy objects to original documents. Source integrity alone never proves independent review or human authority; see [quality boundaries](references/quality.md).

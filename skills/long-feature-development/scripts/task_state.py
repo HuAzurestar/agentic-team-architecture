@@ -7,6 +7,7 @@ import argparse
 import hashlib
 import os
 import re
+import stat
 import sys
 import tempfile
 from pathlib import Path
@@ -102,7 +103,7 @@ def transition_text(text: str, args: argparse.Namespace) -> str:
 def update(feature_directory: Path, args: argparse.Namespace, *, evidence_reader=None) -> str:
     # Trusted host callback only; CLI arguments and Markdown cannot import it.
     from selection_context import file_snapshot
-    from state_guard import TransitionRequest, requirements, verify
+    from state_guard import TransitionRequest, requirements, verify, _writer_temporary
     root = feature_directory.resolve()
     before_files = file_snapshot(root)
     path = root / "TASKS.md"
@@ -139,6 +140,8 @@ def update(feature_directory: Path, args: argparse.Namespace, *, evidence_reader
     if args.dry_run:
         return candidate
     handle, temp_name = tempfile.mkstemp(prefix="TASKS.", suffix=".tmp", dir=path.parent)
+    temp_info = os.fstat(handle)
+    temp_identity = (temp_info.st_dev, temp_info.st_ino)
     try:
         with os.fdopen(handle, "w", encoding="utf-8", newline="") as stream:
             stream.write(candidate)
@@ -147,13 +150,26 @@ def update(feature_directory: Path, args: argparse.Namespace, *, evidence_reader
         # Re-observe host facts and source membership immediately before replace.
         # This is optimistic validation under the single coordinator, not a lock
         # against arbitrary external writers or an atomic cross-file transaction.
-        verify(request, evidence_reader, original_records, fields, brief_body)
+        with _writer_temporary(request, Path(temp_name), temp_identity):
+            verify(request, evidence_reader, original_records, fields, brief_body)
         if file_snapshot(root) != before_files:
             raise task_context.ContextError('STATE_SOURCE_CHANGED')
+        current_temp = os.lstat(temp_name)
+        if ((current_temp.st_dev, current_temp.st_ino) != temp_identity
+                or not stat.S_ISREG(current_temp.st_mode) or current_temp.st_nlink != 1):
+            raise task_context.ContextError('STATE_TEMPORARY_CHANGED')
+        expected_bytes = candidate.encode('utf-8')
+        with open(temp_name, 'rb') as temporary:
+            opened = os.fstat(temporary.fileno())
+            if ((opened.st_dev, opened.st_ino) != temp_identity
+                    or temporary.read(len(expected_bytes) + 1) != expected_bytes):
+                raise task_context.ContextError('STATE_TEMPORARY_CHANGED')
         os.replace(temp_name, path)
     except BaseException:
         try:
-            os.unlink(temp_name)
+            current_temp = os.lstat(temp_name)
+            if (current_temp.st_dev, current_temp.st_ino) == temp_identity:
+                os.unlink(temp_name)
         except FileNotFoundError:
             pass
         raise

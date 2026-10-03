@@ -156,10 +156,25 @@ def evaluate(root, *, documents, roles, repositories, read_provenance=None, repo
     This read-only entry does not accept prepared/dirty task metadata; writers
     need a separate explicitly reconciled transition adapter, never a dirty flag.
     """
+    return _evaluate(root, documents=documents, roles=roles, repositories=repositories,
+                     read_provenance=read_provenance,
+                     read_feature=lambda: _feature(Path(root), repo_overrides))
+
+
+def evaluate_prepared(preparation, transition, *, documents, roles, repositories, read_provenance=None):
+    """Read one exact prepared transition; not a permission to ignore dirty state."""
+    from state_prepared import PreparedTransition
+    require(type(preparation) is PreparedTransition, 'INVALID_STATE_PREPARATION')
+    return _evaluate(preparation.root, documents=documents, roles=roles, repositories=repositories,
+                     read_provenance=read_provenance, read_feature=lambda: preparation.read(transition),
+                     operation_binding=transition.digest)
+
+
+def _evaluate(root, *, documents, roles, repositories, read_provenance, read_feature, operation_binding=''):
     try:
         require(type(roles) is SourceRoles, 'INVALID_SOURCE_ROLES')
         root = Path(root).resolve(strict=True)
-        feature = _feature(root, repo_overrides)
+        feature = read_feature()
         feature_digest = policy.feature_digest(feature)
         registered = {Path(r['path']).resolve(): r['actual_head'] for r in feature.repositories.values()}
         require(type(documents) is tuple and all(type(d) is sources.GitDocument and
@@ -171,7 +186,7 @@ def evaluate(root, *, documents, roles, repositories, read_provenance=None, repo
         snapshot = sources.read_git_documents(documents)
         request = _originals(feature, snapshot, roles)
         delivery = _delivery(feature, repositories, request)
-        digest = policy.request_digest(dict(feature=feature_digest, request=request,
+        digest = policy.request_digest(dict(feature=feature_digest, request=request, operation=operation_binding,
             versions=dict(snapshot.versions), sources=sorted(snapshot.source_refs), delivery=delivery))
         probe = ProvenanceRead(digest, policy.canonical(request), tuple(sorted(snapshot.documents.items())),
                                tuple(sorted(snapshot.versions.items())), feature_digest)
@@ -206,13 +221,16 @@ def evaluate(root, *, documents, roles, repositories, read_provenance=None, repo
         require(provenance() == proof, 'QUALITY_PROVENANCE_CHANGED')
         again = sources.read_git_documents(documents)
         require(again == snapshot, 'QUALITY_SOURCE_CHANGED')
-        require(policy.feature_digest(_feature(root, repo_overrides)) == feature_digest, 'QUALITY_FEATURE_CHANGED')
+        require(policy.feature_digest(read_feature()) == feature_digest, 'QUALITY_FEATURE_CHANGED')
         require(_delivery(feature, repositories, request) == delivery, 'QUALITY_DELIVERY_CHANGED')
         return Assessment(result, feature, request, observed, proof.report_evidence, proof.decision_sources)
     except Exception as error:
         # Never echo parser bodies, repository URLs, credentials or callback text.
         code = str(error) if type(error) is HostError else 'QUALITY_HOST_READ_FAILED'
-        if type(error) is tc.ContextError and str(error) in {'HIDDEN_INDEX_STATE', 'INDEX_STATE_UNAVAILABLE'}:
+        if type(error) is tc.ContextError and str(error) in {
+                'HIDDEN_INDEX_STATE', 'INDEX_STATE_UNAVAILABLE', 'STATE_SOURCE_CHANGED',
+                'STATE_REPOSITORY_CHANGED', 'STATE_UNEXPECTED_WORKSPACE',
+                'STATE_TEMPORARY_CHANGED', 'STATE_PREPARATION_MISMATCH'}:
             code = str(error)
         return Assessment(dict(allowed=False, eligible=False, reason_codes=[code],
             missing_checks=[], open_blockers=[], stale_refs=[], evidence_refs=[],
