@@ -116,6 +116,8 @@ helper 只取[用途提示](references/prompts.md)中的共同节与当前用途
 使用[点状态续记](scripts/decision_status.py)及其[真实 Git 测试](scripts/test_decision_status.py)，将独立元数据提交绑定已应用的决定 SHA，重验已配置的真人授权，并通过 task_state 转换状态。恢复从实际父提交重建精确元数据；Git 记录仅是事实，不是真人认证。未知发起不自动重试。已使用点的重开依赖协调、生产平台认证和完整工作流/UI 仍须另行完成。
 真实宿主传输、写入器与质量策略仍待集成；文件自述不能认证人类决定。
 
+[点业务协调入口](scripts/point_workflow.py)及其[业务流程测试](scripts/test_point_workflow.py)串联准备、应用与状态续记；已应用决定不重复执行，未知发起只回读，并列出须明确协调的已启动下游任务。依赖交接不是重置任务的授权；真实真人/平台来源仍由宿主接入，不从上传记录加载回调或权限。
+
 ## Git 与平台边界
 
 处理可编辑 RV 意见时，读取[格式与兼容规则](references/review-comments.md)，使用[编解码器](scripts/review_comments.py)与[回归测试](scripts/test_review_comments.py)。

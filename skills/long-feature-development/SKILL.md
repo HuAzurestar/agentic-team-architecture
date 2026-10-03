@@ -127,6 +127,8 @@ The [point application leg](scripts/decision_apply.py), with [real-Git applicati
 The [point status followup](scripts/decision_status.py) and [real-Git status tests](scripts/test_decision_status.py) bind a separate metadata commit to the applied decision SHA, recheck configured human authority, and use task_state transitions. Recovery reconstructs exact metadata from its committed parent; Git records are facts, not human authentication. Unknown dispatch is not retried. Consumed-point reopen coordination, production provider authentication and the full workflow/UI remain separate requirements.
 Live host transports, writers and quality policy still need integration; file claims cannot authenticate a human decision.
 
+The [point workflow entry](scripts/point_workflow.py) composes preparation, application and status followup, with [business-flow tests](scripts/test_point_workflow.py). It resumes an applied decision without reapplying it, observes unknown dispatch without retry, and names assigned downstream consumers requiring explicit coordination. A dependency handoff is not permission to reset tasks. The host must still bind real human/provider sources; no callbacks or authority are loaded from uploaded records.
+
 ## Git and forge boundary
 
 For editable RV comments, read [comment format and compatibility](references/review-comments.md),
