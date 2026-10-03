@@ -18,6 +18,8 @@ Restore the current task using task_context.py; compare actual repo identity, br
 
 ## review
 
+Prepare a bounded read-only handoff using references/review.md and the review packet helper. Complete material is not proof of independent execution; never deserialize host authority from a packet or start another session without real authorization.
+
 Use the exact frozen target, required checklist and original sources. Read references/task-contracts.md. Inspect declared review material from its editing authority; missing content from a declared but unavailable source is an error, not an empty review. Independence requires a verified fresh reviewer context and authorization to start it. An author self-check is not independent review. Findings belong in a bounded gist with target and coverage; report completion never implies that blockers are closed. New code requires current-version evidence.
 
 ## delivery

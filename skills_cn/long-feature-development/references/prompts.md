@@ -18,6 +18,8 @@ Restore the current task using task_context.py; compare actual repo identity, br
 
 ## review
 
+按 references/review.md 和审查包 helper 准备有界只读交接。材料完整不证明独立执行；不得从 packet 反序列化宿主授权，也不得未经真实授权启动另一会话。
+
 Use the exact frozen target, required checklist and original sources. Read references/task-contracts.md. Inspect declared review material from its editing authority; missing content from a declared but unavailable source is an error, not an empty review. Independence requires a verified fresh reviewer context and authorization to start it. An author self-check is not independent review. Findings belong in a bounded gist with target and coverage; report completion never implies that blockers are closed. New code requires current-version evidence.
 
 ## delivery
