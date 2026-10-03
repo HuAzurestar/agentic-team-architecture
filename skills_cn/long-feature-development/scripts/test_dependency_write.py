@@ -169,6 +169,29 @@ class DependencyWriteTests(unittest.TestCase):
         self.assertEqual(observed["conflicts"][0]["code"], "INVALID_INTENT", observed)
         self.assertEqual(observed["changed_paths"], [])
 
+    def test_intent_write_completed_but_response_failed_keeps_operation_id(self):
+        save = op.save
+        def lost_response(*args, **kwargs):
+            save(*args, **kwargs)
+            raise OSError("response lost after intent replacement")
+        with patch.object(op, "save", side_effect=lost_response):
+            result = self.replace()
+        self.assertIsNotNone(result["operation_id"], result)
+        self.assertEqual(result["effect"], "PARTIAL", result)
+        self.assertEqual(self.reconcile(result)["observed_result"]["status"], "not-observed")
+
+    def test_target_replacement_completed_but_response_failed_reports_actual_path(self):
+        replace = deps.recovery.atomic_replace
+        def lost_response(path, raw):
+            replace(path, raw)
+            if path.name == "TASKS.md":
+                raise OSError("response lost after target replacement")
+        with patch.object(deps.recovery, "atomic_replace", side_effect=lost_response):
+            result = self.replace()
+        self.assertEqual(result["effect"], "PARTIAL", result)
+        self.assertEqual(result["changed_paths"], ["TASKS.md"], result)
+        self.assertEqual(self.reconcile(result)["observed_result"]["status"], "partial")
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

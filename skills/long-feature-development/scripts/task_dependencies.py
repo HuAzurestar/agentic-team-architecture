@@ -110,10 +110,18 @@ def plan_dependencies(index_bytes, detail_bytes, task_id, expected_index_digest,
         "kind": "row", "old_value": old_line,
         "new_value": "| " + " | ".join(updated) + " |"}])
     try:
-        candidate = tc.synchronized_topology(candidate)
-        new_records = tc.task_records(candidate)
+        # The only index edit is the validated dependency cell above. Reuse
+        # the parsed records instead of parsing a 10k-row document three times.
+        new_records = {key: dict(row) for key, row in records.items()}
+        new_records[task_id]["dependencies"] = list(dependencies)
+        new_records[task_id]["depends_raw"] = updated[5]
         tc.validate_dependency_graph(new_records)
-        tc.validate_topology(candidate, new_records)
+        topology = tc.mermaid_topology(new_records)
+        matches = list(tc.TOPOLOGY_RE.finditer(candidate))
+        if len(matches) != 1:
+            raise Error("INVALID_DEPENDENCY_GRAPH")
+        block = "<!-- task-topology:start -->\n" + topology + "\n<!-- task-topology:end -->"
+        candidate = candidate[:matches[0].start()] + block + candidate[matches[0].end():]
         if task_id.startswith("GATE-"):
             fields = tc.type_contract_fields(detail, task_id)
             old = recovery.row_line(detail, ["Required tasks", fields["Required tasks"]])
@@ -136,7 +144,7 @@ def plan_dependencies(index_bytes, detail_bytes, task_id, expected_index_digest,
         after = dict(before)
     result = dict(task_id=task_id, old_dependencies=list(target["dependencies"]),
                   new_dependencies=dependencies, topology_digest=recovery.digest(
-                      tc.mermaid_topology(new_records).encode()),
+                      topology.encode()),
                   before=before, after=after,
                   changed_paths=[p for p in before if before[p] != after[p]],
                   expected_index_digest=expected_index_digest,
@@ -201,7 +209,7 @@ def checked_context(root, gist, overrides, originals=None, saved=None):
 def error_result(result, exc):
     result["conflicts"] = [exc.diagnostic if isinstance(exc, Error)
                            else {"code": "INVALID_DEPENDENCY_OPERATION_OR_IO"}]
-    result["effect"] = "PARTIAL" if result["recorded_fields"] else "NOT_APPLIED"
+    result["effect"] = "PARTIAL" if result["recorded_fields"] or result.get("effect_uncertain") else "NOT_APPLIED"
     result["next_check"] = "reconcile-operation" if result["operation_id"] else "inspect-conflicts"
     result["event"] = {"name": "dependency.partial" if result["effect"] == "PARTIAL" else "dependency.rewire",
                        "task_id": result.get("task_id"), "errors": [item["code"] for item in result["conflicts"]]}
@@ -282,14 +290,24 @@ def replace_dependencies(feature, task_id, expected_index_digest, dependency_ids
             guard_sources(root, operation_gist, source, before, plan["after"], raw)
             if any(read_source(root, p) != raw for p, raw in before.items()):
                 raise Error("SOURCE_CHANGED")
-            op.save(root, operation_gist, record, raw)
             result["operation_id"] = record["operation_id"]
+            op.save(root, operation_gist, record, raw)
             result["recorded_fields"] = [operation_gist + "#intent"]
             result["changed_paths"] = []
             interruption_point("after-intent")
             return _reconcile_dependencies(root, operation_gist, record["operation_id"], overrides, True,
                                           result=result)
     except (Error, tc.ContextError, OSError, ValueError, KeyError, TypeError) as exc:
+        # An exception is not proof that replace() had no effect. Preserve the
+        # UUID before attempting intent I/O, then read back without replay.
+        if result["operation_id"] and not result["recorded_fields"]:
+            try:
+                if result["operation_id"] in op.read_gist(root, operation_gist)[3]:
+                    result["recorded_fields"].append(operation_gist + "#intent")
+                else:
+                    result["operation_id"] = None
+            except (Error, OSError, ValueError, KeyError, TypeError):
+                result["effect_uncertain"] = True
         return error_result(result, exc)
 
 
@@ -298,6 +316,7 @@ def _reconcile_dependencies(root, gist, operation_id, overrides, write=False, *,
     import task_operation as op
     root = Path(root).resolve()
     result = empty_result(operation_id) if result is None else result
+    attempted, observer = [], None
     try:
         raw, _, _, records = op.read_gist(root, gist)
         record = records[operation_id]
@@ -349,6 +368,7 @@ def _reconcile_dependencies(root, gist, operation_id, overrides, write=False, *,
             return dict(status="partial" if saved and pending else "not-observed" if pending else "success",
                         saved_files=saved, pending_files=pending, evidence="current-bytes-not-commit")
 
+        observer = observe
         result["observed_result"] = observe()
         checked_context(root, gist, overrides, before, source)
         checked_context(root, gist, overrides, plan["after"])
@@ -361,6 +381,7 @@ def _reconcile_dependencies(root, gist, operation_id, overrides, write=False, *,
             guard_sources(root, gist, source, before, plan["after"], raw)
             observed = observe()
             if relative in observed["pending_files"]:
+                attempted.append(relative)
                 recovery.atomic_replace(recovery.safe_path(root, relative), plan["after"][relative])
                 result["changed_paths"].append(relative)
                 result["recorded_fields"].append(relative)
@@ -377,6 +398,21 @@ def _reconcile_dependencies(root, gist, operation_id, overrides, write=False, *,
                              "edge_count": plan["edge_count"], "topology_digest": plan["topology_digest"]})
         return result
     except (Error, tc.ContextError, OSError, ValueError, KeyError, TypeError) as exc:
+        # Account for replacement succeeding just before an I/O response fails.
+        for relative in attempted:
+            try:
+                if read_source(root, relative) == plan["after"][relative]:
+                    if relative not in result["changed_paths"]:
+                        result["changed_paths"].append(relative)
+                    if relative not in result["recorded_fields"]:
+                        result["recorded_fields"].append(relative)
+            except (Error, OSError, ValueError, KeyError, TypeError):
+                result["effect_uncertain"] = True
+        if observer is not None:
+            try:
+                result["observed_result"] = observer()
+            except (Error, OSError, ValueError, KeyError, TypeError):
+                result["observed_result"] = {"status": "unknown"}
         return error_result(result, exc)
 
 
