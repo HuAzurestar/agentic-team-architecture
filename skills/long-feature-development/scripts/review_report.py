@@ -62,13 +62,18 @@ def _require(condition, code='INVALID_REPORT', location='report'):
 
 def _canonical(value, budget):
     chunks, total = [], 0
-    for chunk in json.JSONEncoder(ensure_ascii=False, sort_keys=True,
-                                 separators=(',', ':'), allow_nan=False).iterencode(value):
+    budget.check()
+    for index, chunk in enumerate(json.JSONEncoder(ensure_ascii=False, sort_keys=True,
+                                 separators=(',', ':'), allow_nan=False).iterencode(value)):
         encoded = chunk.encode('utf-8')
         total += len(encoded)
         _require(total <= MAX_BYTES, 'RESOURCE_LIMIT')
         chunks.append(encoded)
-        budget.check()
+        # JSON emits tiny punctuation chunks; a clock syscall for every token
+        # dominates the 10k-item case. Preserve the same deadline and byte cap.
+        if index % 256 == 0:
+            budget.check()
+    budget.check()
     return b''.join(chunks)
 
 

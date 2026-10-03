@@ -51,11 +51,14 @@ def require(ok, code):
 def canonical(value):
     chunks, size = [], 0
     started = time.process_time()
-    for chunk in json.JSONEncoder(sort_keys=True, ensure_ascii=False, separators=(',', ':'), allow_nan=False).iterencode(value):
+    for index, chunk in enumerate(json.JSONEncoder(sort_keys=True, ensure_ascii=False, separators=(',', ':'), allow_nan=False).iterencode(value)):
         raw = chunk.encode('utf-8')
         size += len(raw)
-        require(size <= MAX_BYTES and time.process_time() - started <= CPU_SECONDS, 'RESOURCE_LIMIT')
+        require(size <= MAX_BYTES, 'RESOURCE_LIMIT')
+        if index % 256 == 0:
+            require(time.process_time() - started <= CPU_SECONDS, 'RESOURCE_LIMIT')
         chunks.append(raw)
+    require(time.process_time() - started <= CPU_SECONDS, 'RESOURCE_LIMIT')
     return b''.join(chunks)
 
 
@@ -67,6 +70,7 @@ def feature_digest(feature):
     require(type(feature) is tc.ValidatedFeature, 'VALIDATED_FEATURE_REQUIRED')
     return request_digest(dict(feature=feature.documents.root.name,
         sources={p: r.content_digest for p, r in feature.documents.records.items()},
+        tasks=feature.records, contracts=feature.type_contracts,
         repositories={n: [r['actual_branch'], r['actual_head']] for n, r in feature.repositories.items()}))
 
 

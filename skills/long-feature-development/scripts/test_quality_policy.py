@@ -237,6 +237,12 @@ class PolicyTests(unittest.TestCase):
                 self.assertFalse(result['allowed'])
                 self.assertIn('RESOURCE_LIMIT', result['reason_codes'])
 
+    def test_retained_observation_does_not_cover_mutated_task_facts(self):
+        observed = self.observed()
+        self.feature.records['TEST-1']['state'] = 'WIP'
+        got = q.assess_quality(self.feature, self.request, observed=observed)
+        self.assertIn('QUALITY_SOURCES_UNVERIFIED', got['reason_codes'])
+
 
 if __name__ == '__main__':
     unittest.main()
