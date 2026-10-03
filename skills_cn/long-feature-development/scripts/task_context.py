@@ -1125,11 +1125,29 @@ def focused_document(
 
 
 def point_sections(document_text: str, prefix: str) -> dict[str, str]:
+    # Mask fenced examples without changing offsets into the original source.
+    # Keep legacy H3 points readable, but never promote example headings to
+    # decision points or let them truncate the actual point's statement.
+    visible_lines: list[str] = []
+    fence = None
+    for line in document_text.splitlines(keepends=True):
+        bare = line.rstrip("\r\n")
+        marker = re.match(r"^ {0,3}(`{3,}|~{3,})(.*)$", bare)
+        hidden = fence is not None
+        if fence:
+            if (marker and marker[1][0] == fence[0]
+                    and len(marker[1]) >= len(fence) and not marker[2].strip()):
+                fence = None
+        elif marker and not (marker[1][0] == "`" and "`" in marker[2]):
+            fence = marker[1]
+            hidden = True
+        visible_lines.append(" " * len(bare) + line[len(bare):] if hidden else line)
+    visible = "".join(visible_lines)
     heading = re.compile(
         rf"^(##|###)[ \t]+`?({prefix}-[A-Za-z0-9][A-Za-z0-9._-]*)`?(?:[ \t]+(?:—|–|-)[ \t]+.*)?[ \t]*$",
         re.MULTILINE,
     )
-    matches = list(heading.finditer(document_text))
+    matches = list(heading.finditer(visible))
     sections: dict[str, str] = {}
     for match in matches:
         level = len(match.group(1))
@@ -1137,7 +1155,7 @@ def point_sections(document_text: str, prefix: str) -> dict[str, str]:
         if point_id in sections:
             raise ContextError(f"duplicate decision point in document: {point_id}")
         next_heading = re.search(
-            rf"^#{{1,{level}}}[ \t]+", document_text[match.end() :], re.MULTILINE
+            rf"^#{{1,{level}}}[ \t]+", visible[match.end() :], re.MULTILINE
         )
         end = match.end() + next_heading.start() if next_heading else len(document_text)
         sections[point_id] = document_text[match.start() : end]

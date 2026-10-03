@@ -210,6 +210,38 @@ DETAILS = {
 }
 
 
+class PointSectionTests(unittest.TestCase):
+    def test_fenced_heading_does_not_create_or_truncate_point(self):
+        for marker in ("```", "~~~", "   ````"):
+            with self.subTest(marker=marker):
+                body = ("## REQ-001 — Real\nBefore\n" + marker + "\n"
+                        "## REQ-999 — Example\n# Example boundary\n"
+                        + marker + "\nAfter\n")
+                self.assertEqual(task_context.point_sections(body + "## Appendix\n", "REQ"),
+                                 {"REQ-001": body})
+
+    def test_fenced_duplicate_is_not_an_actual_duplicate(self):
+        body = "## REQ-001\n```markdown\n## REQ-001\n```\n"
+        self.assertEqual(task_context.point_sections(body, "REQ"), {"REQ-001": body})
+        with self.assertRaises(task_context.ContextError):
+            task_context.point_sections(body + "## REQ-001\n", "REQ")
+
+    def test_short_or_annotated_closer_does_not_end_fence(self):
+        for fake_close in ("```", "````not-a-close", "~~~~"):
+            body = ("## REQ-001\n````markdown\n" + fake_close
+                    + "\n## REQ-999\n````\nAfter\n")
+            self.assertEqual(task_context.point_sections(body, "REQ"), {"REQ-001": body})
+
+    def test_quoted_and_indented_headings_are_point_content(self):
+        body = "## REQ-001\n> ## REQ-002\n    ## REQ-003\n"
+        self.assertEqual(task_context.point_sections(body, "REQ"), {"REQ-001": body})
+
+    def test_legacy_h3_point_preserves_fenced_content(self):
+        body = "### REQ-001\n~~~\n### REQ-999\n~~~\n#### Detail\n"
+        self.assertEqual(task_context.point_sections(body + "### Appendix\n", "REQ"),
+                         {"REQ-001": body})
+
+
 class TaskContextTests(unittest.TestCase):
     def make_feature(
         self,
