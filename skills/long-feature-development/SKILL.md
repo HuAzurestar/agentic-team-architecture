@@ -122,6 +122,7 @@ and use the pure [checker](scripts/decision_evidence.py) with its [tests](script
 Read local current material using the [Git source reader](scripts/decision_source.py), covered by [real Git tests](scripts/test_decision_source.py).
 Use the [host readback gateway](scripts/decision_host.py) and its [contract tests](scripts/test_decision_host.py) to connect authenticated reply reads, host policy and exact interpretation to the checker.
 The [single-point draft renderer](scripts/decision_point.py), covered by [draft tests](scripts/test_decision_point.py), preserves statements/history, moves disposition records and recomputes document state. It returns DRAFT_ONLY: it does not authenticate, write, commit, or complete a task. The durable writer must still revalidate the actual human source and current material.
+The [point commit preparer](scripts/decision_commit.py) connects strict recovery, actual Git sources and configured human readback before retaining one single-parent, single-document commit under a decision-specific Git ref. Its [real-Git tests](scripts/test_decision_commit.py) cover reentry, lost write responses, revoked grants and late source changes. COMMIT_PREPARED is not application: HEAD, the real index, working files and tasks remain unchanged; the application/status coordinator is still required.
 Live host transports, writers and quality policy still need integration; file claims cannot authenticate a human decision.
 
 ## Git and forge boundary
