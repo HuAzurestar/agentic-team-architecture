@@ -104,7 +104,8 @@ Read [references/feature-gates.md](references/feature-gates.md) only when creati
 For decision applicability work, read [decision evidence](references/decision-evidence.md)
 and use the pure [checker](scripts/decision_evidence.py) with its [tests](scripts/test_decision_evidence.py).
 Read local current material using the [Git source reader](scripts/decision_source.py), covered by [real Git tests](scripts/test_decision_source.py).
-Human-source authentication, writers and quality policy are not yet integrated; file claims cannot authenticate a human decision.
+Use the [host readback gateway](scripts/decision_host.py) and its [contract tests](scripts/test_decision_host.py) to connect authenticated reply reads, host policy and exact interpretation to the checker.
+Live host transports, writers and quality policy still need integration; file claims cannot authenticate a human decision.
 
 ## Git and forge boundary
 
