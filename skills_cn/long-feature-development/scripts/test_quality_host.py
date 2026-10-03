@@ -185,6 +185,23 @@ class HostTests(unittest.TestCase):
             stream.write('\nPrepared but not reconciled\n')
         self.assertFalse(self.evaluate().result['allowed'])
 
+    def test_hidden_requirement_edits_cannot_become_verified_context(self):
+        path = self.root / 'REQUIREMENT.md'
+        original = path.read_text(encoding='utf-8')
+        relative = 'project/PIRC-23/REQUIREMENT.md'
+        for flag in ('assume-unchanged', 'skip-worktree'):
+            with self.subTest(flag=flag):
+                git(self.pm, 'update-index', '--' + flag, relative)
+                try:
+                    path.write_text(original.replace('Confirmed requirement.', 'Changed scope after confirmation.'), encoding='utf-8')
+                    self.assertEqual(git(self.pm, 'status', '--porcelain'), '')
+                    result = self.evaluate()
+                    self.assertFalse(result.result['allowed'], result.result)
+                    self.assertIn('HIDDEN_INDEX_STATE', result.result['reason_codes'])
+                finally:
+                    git(self.pm, 'update-index', '--no-' + flag, relative)
+                    path.write_text(original, encoding='utf-8')
+
     def test_completed_test_with_actual_failure_denies(self):
         self.request['tests']['checks'][0]['outcome'] = 'FAIL'
         self.write('tests', self.request['tests'])

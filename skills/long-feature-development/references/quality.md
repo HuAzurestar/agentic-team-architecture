@@ -1,5 +1,7 @@
 # Quality evidence and release boundaries
 
+The shared strict recovery reader rejects `assume-unchanged` and `skip-worktree` index entries with HIDDEN_INDEX_STATE before trusting a clean status. This covers the selected feature in its management repository and the full implementation/support repositories; unrelated management features remain outside scope. It reads bounded NUL-delimited index tags without refreshing the index or clearing flags. A hidden edit cannot become confirmed intent merely because ordinary Git status omits it. Inspect and resolve the flag and contents explicitly before resuming; the reader never overwrites that work.
+
 ## Actual host composition
 
 ### Read-only command-line diagnosis

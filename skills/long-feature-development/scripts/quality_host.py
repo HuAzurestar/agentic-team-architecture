@@ -212,6 +212,8 @@ def evaluate(root, *, documents, roles, repositories, read_provenance=None, repo
     except Exception as error:
         # Never echo parser bodies, repository URLs, credentials or callback text.
         code = str(error) if type(error) is HostError else 'QUALITY_HOST_READ_FAILED'
+        if type(error) is tc.ContextError and str(error) in {'HIDDEN_INDEX_STATE', 'INDEX_STATE_UNAVAILABLE'}:
+            code = str(error)
         return Assessment(dict(allowed=False, eligible=False, reason_codes=[code],
             missing_checks=[], open_blockers=[], stale_refs=[], evidence_refs=[],
             required_next_actions=['repair-quality-source-or-host-provenance'],

@@ -1,5 +1,7 @@
 # 质量证据与放行边界
 
+共享严格恢复入口在信任 clean status 前拒绝 `assume-unchanged` / `skip-worktree` 索引项，返回 HIDDEN_INDEX_STATE。管理仓库只检查当前 Feature，实现/支持仓库检查全仓库；其他管理 Feature 不扩大纳入。读取有界 NUL 分隔索引标记，不刷新索引、不自动清标记。隐藏编辑不能因为普通 Git status 不显示就成为已确认意图；恢复前应明确核对标记和内容，读取器不会覆盖这些工作。
+
 ## 实际宿主组合
 
 ### 只读命令行诊断

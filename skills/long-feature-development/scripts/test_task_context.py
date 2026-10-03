@@ -959,6 +959,43 @@ Accept or request changes.
             with self.assertRaisesRegex(task_context.ContextError, "repository app"):
                 task_context.validate_recovery_cleanliness(feature, resolved)
 
+    def test_hidden_index_flags_are_rejected_without_touching_other_features(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            parent = Path(temp)
+            pm, app = parent / 'pm', parent / 'app'
+            make_git_repo(pm, 'https://example.invalid/pm.git', 1)
+            make_git_repo(app, 'https://example.invalid/app.git', 1)
+            feature = pm / 'project/PIRC-23'
+            feature.mkdir(parents=True)
+            unrelated = pm / 'project/PIRC-14/TASKS.md'
+            unrelated.parent.mkdir(parents=True)
+            for path in (feature / 'STATUS.md', unrelated, app / 'source.py'):
+                path.write_text('original\n', encoding='utf-8')
+            for repo in (pm, app):
+                git(repo, 'add', '.')
+                git(repo, 'commit', '-m', 'persist source fixture')
+            resolved = {'pm': {'role': 'project-management', 'path': str(pm)},
+                        'app': {'role': 'implementation', 'path': str(app)}}
+            git(pm, 'update-index', '--skip-worktree', 'project/PIRC-14/TASKS.md')
+            unrelated.write_text('other feature work\n', encoding='utf-8')
+            task_context.validate_recovery_cleanliness(feature, resolved)
+            for repo, relative in ((pm, 'project/PIRC-23/STATUS.md'), (app, 'source.py')):
+                for flag in ('assume-unchanged', 'skip-worktree'):
+                    with self.subTest(repo=repo.name, flag=flag):
+                        git(repo, 'update-index', '--' + flag, relative)
+                        try:
+                            (repo / relative).write_text('hidden edit\n', encoding='utf-8')
+                            self.assertEqual(git(repo, 'status', '--porcelain'), '')
+                            before = (repo / '.git/index').read_bytes()
+                            with self.assertRaisesRegex(task_context.ContextError, '^HIDDEN_INDEX_STATE$'):
+                                task_context.validate_recovery_cleanliness(feature, resolved)
+                            self.assertEqual(before, (repo / '.git/index').read_bytes())
+                            self.assertEqual((repo / relative).read_text(), 'hidden edit\n')
+                        finally:
+                            git(repo, 'update-index', '--no-' + flag, relative)
+                            (repo / relative).write_text('original\n', encoding='utf-8')
+            self.assertEqual(unrelated.read_text(), 'other feature work\n')
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
