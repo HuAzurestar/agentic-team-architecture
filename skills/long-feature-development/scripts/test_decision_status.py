@@ -1,10 +1,16 @@
 #!/usr/bin/env python3
 """Real Git status followups; host authorization is explicitly synthetic."""
 import unittest
+import json
+import os
+from pathlib import Path
+import subprocess
+import sys
 from unittest.mock import patch
 from dataclasses import replace
 import decision_apply as apply
 import decision_status as status
+import decision_host as human
 from decision_evidence import decision_digest
 import task_context as tc
 import test_decision_apply as fixture
@@ -155,6 +161,75 @@ class PointStatusTests(unittest.TestCase):
         self.assertEqual(result["status_commit"], sha)
         self.assertEqual(result["status"], "STATUS_RECORDED")
 
+    def crash(self, stage):
+        child = subprocess.run([sys.executable, "-B", str(Path(__file__).resolve()),
+            "--crash-worker", str(self.root), json.dumps(self.case.case.record), stage],
+            capture_output=True, timeout=300)
+        self.assertEqual(child.returncode, 75, child.stderr.decode("utf-8", errors="replace"))
+        return self.observe()
+
+    def test_process_exit_after_candidate_reuses_retained_sha(self):
+        result = self.crash("candidate")
+        self.assertEqual(result["status"], "STATUS_PREPARED")
+        applied = self.prepare().apply()
+        self.assertEqual(applied["status"], "STATUS_RECORDED")
+        self.assertEqual(applied["status_commit"], result["status_commit"])
+
+    def test_process_exit_after_dispatch_does_not_repeat_effect(self):
+        result = self.crash("dispatch")
+        self.assertEqual(result["status"], "STATUS_DISPATCHED_UNCONFIRMED")
+        real = status.git
+        def no_merge(repo, *args, **kwargs):
+            self.assertNotEqual(args[0], "merge")
+            return real(repo, *args, **kwargs)
+        with patch.object(status, "git", side_effect=no_merge):
+            self.assertEqual(self.prepare().apply(), result)
+        self.assertEqual(git(self.pm, "rev-parse", "HEAD"), self.applied["commit"])
+
+    def test_process_exit_after_merge_recovers_applied_status(self):
+        result = self.crash("merge")
+        self.assertEqual(result["status"], "STATUS_RECORDED")
+        self.assertEqual(git(self.pm, "rev-parse", "HEAD"), result["status_commit"])
+        self.assertFalse(result["merge_authorized"])
+
+    def test_hidden_dirty_status_is_not_reported_as_recorded(self):
+        self.prepare().apply()
+        path = self.root / ("tasks/" + self.point + ".md")
+        relative = path.relative_to(self.pm).as_posix()
+        git(self.pm, "update-index", "--skip-worktree", relative)
+        path.write_text(path.read_text(encoding="utf-8") + "\nHidden foreign edit.\n", encoding="utf-8")
+        with self.assertRaises(tc.ContextError):
+            self.observe()
+        self.assertIn("Hidden foreign edit.", path.read_text(encoding="utf-8"))
+
+
+def crash_worker(root, record, stage):
+    root = Path(root)
+    pm = root.parents[1]
+    reply = human.HumanReply(record["human_source_ref"], record["actor"], "human", record["received_at"],
+                             record["original_reply"], "conversation", "fixture-version", "fixture:verified")
+    grant = human.HumanGrant(record["actor"], record["feature"], "point", "pm:solution",
+                             tuple(record["exact_scope"]), (record["outcome"],))
+    operation = status.PointStatus(root, pm, record["exact_scope"][0], decision_digest(record),
+        source_key="pm:solution", read_reply=lambda ref: reply,
+        interpret=lambda reply, raw: human.HumanInterpretation(decision_digest(raw), "fixture:exact"),
+        read_grant=lambda request, raw: grant, repo_overrides={"pm": pm, "app": pm.parent / "app"})
+    real = status.git
+    def crash(repo, *args, **kwargs):
+        result = real(repo, *args, **kwargs)
+        boundary = (args[0] == "merge" and stage == "merge") or (
+            args[0] == "update-ref" and args[1] == (
+                operation.retained if stage == "candidate" else operation.dispatch)
+            and stage in {"candidate", "dispatch"})
+        if boundary:
+            os._exit(75)
+        return result
+    with patch.object(status, "git", side_effect=crash):
+        operation.apply()
+
 
 if __name__ == "__main__":
-    unittest.main()
+    if len(sys.argv) == 5 and sys.argv[1] == "--crash-worker":
+        crash_worker(sys.argv[2], json.loads(sys.argv[3]), sys.argv[4])
+    else:
+        unittest.main(verbosity=2)
