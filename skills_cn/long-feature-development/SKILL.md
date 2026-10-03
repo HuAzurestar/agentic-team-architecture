@@ -98,6 +98,9 @@ helper 只取[用途提示](references/prompts.md)中的共同节与当前用途
 
 ## Git 与平台边界
 
+处理可编辑 RV 意见时，读取[格式与兼容规则](references/review-comments.md)，使用[编解码器](scripts/review_comments.py)与[回归测试](scripts/test_review_comments.py)。
+它尚非权威远端读取/发布流程，且绝不改变点决定。
+
 - 每个仓库独立处理；一个 feature 可以跨仓库。
 - 仓库定位顺序为：显式 `--repo NAME=PATH`、相对项目管理仓库根目录的 path hints、按注册 remote 身份进行 sibling/workspace 发现。不得把历史绝对路径当作定位器；缺失或歧义均停止。
 - 对实际 Git 对象验证注册分支、working HEAD、integration opponent、PR/MR 端点、baseline 有序性、start-to-head 祖先关系、completion SHA 和依赖祖先关系；恢复输出包含派生追溯图，缺 commit 或必需路径断开都是错误。

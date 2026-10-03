@@ -109,6 +109,10 @@ Live host transports, writers and quality policy still need integration; file cl
 
 ## Git and forge boundary
 
+For editable RV comments, read [comment format and compatibility](references/review-comments.md),
+then use the [codec](scripts/review_comments.py) and [regressions](scripts/test_review_comments.py).
+This is not yet the authoritative remote reader/publisher and never changes point decisions.
+
 - Treat each repository independently. A feature may span several repositories.
 - Resolve repositories from `STATUS.md` in this order: explicit `--repo NAME=PATH`, registered path hints relative to the project-management repository root, then sibling/workspace discovery by registered remote identity. Never trust a historical absolute working path as the locator. Missing or ambiguous matches stop recovery.
 - Verify registered stable/integration branches, observed working heads, integration opponents, PR/MR endpoints, task baseline ordering, start-to-head ancestry, completion SHAs, and dependency ancestry against the actual Git object databases. The recovery output includes a derived trace graph; missing commits or disconnected required paths are errors.
