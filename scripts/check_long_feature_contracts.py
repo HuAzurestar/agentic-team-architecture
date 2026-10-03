@@ -37,7 +37,8 @@ C1_SHAPE = {
         "source_refs": [str], "report_done": bool,
         "findings": [{"finding_id": str, "severity": str, "description": str,
                       "affected_scope": str, "evidence": str, "resolution": str,
-                      "closed_for_candidate": bool, "recheck_ref": str}],
+                      "closed_for_candidate": bool, "recheck_ref": str,
+                      "blocking": bool}],
         "checks": [{"check_id": str, "requirement_or_case": str, "result": str,
                     "reason": str, "evidence": [str], "finding_ids": [str]}],
     },
@@ -290,7 +291,11 @@ def evaluate_c1(case: dict) -> str:
     }
     if case.get("expected_counts") != counts:
         return "COUNT_MISMATCH"
-    blocking = any(f.get("severity") in {"P0", "P1"} and not f.get("closed_for_candidate", False) for f in unique_findings.values())
+    blocking = any(
+        (f["severity"] in {"P0", "P1"} or f.get("blocking", False))
+        and not f.get("closed_for_candidate", False)
+        for f in unique_findings.values()
+    )
     if case.get("request_acceptance") and not review.get("report_done"):
         return "ACCEPT_BLOCKED"
     if case.get("request_rework") and review.get("report_done") and case.get("request_acceptance") and blocking:

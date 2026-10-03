@@ -433,6 +433,62 @@ class ExecutionFactsTest(unittest.TestCase):
                     with self.assertRaises(checker.BundleError):
                         evaluate(case)
 
+    def acceptance_case(self, severity="P2"):
+        case = self.case("c1-01")
+        case["points"][1].update(state="CONFIRMED", decided_by="owner",
+                                  decided_at="2026-10-03", decision_history=["approved"])
+        for check in case["review"]["checks"]:
+            check.update(result="PASS", reason="verified")
+        for finding in case["review"]["findings"]:
+            finding["severity"] = severity
+        case["expected_counts"]["pass"] = 2
+        case["expected_counts"]["open_by_severity"] = {
+            level: int(level == severity) for level in ("P0", "P1", "P2")}
+        case["request_rework"] = False
+        return case
+
+    def test_explicit_p2_blocker_prevents_acceptance_but_allows_rework(self):
+        case = self.acceptance_case()
+        for finding in case["review"]["findings"]:
+            finding["blocking"] = True
+        self.assertEqual(checker.evaluate_c1(case), "ACCEPT_BLOCKED")
+        case["request_rework"] = True
+        self.assertEqual(checker.evaluate_c1(case), "REWORK_READY_ACCEPT_BLOCKED")
+        case["request_acceptance"] = False
+        self.assertEqual(checker.evaluate_c1(case), "VALID")
+
+    def test_nonblocking_p2_and_current_candidate_closure_allow_acceptance(self):
+        case = self.acceptance_case()
+        self.assertEqual(checker.evaluate_c1(case), "VALID")
+        for finding in case["review"]["findings"]:
+            finding["blocking"] = False
+        self.assertEqual(checker.evaluate_c1(case), "VALID")
+        for finding in case["review"]["findings"]:
+            finding.update(blocking=True, closed_for_candidate=True, resolution="fixed",
+                           recheck_ref="review/attempt-1.md#recheck-1",
+                           recheck_sha=case["candidate_sha"])
+        case["expected_counts"]["open_by_severity"]["P2"] = 0
+        self.assertEqual(checker.evaluate_c1(case), "VALID")
+        for finding in case["review"]["findings"]:
+            finding["recheck_sha"] = "b" * 40
+        self.assertEqual(checker.evaluate_c1(case), "MISSING_EVIDENCE")
+
+    def test_false_blocking_flag_cannot_downgrade_p0_or_p1(self):
+        for severity in ("P0", "P1"):
+            case = self.acceptance_case(severity)
+            for finding in case["review"]["findings"]:
+                finding["blocking"] = False
+            self.assertEqual(checker.evaluate_c1(case), "ACCEPT_BLOCKED")
+
+    def test_blocking_flag_requires_boolean(self):
+        for value in ("false", "true", 0, 1, None, [], {}):
+            with self.subTest(value=value):
+                case = self.acceptance_case()
+                for finding in case["review"]["findings"]:
+                    finding["blocking"] = value
+                with self.assertRaises(checker.BundleError):
+                    checker.evaluate_c1(case)
+
     def test_c1_nested_wrong_types_are_controlled(self):
         mutations = (
             lambda c: c.update(tasks=False),
