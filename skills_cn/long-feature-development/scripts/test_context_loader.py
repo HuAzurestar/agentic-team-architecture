@@ -177,6 +177,31 @@ class LoaderTests(unittest.TestCase):
         cl.enumerate_tasks(loader)
         self.error('INCOMPLETE_CONTEXT', loader.finish)
 
+    def test_finish_reuses_read_boundary_size_check(self):
+        loader = cl.LocalMarkdownLoader(self.root)
+        for name in cl.enumerate_tasks(loader):
+            loader.read(name)
+        loader.read('gists/parser.md')
+        with patch.object(loader, '_path', wraps=loader._path) as checked:
+            loader.finish()
+        # Revalidate the path before and after the actual read, not an extra
+        # complete path walk solely to obtain the same pre-read file size.
+        self.assertEqual(sum(call.args == ('gists/parser.md',)
+                             for call in checked.call_args_list), 2)
+
+    def test_finish_rejects_growing_and_shrinking_sources(self):
+        path = self.root / 'gists/parser.md'
+        original = path.read_bytes()
+        for changed in (original + b'x', original[:-1]):
+            with self.subTest(size=len(changed)):
+                path.write_bytes(original)
+                loader = cl.LocalMarkdownLoader(self.root)
+                for name in cl.enumerate_tasks(loader):
+                    loader.read(name)
+                loader.read('gists/parser.md')
+                path.write_bytes(changed)
+                self.error('SOURCE_CHANGED', loader.finish)
+
     def test_duplicate_hardlink_identity_rejected(self):
         path = self.root / 'gists/alias.md'
         os.link(self.root / 'gists/parser.md', path)

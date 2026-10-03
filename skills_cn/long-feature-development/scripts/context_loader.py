@@ -214,9 +214,12 @@ class LocalMarkdownLoader:
         end = min(offset + limit, len(self._paths))
         return TaskPage(self._paths[offset:end], f"offset:{end}" if end < len(self._paths) else None)
 
-    def _read_raw(self, name: str, allowance: int) -> tuple[bytes, str]:
+    def _read_raw(self, name: str, allowance: int, *,
+                  expected_size: int | None = None) -> tuple[bytes, str]:
         path = self._path(name)
         info = path.stat()
+        if expected_size is not None and info.st_size != expected_size:
+            raise LoaderError("SOURCE_CHANGED", "loaded document size changed")
         if not stat.S_ISREG(info.st_mode):
             raise LoaderError("UNSAFE_PATH", f"document is not a regular file: {name}")
         if info.st_size > allowance:
@@ -225,6 +228,8 @@ class LocalMarkdownLoader:
             opened = os.fstat(stream.fileno())
             if (opened.st_dev, opened.st_ino) != (info.st_dev, info.st_ino):
                 raise LoaderError("SOURCE_CHANGED", "document identity changed while opening")
+            if expected_size is not None and opened.st_size != expected_size:
+                raise LoaderError("SOURCE_CHANGED", "loaded document size changed while opening")
             # Do not reserve the entire remaining feature budget for each tiny
             # document. One byte beyond the observed size detects growth; the
             # post-read stat checks below reject concurrent changes.
@@ -267,9 +272,10 @@ class LocalMarkdownLoader:
         if set(self._paths) - self._records.keys():
             raise LoaderError("INCOMPLETE_CONTEXT", "not every enumerated task document was read")
         for name, record in self._records.items():
-            if self._path(name).stat().st_size != record.byte_count:
-                raise LoaderError("SOURCE_CHANGED", "loaded document size changed")
-            raw, identity = self._read_raw(name, record.byte_count)
+            # Size belongs to the same checked read boundary as identity and
+            # bytes; avoid a third full path walk for each document here.
+            raw, identity = self._read_raw(name, record.byte_count,
+                                           expected_size=record.byte_count)
             if identity != record.source_key or hashlib.sha256(raw).hexdigest() != record.content_digest:
                 raise LoaderError("SOURCE_CHANGED", "loaded document content or identity changed")
         return ReadSetEvidence(self._paths, tuple((key, value.content_digest)
