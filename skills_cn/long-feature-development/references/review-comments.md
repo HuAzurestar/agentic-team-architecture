@@ -1,5 +1,13 @@
 # 可编辑审查意见
 
+## 原生原文档传输层
+
+`review_native.NativeDocument` 是宿主配置的 UTF-8 原文档端点，不是任意 provider JSON API 的通用适配器。只绑定确实实现强条件写的既有端点。GET 返回实际唯一强 ETag 作为原生版本、原文及 SHA-256 内容摘要；摘要不是 provider 版本。[RFC 9110 第 13.1.1 节](https://www.rfc-editor.org/rfc/rfc9110.html#section-13.1.1)要求 `If-Match` 使用强比较，条件不符时不得执行所请求的修改。弱/缺失/重复 ETag 一律拒绝，不伪造 Git SHA 或替换成通配条件。
+
+宿主独立绑定 provider/source/feature/review 身份、HTTPS URL 与凭据，不从评论中取这些配置。拒绝含用户信息、查询串、片段或控制字符的 URL；凭据只放宿主持有的请求头，不进入日志或 intent。不跟随重定向；测试可明确启用仅字面 loopback 地址的 HTTP。仅接收 text/plain 或 text/markdown 的 UTF-8、identity 表示，正文上限 4 MiB。每次请求放入独立 spawn 子进程，连接最多 3 秒、读取最多 10 秒、总预算最多 15 秒并预留清理时间；无轮询或自动重试。异常仅返回脱敏代码。本地 HTTP 夹具不证明真实 provider 身份或权限。
+
+`read_for_purpose` 与 Git 读取使用相同的前台触发、默认 PENDING、显式 ID 选择规则。未绑定才为空；既有绑定返回 404、拒绝访问、重定向或传输错误不是空态。`conditional_put(text, actual_condition, authority=True)` 只发送一次 PUT。200/204 为 `acknowledged`，不是验证后的回读；409/412 统一为 conflict/409；其他或丢失响应为 unknown。始终返回 `draft_persisted=false`、`agent_consumed=false`、`decision_effect=NONE`，调用方仍负责草稿。这个低层方法不是另一条发布流程：接入工作流前仍需完成原生 F03 持久 intent、dispatch 标记、同 UUID 回读、永久冲突/新尝试策略和宿主/UI 接线，不得作为无日志写入的绕行入口。
+
 `review_comments.py` 提供有界内存 Markdown 编解码、筛选和转换预览，不读取远端权威源、不发布意见、不改变点决定/任务、不评估质量，也不因记录写着 VERIFIED 就证明已复核。这些流程集成仍需完成。
 
 新记录包含 `rv_id=RV-<UUID>`、`Target={feature,ref,selector?}`、`Basis={source_key,source_text,git_basis?,line_start?,line_end?}`、`Status`、`Comment` 及可选 `Resolution`/`Verification`。状态为 PENDING、ADDRESSED 或 VERIFIED。主键为 `(feature,reviews_ref,rv_id)`；意见文档引用独立于被评论目标。`new_review` 只分配一次新 UUID，发布结果不明时须先查同一 UUID，不能直接新建。

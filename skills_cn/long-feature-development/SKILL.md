@@ -104,6 +104,8 @@ Git 读取不合并、不发布、不授权应用，也不改变点决定；原�
 应用前使用[前置校验](scripts/review_application.py)及其[真实 Git 测试](scripts/test_review_application.py)；通过仍需 F03 intent/writer 集成，不能绕过日志直接合并。
 已授权的仓库同步使用 [F03 持久化写入器](scripts/review_sync.py)和[中断/冲突测试](scripts/test_review_sync.py)。[管理仓库协议](scripts/review_sync_management.py)及其[同仓库测试](scripts/test_review_sync_management.py)覆盖仅含操作日志的提交。明确授权的 Git 发布使用[条件发布器](scripts/review_publish.py)和[lease/未知结果测试](scripts/test_review_publish.py)。先阅读评论规则；原生发布及宿主/UI 接线仍待完成。
 
+[原生原文档传输层](scripts/review_native.py)与[本地 HTTP 测试](scripts/test_review_native.py)保留实际强 ETag 条件。这只是传输基础能力，不是持久化发布；原生 F03 intent、UUID 恢复及宿主/UI 接线仍需完成。
+
 - 每个仓库独立处理；一个 feature 可以跨仓库。
 - 仓库定位顺序为：显式 `--repo NAME=PATH`、相对项目管理仓库根目录的 path hints、按注册 remote 身份进行 sibling/workspace 发现。不得把历史绝对路径当作定位器；缺失或歧义均停止。
 - 对实际 Git 对象验证注册分支、working HEAD、integration opponent、PR/MR 端点、baseline 有序性、start-to-head 祖先关系、completion SHA 和依赖祖先关系；恢复输出包含派生追溯图，缺 commit 或必需路径断开都是错误。
