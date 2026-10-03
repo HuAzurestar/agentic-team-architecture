@@ -5,6 +5,8 @@ description: Help Codex resume and advance a multi-session software feature from
 
 # Long Feature Development
 
+The [actual quality source reader](scripts/quality_source.py) and [real Git source tests](scripts/test_quality_source.py) bind complete policy objects to original documents. Source integrity alone never proves independent review or human authority; see [quality boundaries](references/quality.md).
+
 For three-phase release evidence, read [quality boundaries](references/quality.md). The [actual Git correspondence reader](scripts/quality_git.py) and [real-repository tests](scripts/test_quality_git.py) establish local ancestry/tree facts only; they do not replace aggregate quality assessment, acceptance or host integration.
 
 The [pure three-phase policy](scripts/quality_policy.py) and [policy tests](scripts/test_quality_policy.py) combine validated feature, detailed reports/tests, exact scope and host-verified observations. Its allowed result never grants an operation. Actual host source/authority adapters and task/UI wiring remain required; do not construct trusted observations from uploaded documents.

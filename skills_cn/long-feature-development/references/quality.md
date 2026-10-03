@@ -1,5 +1,11 @@
 # 质量证据与放行边界
 
+## 实际本地来源快照
+
+`quality_source.read_git_documents(tuple_of_GitDocument)` 从实际 Git 对象、索引和工作文件读取配置的原材料。宿主传入逻辑证据路径、已登记仓库/路径及独立观察的 HEAD，不得从上传声明反序列化绑定。核对仓库根、当前 HEAD、普通已提交 blob、精确索引项、有界 UTF-8 正文和安全无链接工作文件，再复核整个已读集合。只容许 CRLF 检出差异；source refs 摘要绑定实际工作字节，HEAD/blob 版本单独保留。重复路径/物理身份、缺失来源、暂存变化及并发变化均拒绝。上限为 1,000 文档、合计 64 MiB，每个 Git 子进程 I/O 超时 50 秒；不写 refs、索引或来源。
+
+不可变快照的 `object(path, schema)` 解析完整 JSON 或唯一明确 schema 标记的 Markdown 围栏，拒绝重复 JSON 键和歧义围栏。`require_object(path, schema, expected)` 将完整策略输入与实际原件比较，防止真实摘要搭配伪造 PASS 明细；每次返回新的解析对象。消费者必须从实际读取导出报告/测试/checklist，并在操作边界重读；快照不锁文件。读取器不证明远端新鲜性、审查独立性、关闭权限或真人决定；完整可信宿主适配和任务/UI 接线仍需完成。
+
 ## 三阶段纯判断
 
 `quality_policy.assess_quality(validated_feature, request, observed=..., report_evidence=..., decision_sources=...)` 只读。feature 必须是既有 `task_context.ValidatedFeature`，不能用 JSON 替代。宿主专用 QualityObservations 绑定完整请求摘要及 feature 读集/仓库摘要；字段表示实际核实的来源 `(path,sha256)`、审查独立性、当前审查链、完整仓库范围、checklist 与必查项对应、当前人类排除、逐项复用、Git 集成事实、权威远端目标和精确接受-候选绑定。类型或摘要不是认证；这些值必须来自真实宿主读回，本纯模块不提供该适配器，也不从文档导入可信事实。合成测试不证明独立审查、真人接受或真实平台权限。
