@@ -5,6 +5,8 @@ description: Help Codex resume and advance a multi-session software feature from
 
 # Long Feature Development
 
+The [quality host composition](scripts/quality_host.py) reads strict feature records, committed original report/test/checklist objects and actual delivery Git facts before assessing quality. Its [real-source regressions](scripts/test_quality_host.py) use synthetic identity transport; an authenticated provenance reader is still required. See [quality boundaries](references/quality.md).
+
 Protected state writes use the [state evidence guard](scripts/state_guard.py), [writer tests](scripts/test_state_guard.py) and [quality boundary](references/quality.md). A human-looking actor label is not decision provenance; configured host readback is required.
 
 The [quality/selector composition tests](scripts/test_quality_selection.py) cover stage-specific policy consumption; a ready summary cannot replace complete quality inputs for delivery. See [quality integration](references/quality.md).

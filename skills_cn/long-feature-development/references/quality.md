@@ -1,5 +1,13 @@
 # 质量证据与放行边界
 
+## 实际宿主组合
+
+`quality_host.evaluate(root, documents=..., roles=..., repositories=..., read_provenance=..., repo_overrides=...)` 实际调用严格本地 Feature 恢复，再读取已提交 Git 原件及实时交付状态。完整 quality-request-v1 原件内的报告、关联报告、测试和结果测试，必须分别等于独立读取的原件，并对应任务声明的 Result gist；登记源仓库 HEAD 和声明的实际物理路径须一致。真实摘要不能搭配另一份 PASS 对象，也不能用其他路径的相同副本代替声明源。结构化清单为仅含 `schema, required_checks` 的 `quality-checklist-v1`，完整映射和清单路径/摘要须一致；不把既有散文自动升级为已验证清单。
+
+SourceRoles、仓库及文档绑定由宿主独立配置，不从项目文件反序列化权限。真实认证的 `read_provenance` 回调取得不可变完整请求/原件字节和版本，摘要绑定 Feature 与实际交付观察。宿主须独立核实 reviewer 身份/上下文、当前审查链、关闭/降级证据、排除/复用及真人决定与候选适用性，才返回对应摘要的 HostProvenance。类型和摘要本身不是认证；不接受 JSON allowed 标记或动态插件。没有回调时，原件可读也仍因独立性未核实而拒绝。回调错误脱敏。
+
+组合入口重算策略，并重读来源权限、全部原件、严格 Feature 和交付事实后返回 Assessment。`Assessment.for_task(current_source_ref, task_id)` 提供已有 selector/state guard 消费的 QualityInputs；消费者再次比较完整计划并重算策略，不跨操作边界缓存。不 merge/publish/改任务或持久化第二份 Gate。该入口只接干净已提交元数据；准备中的状态写入须专门核对，不提供忽略 dirty 的开关。真实平台认证配置、准备中写入组合、CLI/UI 调用及逐点决定提交仍是未完成集成。真实 Git 测试只证明来源和组合行为，身份回调明确为合成夹具。
+
 ## 状态写入接入
 
 `task_state.update(root, args, evidence_reader=host_reader)` 已在新 Acceptance WIP 前检查 pre_accept，在最终 DONE Gate 的 WIP/RECORDING/DONE 前检查 post_merge。Acceptance 带真实决定进入 RECORDING 或 DONE 走独立的 decision_host.inspect_decision 路径；适用的 CONFIRMED、REJECTED、REWORK 均可记录。REVIEW 完成和 WAITING 的 Acceptance RECORDING 不要求零 blocker；旧来源不足会拒绝新写入，不改历史状态。普通 CLI 不提供证据导入参数，因此受保护写入需要配置 Python 宿主读取器。
