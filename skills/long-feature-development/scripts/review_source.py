@@ -41,7 +41,8 @@ def _require(ok, code):
         raise ReviewSourceError(code)
 
 
-def _run(repo, *args, accepted=(0,), configured=False):
+def _run(repo, *args, accepted=(0,), configured=False, input_bytes=None):
+    _require(input_bytes is None or isinstance(input_bytes, bytes) and len(input_bytes) <= MAX_BYTES, 'RESOURCE_LIMIT')
     env = {key: value for key, value in os.environ.items() if not key.upper().startswith('GIT_')}
     env.update(GIT_TERMINAL_PROMPT='0', GIT_OPTIONAL_LOCKS='0', GIT_NO_REPLACE_OBJECTS='1',
                GIT_ALLOW_PROTOCOL='file:https:http:ssh:git')
@@ -51,7 +52,7 @@ def _run(repo, *args, accepted=(0,), configured=False):
         # Bound returned data; do not include remote diagnostics or credentials.
         with tempfile.TemporaryFile() as output:
             process = subprocess.run(['git', '--no-pager', '--literal-pathspecs', '-C', str(repo), *args],
-                                     env=env, stdout=output, stderr=subprocess.DEVNULL, timeout=50)
+                                     env=env, input=input_bytes, stdout=output, stderr=subprocess.DEVNULL, timeout=50)
             _require(process.returncode in accepted, 'REVIEW_SOURCE_UNAVAILABLE')
             _require(output.tell() <= MAX_BYTES, 'RESOURCE_LIMIT')
             output.seek(0)

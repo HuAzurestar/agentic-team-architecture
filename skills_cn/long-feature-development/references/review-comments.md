@@ -34,7 +34,7 @@ master 已包含后，独立提供的 `GitSampleBinding` 将每个 Basis 来源�
 
 通过仅表示该观察版本的前置条件成立；trace 和样本检查返回内存，未持久化。结果仍为 `NOT_APPLIED`，不授予合并/发布权限，也不证明独立审查或验收。仍需接入 F03 operation writer，在精确 master 同步前持久化 intent，保留冲突/未知效果，恢复核对、重查样本并条件发布。本模块不提供绕过日志的另一条合并路径。
 
-## 实现仓库的持久化同步
+## Git 仓库的持久化同步
 
 `review_sync.prepare(feature, gist, repository, binding, observation, authority_source_ref, authority=True)` 验证完整 F03 上下文、独立登记的仓库绑定、实际权威来源及所选意见原文，在合并前将 `operation-v1` / `review-master-sync` 写入已声明且已跟踪的 gist。记录保留工作分支/HEAD、精确 master SHA、原评论观察与管理文档快照。必须取得真实宿主授权；文档中的字符串不等于权限。同仓库尚未解决的同步必须先核对，不能另建操作绕过。
 
@@ -44,4 +44,14 @@ master 已包含后，独立提供的 `GitSampleBinding` 将每个 Basis 来源�
 
 恢复保留管理仓库的 `DERIVED:HEAD`，在任务 refs 记录实际合并 SHA。原值/目标值检查将合并带来的新管理文档内容保留为需明确解决的冲突。允许核对其后一次仅含管理记录的提交并幂等重入；不能借旧成功收据掩盖无关改动。日志提交前后崩溃均按真实 Git 内容检查，未知合并不自动重放。不 reset、不强制 checkout、不 stash、不隐式推送 master。
 
-同步后必须重读来源并检查目标样本，包括合并中/合并后 master 前进的情形。合并记录不等于评论应用权限、质量通过或真人接受；条件发布、原生 provider、决定写入器仍未完成。测试使用真实临时 Git 仓库，不代表线上 forge 凭据验证或实际项目分支合并。
+同步后必须重读来源并检查目标样本，包括合并中/合并后 master 前进的情形。合并记录不等于评论应用权限、质量通过或真人接受；原生 provider、决定写入器仍未完成。测试使用真实临时 Git 仓库，不代表线上 forge 凭据验证或实际项目分支合并。
+
+## Git 条件发布
+
+`review_publish.prepare(feature, gist, repository, binding, observation, draft, authority_source_ref, authority=True)` 接收明确授权的完整规范评论文档，核对已登记来源和真实观察，保留既有 RV ID，拒绝隐式删除及非规范/旧格式草稿。旧格式转换必须先通过 codec 明确预览，由宿主授权实际拟写正文。完整草稿、原来源、改动 RV 及不可变候选 commit 保存在已声明且已跟踪的 F03 `review-publish` intent；prepare 不推送。返回 operation ID 和 intent digest，可信宿主独立保留后者作为此次授权的内容范围。摘要不是认证，不能从不可信日志中现算摘要来制造权限。
+
+`execute(..., authority=True, expected_intent_digest=host_retained_digest)` 核对宿主保留的范围及当前上下文，在私有 bare 仓库重建精确候选：唯一 parent 是已观察远端 master，树只改绑定评论文件，不 checkout 或推送工作分支。先持久化 dispatch 标记，再用精确旧 SHA lease 推送。这是条件快进，不改写历史。commit 身份取实际宿主仓库 Git 配置；私有传输仍需真实宿主认证。每次 Git 子进程限 50 秒、输入/输出 4 MiB，完整 F03 intent 限 4 MiB，commit 元数据另限 16 KiB。绑定、草稿和日志均不应包含凭据。
+
+源变化返回 `publication_status=conflict`、`http_status=409`，通过 intent 引用保留草稿。冲突永久停止该次尝试，即使 master 后来回到旧 SHA 也不重推。unknown 按实际同一 RV UUID 回读并比较完整记录；execute/reconcile 都不自动再发。`present` 只证明当前回读存在，不伪造原调用收据。F03 `effect` 描述日志更新，不代表远端发布成功；保留 `agent_consumed=false` 和 `decision_effect=NONE`，只读 reconcile 不写入。
+
+取得新的明确授权和最新来源观察后，`prepare(..., supersedes=old_operation_id)` 只在真实回读证实旧版本冲突时建立新尝试，保留旧 intent/草稿及原 RV UUID，拒绝换 ID 重建；旧操作不能再发布。源未变化的 unknown 仍待核对，不静默重试。管理日志提交可沿祖先推进，但 Feature 读取集必须不变；实现仓库 HEAD 变化仍停止。UI 接线、原生 provider 条件发布、真实宿主授权交付、决定写入和质量评估仍须接入。本地 bare 远端测试不证明线上 forge 权限。

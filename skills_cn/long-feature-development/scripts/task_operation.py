@@ -284,6 +284,12 @@ def reconcile(root, gist, operation_id, overrides=None, *, apply=False, authorit
         if apply and authority is not True:
             raise Error("AUTHORITY_REQUIRED")
         _, _, _, records = read_gist(root, gist)
+        if records[operation_id]['kind'] == 'review-publish':
+            import review_publish
+            if apply:
+                with coordinator(root):
+                    return review_publish.reconcile(root, gist, operation_id, overrides or {}, True)
+            return review_publish.reconcile(root, gist, operation_id, overrides or {}, False)
         if records[operation_id]["kind"] == "dependency-rewire":
             import task_dependencies
             if apply:
