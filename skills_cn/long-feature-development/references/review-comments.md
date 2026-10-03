@@ -33,3 +33,11 @@ fetch 使用浅历史并请求 blob 过滤。Git 传输/pack 成本不属于 4 M
 master 已包含后，独立提供的 `GitSampleBinding` 将每个 Basis 来源键绑定到仓库、相对文件、预期当前 HEAD、目标引用和 feature。实际当前材料来自 Git/工作区事实，不来自评论本身。支持点 selector 或明确行范围，不接受二者歧义组合。记录的完整历史 Git Basis 须存在并包含所引原样本；当前文本变化返回 `BASIS_NEEDS_RECHECK` 和有界差异，不改变意见状态。不支持的 selector、缺失历史版本及原生平台来源仍未核实，不静默放行。去重后的当前材料正文限制 4 MiB，并在远端观察后再次读取。
 
 通过仅表示该观察版本的前置条件成立；trace 和样本检查返回内存，未持久化。结果仍为 `NOT_APPLIED`，不授予合并/发布权限，也不证明独立审查或验收。仍需接入 F03 operation writer，在精确 master 同步前持久化 intent，保留冲突/未知效果，恢复核对、重查样本并条件发布。本模块不提供绕过日志的另一条合并路径。
+
+## 实现仓库的持久化同步
+
+`review_sync.prepare(feature, gist, repository, binding, observation, authority_source_ref, authority=True)` 验证完整 F03 上下文、独立登记的仓库绑定、实际权威来源及所选意见原文，在合并前将 `operation-v1` / `review-master-sync` 写入已声明且已跟踪的 gist。记录保留工作分支/HEAD、精确 master SHA、原评论观察与管理文档快照。必须取得真实宿主授权；文档中的字符串不等于权限。同仓库尚未解决的同步必须先核对，不能另建操作绕过。
+
+`review_sync.execute(..., operation_id, authority=True)` 重查原记录/管理正文、干净工作区及远端来源，无 refs/FETCH_HEAD 变更地获取精确 SHA，然后先持久化 dispatch 标记，再执行带 operation UUID trailer 的 `git merge --no-ff`。已包含 master 时不再合并。不推送、不 abort/reset、不自动解决冲突；冲突保留 MERGE_HEAD、索引及文件。响应丢失后只按真实 HEAD、有序 parents 与 UUID 核对；已 dispatch 但没有已证实结果时保持 unknown，不自动重放。F03 以原值/目标值条件幂等修复任务和 STATUS refs；只读 reconcile 不写入。
+
+首个写入器仅支持与管理日志分离的已登记实现仓库。管理仓库自身同步明确返回 `MANAGEMENT_SYNC_PROTOCOL_REQUIRED`，其干净日志协议仍须实现。同步后必须重读来源并检查目标样本，包括合并中/合并后 master 前进的情形。合并记录不等于评论应用权限、质量通过或真人接受；条件发布、原生 provider、决定写入器仍未完成。测试使用真实临时 Git 仓库，不代表线上 forge 凭据验证或实际项目分支合并。

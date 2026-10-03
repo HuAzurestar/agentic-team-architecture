@@ -114,6 +114,7 @@ then use the [codec](scripts/review_comments.py) and [regressions](scripts/test_
 Before review work or an explicit review-read request, invoke the foreground [source reader](scripts/review_source.py) with the registered binding; see its [real Git regressions](scripts/test_review_source.py).
 Git reading does not merge, publish, authorize application or change point decisions; native providers and conditional publication remain pending.
 Use the [application preflight](scripts/review_application.py) and [real Git tests](scripts/test_review_application.py) before application; passing still requires F03 intent/writer integration, not an unjournaled merge.
+For an authorized implementation-repository sync, use the [F03 journaled writer](scripts/review_sync.py) and [interruption/conflict tests](scripts/test_review_sync.py). Read its limits in the review-comments reference; management-repository synchronization and conditional publication remain pending.
 
 - Treat each repository independently. A feature may span several repositories.
 - Resolve repositories from `STATUS.md` in this order: explicit `--repo NAME=PATH`, registered path hints relative to the project-management repository root, then sibling/workspace discovery by registered remote identity. Never trust a historical absolute working path as the locator. Missing or ambiguous matches stop recovery.

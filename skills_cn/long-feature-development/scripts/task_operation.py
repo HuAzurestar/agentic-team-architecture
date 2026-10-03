@@ -168,7 +168,7 @@ def files_at_worktree(repo, includes, git):
 
 
 def validate_record(root, gist, record):
-    if (record["operation_version"] != "operation-v1" or record["kind"] != "commit"
+    if (record["operation_version"] != "operation-v1" or record["kind"] not in {"commit", "review-master-sync"}
             or record["feature"] != root.name or record["intent_ref"] != gist):
         raise Error("INVALID_INTENT")
     documents = record["expected_source"]["documents"]
@@ -186,7 +186,10 @@ def validate_record(root, gist, record):
     repository = record["target_identity"]["repository"]
     if task["head_refs"].get(repository) != record["expected_source"]["head"]:
         raise Error("INVALID_INTENT")
-    if len(record["owned_paths"]) != len(set(record["owned_paths"])) or not record["owned_paths"]:
+    if record["kind"] == "review-master-sync":
+        import review_sync
+        review_sync.validate(record)
+    elif len(record["owned_paths"]) != len(set(record["owned_paths"])) or not record["owned_paths"]:
         raise Error("INVALID_INTENT")
     if set(record["expected_source"]["files"]) != set(record["owned_paths"]):
         raise Error("INVALID_INTENT")
@@ -200,6 +203,9 @@ def validate_record(root, gist, record):
 
 
 def locate_commit(repo, record, git):
+    if record["kind"] == "review-master-sync":
+        import review_sync
+        return review_sync.locate(repo, record, git)
     previous = record["expected_source"]["head"]
     head = git.run(repo, "rev-parse", "HEAD")
     if head == previous:
@@ -322,6 +328,10 @@ def reconcile_locked(root, gist, operation_id, overrides, result, write):
     repo, pm = refs(root, record, overrides, git)
     sha = locate_commit(repo, record, git)
     if sha is None:
+        if record['kind'] == 'review-master-sync':
+            result.update(observed_result={"status": "unknown" if record['dispatched'] else "not-observed"},
+                          next_check="inspect-git-no-replay" if record['dispatched'] else "resume-authorized-review-sync")
+            return result
         result.update(observed_result={"status": "not-observed"}, next_check="resume-authorized-checkpoint")
         return result
     if git.run(repo, "status", "--porcelain=v1", "-z", "--untracked-files=all"):
@@ -356,6 +366,8 @@ def reconcile_locked(root, gist, operation_id, overrides, result, write):
         result["recorded_fields"].append(gist + "#recorded_fields")
     git.remaining()
     result.update(effect="APPLIED" if result["recorded_fields"] else "UNCHANGED", next_check="commit-management-then-task-context")
+    if record['kind'] == 'review-master-sync':
+        result['next_check'] = 'commit-management-then-recheck-review-source-and-target-samples'
     return result
 
 
