@@ -111,7 +111,8 @@ Live host transports, writers and quality policy still need integration; file cl
 
 For editable RV comments, read [comment format and compatibility](references/review-comments.md),
 then use the [codec](scripts/review_comments.py) and [regressions](scripts/test_review_comments.py).
-This is not yet the authoritative remote reader/publisher and never changes point decisions.
+Before review work or an explicit review-read request, invoke the foreground [source reader](scripts/review_source.py) with the registered binding; see its [real Git regressions](scripts/test_review_source.py).
+Git reading does not merge, publish, authorize application or change point decisions; native providers and conditional publication remain pending.
 
 - Treat each repository independently. A feature may span several repositories.
 - Resolve repositories from `STATUS.md` in this order: explicit `--repo NAME=PATH`, registered path hints relative to the project-management repository root, then sibling/workspace discovery by registered remote identity. Never trust a historical absolute working path as the locator. Missing or ambiguous matches stop recovery.
