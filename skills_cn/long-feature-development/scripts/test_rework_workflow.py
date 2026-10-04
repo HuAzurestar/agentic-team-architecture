@@ -32,6 +32,7 @@ class ContinuationTests(unittest.TestCase):
             workflow = rework.ReworkWorkflow.__new__(rework.ReworkWorkflow)
             workflow.root = root
             workflow.preview_successor = lambda *args, **kwargs: plan
+            workflow._repositories = lambda: {}  # synthetic source observation
             prepared = False
             authority_reads = []
 
@@ -184,6 +185,45 @@ class ContinuationTests(unittest.TestCase):
             self.assertEqual((c.root / p).read_bytes(), original)
         self.assertEqual(git(c.case.app, 'rev-parse', 'HEAD'), c.case.app_head)
         self.assertFalse(created['merge_authorized'])
+        # Another new review still targets the current product. Both grants
+        # stay valid, but an external editor commits implementation source during the
+        # second host read. Keep that commit, and publish no stale successor.
+        next_review = create.create(c.root, args)
+        c.case.commit_records()
+        stale_plan = workflow.preview_successor(c.task, next_review, **binding)
+        before = rework.file_snapshot(c.root)
+        management_head = git(c.case.pm, 'rev-parse', 'HEAD')
+        authority_reads = 0
+        product = c.case.app / 'owned.py'
+        changed_source = product.read_bytes() + b'\nversion = 2  # external implementation change\n'
+        external_head = None
+
+        def committing_authorize(request):
+            nonlocal authority_reads, external_head
+            authority_reads += 1
+            if authority_reads == 2:
+                product.write_bytes(changed_source)
+                git(c.case.app, 'add', 'owned.py')
+                git(c.case.app, 'commit', '-m', 'external source change during host read')
+                external_head = git(c.case.app, 'rev-parse', 'HEAD')
+            return valid_authorize(request)
+
+        workflow.authorize = committing_authorize
+        with self.assertRaisesRegex(tc.ContextError, '^SUCCESSOR_SOURCE_CHANGED$'):
+            workflow.create_successor(stale_plan, **binding)
+        self.assertEqual(authority_reads, 2)
+        self.assertIsNotNone(external_head)
+        self.assertNotEqual(external_head, c.case.app_head)
+        self.assertEqual(git(c.case.app, 'rev-parse', 'HEAD'), external_head)
+        # git() decodes stdout with universal newlines; the working bytes below
+        # remain exact, including the checkout's configured CRLF conversion.
+        committed_text = changed_source.decode().replace('\r\n', '\n').replace('\r', '\n').strip()
+        self.assertEqual(git(c.case.app, 'show', 'HEAD:owned.py'), committed_text)
+        self.assertEqual(product.read_bytes(), changed_source)
+        self.assertEqual(git(c.case.pm, 'rev-parse', 'HEAD'), management_head)
+        self.assertEqual(rework.file_snapshot(c.root), before)
+        self.assertFalse((c.root / f'tasks/{stale_plan.task_id}.md').exists())
+        self.assertFalse((c.root / '.operation.lock').exists())
 
 
 if __name__ == '__main__':

@@ -84,10 +84,15 @@ unknown, inspect/recover the actual task files before another write. This API
 does not automatically retry creation, commit, publish or merge.
 
 The successor writer has one final before_write guard: check the captured file
-set, read current operation authority, then check the complete file set again
-after that callback. Only then may task_create publish its prepared records.
-An editor's change during the host read returns SUCCESSOR_SOURCE_CHANGED and is
-preserved, with no successor or compensating rollback write. Rebuild the plan
+set, read current operation authority, then recheck the actual repository read
+set (identity, HEAD, branch, registered refs, local configuration and product
+worktree status) and the complete file set after that callback. The management
+runtime lock is not a version change; management bytes are checked separately.
+Only then may task_create publish its prepared records. This binds the write
+target, not a rule that every SHA change invalidates applicable test evidence.
+An editor's change or product commit during the host read returns
+SUCCESSOR_SOURCE_CHANGED and is preserved, with no successor or compensating
+rollback/reset write. Rebuild the plan
 from the retained change after normal checkpoint/recovery; never reset it away.
 This is optimistic local checking, not an atomic ACL/file transaction or an OS
 lock against arbitrary writers after the final comparison.

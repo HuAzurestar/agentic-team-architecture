@@ -44,7 +44,7 @@ For a registered management repository, `review_sync_management` adds a journal-
 
 Reconciliation preserves `DERIVED:HEAD` for the management repository and records the actual merge in task refs. Original-or-desired checks preserve new metadata brought in by the merge as a conflict requiring explicit resolution. A single subsequent metadata-only checkpoint can be inspected idempotently; unrelated changes cannot be hidden behind an old success receipt. A crash before/after the journal commit is inspected against actual Git content; an unknown merge is not automatically retried. No cleanup resets, forced checkout, stash, or implicit master push is performed.
 
-Source freshness and target samples must be rechecked after synchronization, including when master advances during/after the merge. A recorded merge is not permission to apply comments, successful quality assessment or human acceptance. Native providers and decision writers remain incomplete. Tests use actual temporary Git repositories, not live forge credentials or project-branch merges.
+Source freshness and target samples must be rechecked after synchronization, including when master advances during/after the merge. A recorded merge is not permission to apply comments, successful quality assessment or human acceptance. The native raw-document adapter and decision writers are implemented; actual endpoint/credentials and trusted identity/permission readers must be configured by the host. Local fixtures do not prove live provider authentication or the complete formal review-to-Gate scenario, whose evidence is tracked separately.
 
 ## Conditional Git publication
 

@@ -16,7 +16,7 @@ import task_operation as operations
 from acceptance_workflow import AcceptanceWorkflow
 from decision_evidence import canonical, line
 from quality_policy import feature_digest
-from selection_context import file_snapshot
+from selection_context import file_snapshot, repo_snapshot
 
 
 def require(value, code):
@@ -49,6 +49,17 @@ class ReworkWorkflow:
         self.root = self.acceptance.root
         self.authorize = authorize
         self.overrides = self.acceptance.overrides
+
+    def _repositories(self):
+        repositories = tc.resolve_repositories(self.root, tc.repository_registry(
+            tc.read_utf8(self.root / 'STATUS.md')), self.overrides)
+        observations = repo_snapshot(self.root, repositories)
+        for name, repo in repositories.items():
+            if repo['role'] == 'project-management':
+                # Control bytes are checked separately; our runtime lock is
+                # not a Git-version change. Keep product worktree status bound.
+                observations[name].pop('status')
+        return dict(repositories=repositories, observations=observations)
 
     def _permission(self, action, scope):
         require(callable(self.authorize), 'OPERATION_AUTHORITY_REQUIRED')
@@ -139,13 +150,19 @@ class ReworkWorkflow:
                         merge_authorized=False)
         require(current == plan, 'SUCCESSOR_SOURCE_CHANGED')
         self._permission('create-acceptance-successor', dict(plan=plan.__dict__))
-        require(self.preview_successor(plan.old_task, plan.review_task, **binding) == plan, 'SUCCESSOR_SOURCE_CHANGED')
         before = file_snapshot(self.root)
+        repositories = self._repositories()
+        require(self.preview_successor(plan.old_task, plan.review_task, **binding) == plan, 'SUCCESSOR_SOURCE_CHANGED')
+        require(file_snapshot(self.root) == before, 'SUCCESSOR_SOURCE_CHANGED')
         def before_write():
             require(file_snapshot(self.root) == before, 'SUCCESSOR_SOURCE_CHANGED')
             # The old acceptance grant proves disposition, not permission to
             # perform this operation now. Re-read after the writer prepares.
             self._permission('create-acceptance-successor', dict(plan=plan.__dict__))
+            # Bind the actual Git read set as well as management bytes. A
+            # product commit during host I/O must not produce an old-target
+            # successor, even when all grants and control files are unchanged.
+            require(self._repositories() == repositories, 'SUCCESSOR_SOURCE_CHANGED')
             # Host reads can yield to other editors. Do not publish candidates
             # prepared from stale bytes, or roll back over the editor's work.
             require(file_snapshot(self.root) == before, 'SUCCESSOR_SOURCE_CHANGED')
