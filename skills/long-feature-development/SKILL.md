@@ -5,6 +5,8 @@ description: Help Codex resume and advance a multi-session software feature from
 
 # Long Feature Development
 
+Use the [foreground host and acceptance continuation](references/host-workflow.md) for the [Skill-only caller](scripts/feature_host.py) and [rework coordinator](scripts/rework_workflow.py). The [concentrated real-Git continuation check](scripts/test_rework_workflow.py) covers a real negative disposition followed by a new pending acceptance and controlled downstream rewire; its human transport is synthetic, not independent review or production authentication.
+
 Use the [decision workflow entry](references/decision-workflow.md) for host/workbench inspection, single-point application and recovery. The [native human-source adapter](scripts/decision_native.py) reads independently configured message and authorization services and connects the existing acceptance reader; account mapping and endpoint credentials are runtime host configuration.
 
 Use the [foreground review workflow](references/review-workflow.md) to read selected authoritative comments, check actual targets, prepare/execute an authorized exact-master synchronization, and prepare/publish/reconcile retained drafts through either Git or native sources. Its standalone CLI only reads; operation permissions come from the configured host.

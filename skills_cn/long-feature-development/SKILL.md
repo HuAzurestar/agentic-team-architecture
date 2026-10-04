@@ -5,6 +5,8 @@ description: 从项目管理目录恢复并推进跨会话的软件 feature，�
 
 # 长程 Feature 开发
 
+使用[前台宿主与接受接续](references/host-workflow.md)中的 [Skill-only 调用方](scripts/feature_host.py)及[返工协调入口](scripts/rework_workflow.py)。[真实 Git 集中接续检查](scripts/test_rework_workflow.py)覆盖负面处置后的新 PENDING 接受及受控下游改接；身份 transport 为合成夹具，不提供独立审查或生产认证。
+
 宿主／Workbench 使用[决定工作流入口](references/decision-workflow.md)检查、应用及恢复单点决定。[原生真人来源适配器](scripts/decision_native.py)读取独立配置的消息和权限服务，并连接既有接受读回器；账号映射及 endpoint 凭据由运行时宿主配置。
 
 [前台审查工作流](references/review-workflow.md)连接权威意见主动读取、实际样本核对、获授权的精确 master 同步，以及 Git／原生来源的草稿准备、条件发布和读回。独立 CLI 只读；操作权限由已配置的宿主提供。
