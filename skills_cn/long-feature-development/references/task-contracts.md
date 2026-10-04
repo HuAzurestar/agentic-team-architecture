@@ -16,6 +16,10 @@
 
 必需字段：`Target SHA`、`Blocking findings`、`Deferred findings`、`Result gist`。具体评论和长推理写入 `gists/REVIEW-*.md`。阻断发现建立依赖的 `REWORK-*`，不得改写已完成开发 task。
 
+review/v1 引用设计短 Review scope 的来源/版本；详情可保存相同 `- Review scope:` 快照及账本路径。保留旧字段，区分强制阻断与可选计分发现。P0 必须关闭；保留 P1/P2/P3 可扣分而不自动 REWORK，不免除必需检查和人工接受。
+
+加载旧 findings 前使用 blind 恢复。原始包和本轮报告/快照在 Gists 声明，原始包标记 `- Evidence type: original`。保存含 Review phase、Review task、Target SHA、Review scope 行的盲审快照后，才以其声明路径进入 reconcile。根 REVIEW.md 是共享状态索引，不替代 Result gist 或不可变逐轮报告。有发现的报告可以完成，分数与接受分开，完整合约/ref 校验不变。
+
 ## REWORK
 
 必需字段：`Source findings`、`Target SHA`、`Output SHA`、`Result gist`。它依赖发现问题的 review；复测使用新的依赖 `TEST-*`，保持 tested SHA 明确。
