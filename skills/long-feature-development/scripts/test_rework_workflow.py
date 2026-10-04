@@ -127,6 +127,39 @@ class ContinuationTests(unittest.TestCase):
             self.assertEqual(git(c.case.pm, 'rev-parse', 'HEAD'), head)
             self.assertEqual(git(c.case.app, 'rev-parse', 'HEAD'), c.case.app_head)
         workflow.authorize = valid_authorize
+        # Both grants stay valid. A separate editor changes the write basis
+        # during the final host read; denial must preserve that exact edit.
+        index = c.root / 'TASKS.md'
+        edited_index = index.read_bytes() + b'\n<!-- concurrent editor: preserve this note -->\n'
+        authority_reads = 0
+
+        def editing_authorize(request):
+            nonlocal authority_reads
+            authority_reads += 1
+            if authority_reads == 2:
+                index.write_bytes(edited_index)
+            return valid_authorize(request)
+
+        workflow.authorize = editing_authorize
+        conflict = None
+        try:
+            workflow.create_successor(plan, **binding)
+        except tc.ContextError as exc:
+            conflict = str(exc)
+        self.assertEqual(index.read_bytes(), edited_index, 'concurrent edit was overwritten')
+        self.assertEqual(authority_reads, 2)
+        self.assertEqual(conflict, 'SUCCESSOR_SOURCE_CHANGED')
+        expected = dict(snapshot)
+        expected['TASKS.md'] = hashlib.sha256(edited_index).hexdigest()
+        self.assertEqual(rework.file_snapshot(c.root), expected)
+        self.assertEqual(git(c.case.pm, 'rev-parse', 'HEAD'), head)
+        self.assertEqual(git(c.case.app, 'rev-parse', 'HEAD'), c.case.app_head)
+        self.assertFalse((c.root / f'tasks/{plan.task_id}.md').exists())
+        # Retain the editor's change in the fixture history, then build a fresh
+        # plan. No reset/rollback is permitted to erase it for a successful retry.
+        c.case.commit_records()
+        plan = workflow.preview_successor(c.task, review_id, **binding)
+        workflow.authorize = valid_authorize
         created = workflow.create_successor(plan, **binding)
         self.assertEqual(created['effect'], 'APPLIED_PENDING_CHECKPOINT')
         c.case.commit_records()

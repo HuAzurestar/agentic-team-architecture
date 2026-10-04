@@ -1,6 +1,6 @@
 # 决策证据与适用性
 
-`scripts/decision_evidence.py` 是纯适用性校验器，不写入决定、不更新任务状态，也不评估质量。本地 Git 当前材料读取器为 [decision_source.py](../scripts/decision_source.py)，配有[真实 Git 测试](../scripts/test_decision_source.py)。人类来源适配器、原生平台读取器、写入器和策略集成仍需实现。
+`scripts/decision_evidence.py` 是纯适用性校验器，不是 writer 或质量策略。[decision_source.py](../scripts/decision_source.py)及[测试](../scripts/test_decision_source.py)提供本地 Git 读取；已实现[决定工作流](decision-workflow.md)组合宿主／原生来源适配与持久写入，[质量路径](quality.md)负责独立放行边界。真实身份、解释和权限仍是可信宿主输入。
 
 ## 宿主回读入口
 

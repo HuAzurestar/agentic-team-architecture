@@ -1,6 +1,6 @@
 # Decision evidence and applicability
 
-`scripts/decision_evidence.py` is a pure applicability checker. It does not write decisions, update task states, or assess quality. The local Git current-material reader is [decision_source.py](../scripts/decision_source.py), with [real Git tests](../scripts/test_decision_source.py). Human-source adapters, native-provider readers, writers and policy integration are still required.
+`scripts/decision_evidence.py` is a pure applicability checker, not a writer or quality policy. [decision_source.py](../scripts/decision_source.py) and [tests](../scripts/test_decision_source.py) provide local Git reads. The implemented [decision workflow](decision-workflow.md) joins host/native source adapters and durable writes; [quality](quality.md) covers the separate release path. Actual identity, interpretation and permissions remain trusted host inputs.
 
 ## Host readback gateway
 

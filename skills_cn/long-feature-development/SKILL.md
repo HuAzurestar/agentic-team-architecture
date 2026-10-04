@@ -5,37 +5,36 @@ description: 从项目管理目录恢复并推进跨会话的软件 feature，�
 
 # 长程 Feature 开发
 
-使用[前台宿主与接受接续](references/host-workflow.md)中的 [Skill-only 调用方](scripts/feature_host.py)及[返工协调入口](scripts/rework_workflow.py)。[真实 Git 集中接续检查](scripts/test_rework_workflow.py)覆盖负面处置后的新 PENDING 接受及受控下游改接；身份 transport 为合成夹具，不提供独立审查或生产认证。
+本 Skill 从版本化资料恢复 feature，不依赖开发聊天。项目自行选择 `<Project-Manage>`，不得假定固定管理仓库。
 
-组合业务入口为[真人决定流程](scripts/decision_workflow.py)、
-[审查流程](scripts/review_workflow.py)及[接受流程](scripts/acceptance_workflow.py)。
-[决定流程集中检查](scripts/test_decision_workflow.py)使用合成服务身份。
+## 能力边界与调用路径
 
-宿主／Workbench 使用[决定工作流入口](references/decision-workflow.md)检查、应用及恢复单点决定。[原生真人来源适配器](scripts/decision_native.py)读取独立配置的消息和权限服务，并连接既有接受读回器；账号映射及 endpoint 凭据由运行时宿主配置。
+### 已实现的组件
 
-[前台审查工作流](references/review-workflow.md)连接权威意见主动读取、实际样本核对、获授权的精确 master 同步，以及 Git／原生来源的草稿准备、条件发布和读回。独立 CLI 只读；操作权限由已配置的宿主提供。
+按当前操作选择入口，不预载所有 reference，也不把底层步骤当作独立业务流程。
 
-[质量宿主组合入口](scripts/quality_host.py)先读取严格 Feature 记录、已提交的报告/测试/清单原件及实际 Git 交付事实，再重算质量。[真实来源回归](scripts/test_quality_host.py)的身份 transport 为合成夹具，仍需真实认证的来源读回器；详见[质量边界](references/quality.md)。
+| 操作 | 已实现入口 | 按需读取 |
+| --- | --- | --- |
+| 前台组合／接受后继 | [FeatureHost](scripts/feature_host.py)、[ReworkWorkflow](scripts/rework_workflow.py) | [宿主与接续](references/host-workflow.md)、[集中检查](scripts/test_rework_workflow.py) |
+| 点决定、应用与状态恢复 | [decision_workflow](scripts/decision_workflow.py)、[原生 session 适配器](scripts/decision_native.py) | [决定工作流](references/decision-workflow.md) |
+| 权威 review 读取、精确 master 同步、Git／原生条件发布 | [review_workflow](scripts/review_workflow.py) | [审查工作流](references/review-workflow.md) |
+| 旧接受 attempt 准备与受控记录 | [acceptance_workflow](scripts/acceptance_workflow.py)、[来源适配器](scripts/state_acceptance.py) | [接受工作流](references/acceptance-workflow.md) |
+| 干净／准备状态质量判断与受保护任务写入 | [quality_host](scripts/quality_host.py)、[PreparedTransition](scripts/state_prepared.py)、[state guard](scripts/state_guard.py) | [质量路径、事实组件与集中回归](references/quality.md) |
 
-[测试事实与适用性读取器](scripts/quality_tests.py)及[集中内容/依赖检查](scripts/test_quality_tests.py)区分未查清的计数冲突与内容变化。保留真实原测试目标；跨 SHA 复用依赖可核验的不变内容/输入范围，不得把 PASS 报告改标为新目标。
+prepare/apply/status 是组合点流程内的恢复边界，不是尚缺接线或三套用户工作流。质量／来源完整性不是认证，`allowed` 不授予操作权限；独立检查 CLI 不能从 JSON 或开关取得写权限。
 
-受保护状态写入使用[状态证据检查](scripts/state_guard.py)、[writer 测试](scripts/test_state_guard.py)和[质量边界](references/quality.md)。像人名的 actor 字段不是决定出处，必须经已配置宿主读回核验。
+### 必须由可信宿主提供的能力
 
-记录接受决定时使用[实际接受来源适配器](scripts/state_acceptance.py)及[原件回归](scripts/test_state_acceptance.py)，组合已提交决定/brief 原件、产品候选与已配置真人读回；记录拒绝不等于质量成功。认证与自然语言解释仍由真实宿主负责。
+独立绑定真实消息身份、解释、当前 grant／操作权限、原件位置、质量 provenance 及远端端点／凭据。审查派发还需明确授权、可核验的空白只读上下文。session 类型、摘要、上传的 actor 名和合成回调都不证明这些事实。适配器和业务入口已存在；部署及账号映射是运行时宿主配置，不是隐含新增产品服务。
 
-使用[接受工作流入口](references/acceptance-workflow.md)检查旧 attempt，将干净基线的精确准备接到上述适配器和受保护状态写入器。CLI 只读；记录真人决定由已配置宿主显式执行，随后另作管理检查点。
+### 组件测试未证明的正式场景
 
-准备受保护写入的元数据时，使用[精确准备状态读取器](scripts/state_prepared.py)及其[真实 Git 回归](scripts/test_state_prepared.py)。必须在准备文件前捕获干净基线，不得替换成忽略 dirty 的开关；宿主组合及尚需完成的认证/UI 工作见质量边界。
+包校验不等于空白审查实际执行；隔离 Git／HTTP 夹具不等于当前候选完整的审查→返工→复测→复核→真人接受→集成／结果核验。实际目标、输入／依赖影响、证据和未知结果记在 feature 资料中；已有适用观察保留，不只因 SHA 变化重跑。不得凭组件存在或作者 PASS 关闭 finding／推进 Gate。
 
-[质量/选择器组合测试](scripts/test_quality_selection.py)覆盖分阶段策略消费；交付时 ready 摘要不能替代完整质量输入。详见[质量接入](references/quality.md)。
+### 可选 UI
 
-[实际质量来源读取器](scripts/quality_source.py)及[真实 Git 来源测试](scripts/test_quality_source.py)将完整策略对象绑定到原件。来源完整性不证明独立审查或真人权限；详见[质量边界](references/quality.md)。
+Workbench 可消费同一宿主入口；Skill 不依赖 Web UI、SM-MD 或部署消息服务。缺少 UI 不等于 Skill-only 接线尚缺；纳入范围时，UI 认证和浏览器／provider 观察另行留证。
 
-处理三阶段放行证据时，先读[质量边界](references/quality.md)。[实际 Git 对应关系读取器](scripts/quality_git.py)及[真实仓库测试](scripts/test_quality_git.py)只核对本地祖先/整树事实，不替代聚合质量判断、接受或宿主集成。
-
-[三阶段纯判断](scripts/quality_policy.py)及[策略测试](scripts/test_quality_policy.py)组合已验证 feature、完整报告/测试、精确范围与宿主核实的观察。allowed 不授予操作权限；实际宿主来源/权限适配及任务/UI 接线仍待完成，不得从上传文档构造可信观察。
-
-本 Skill 使用小型、版本化的 feature 记录续接开发，不依赖旧聊天。项目自行决定 `<Project-Manage>` 的实际路径；不得假定为 MPA 或其他固定仓库。
 
 ## 选择当前用途
 
@@ -125,10 +124,9 @@ helper 只取[用途提示](references/prompts.md)中的共同节与当前用途
 使用 [Git 来源读取器](scripts/decision_source.py)读取本地当前材料，覆盖[真实 Git 测试](scripts/test_decision_source.py)。
 使用[宿主回读入口](scripts/decision_host.py)及其[接口测试](scripts/test_decision_host.py)，将已认证回复读取、宿主权限和精确解释连接至校验器。
 使用[单点草稿生成器](scripts/decision_point.py)及其[草稿测试](scripts/test_decision_point.py)，保留表述/历史、移动处置记录并重算文档状态。输出仅为 DRAFT_ONLY，不认证、不写入、不提交、不完成任务；持久写入器仍须重验真实人类来源和当前材料。
-使用[点决定提交准备器](scripts/decision_commit.py)，在严格恢复、实际 Git 原文和配置的人类回读核验后，以决定专属 Git ref 保留单父、单文档提交。[真实 Git 测试](scripts/test_decision_commit.py)覆盖重入、写入响应丢失、撤销授权及晚期来源变化。COMMIT_PREPARED 不等于应用：HEAD、真实 index、工作文件和任务保持不变；仍须接应用/状态协调者。
-使用[点应用步骤](scripts/decision_apply.py)及其[真实 Git 测试](scripts/test_decision_apply.py)，重验授权、记录发起，再仅快进到精确准备的点提交。发起结果未知时只观察，不自动重试；进程丢失后仍可只读恢复。APPLIED_PENDING_STATUS 不等于任务完成，仍须另行登记任务状态和决定 SHA。若预期状态违反依赖规则则拒绝应用，不擅改已启动的下游任务；此步骤还不是完整跨文件状态协调者。
-使用[点状态续记](scripts/decision_status.py)及其[真实 Git 测试](scripts/test_decision_status.py)，将独立元数据提交绑定已应用的决定 SHA，重验已配置的真人授权，并通过 task_state 转换状态。恢复从实际父提交重建精确元数据；Git 记录仅是事实，不是真人认证。未知发起不自动重试。已使用点的重开依赖协调、生产平台认证和完整工作流/UI 仍须另行完成。
-真实宿主传输、写入器与质量策略仍待集成；文件自述不能认证人类决定。
+使用[提交准备器](scripts/decision_commit.py)保留经真人来源核验的单父、单文档提交；[测试](scripts/test_decision_commit.py)覆盖重入、响应丢失及晚期变化。COMMIT_PREPARED 保持 HEAD/index/文件/任务不变；通过下述已实现 point_workflow 接续，不另造协调者。
+使用[应用步骤](scripts/decision_apply.py)及[测试](scripts/test_decision_apply.py)，重验授权、持久记录发起、仅快进精确提交。未知发起只观察，不自动重试。APPLIED_PENDING_STATUS 由已实现状态续记接续；底层应用步骤不完成任务或改写已启动消费者。
+使用[状态续记](scripts/decision_status.py)及[测试](scripts/test_decision_status.py)，将独立元数据提交绑定已应用决定 SHA，并重验真人授权。恢复从实际父提交重建元数据，未知发起不重试。已使用点重开仍须明确依赖协调，不静默复位任务；生产身份由宿主提供，UI 可选。
 
 [点业务协调入口](scripts/point_workflow.py)及其[业务流程测试](scripts/test_point_workflow.py)串联准备、应用与状态续记；已应用决定不重复执行，未知发起只回读，并列出须明确协调的已启动下游任务。依赖交接不是重置任务的授权；真实真人/平台来源仍由宿主接入，不从上传记录加载回调或权限。
 
@@ -136,13 +134,13 @@ helper 只取[用途提示](references/prompts.md)中的共同节与当前用途
 
 处理可编辑 RV 意见时，读取[格式与兼容规则](references/review-comments.md)，使用[编解码器](scripts/review_comments.py)与[回归测试](scripts/test_review_comments.py)。
 进入审查或明确读取审查内容时，按已登记绑定调用前台[来源读取器](scripts/review_source.py)，见[真实 Git 回归](scripts/test_review_source.py)。
-Git 读取不合并、不发布、不授权应用，也不改变点决定；原生平台和条件发布仍待完成。
-应用前使用[前置校验](scripts/review_application.py)及其[真实 Git 测试](scripts/test_review_application.py)；通过仍需 F03 intent/writer 集成，不能绕过日志直接合并。
-已授权的仓库同步使用 [F03 持久化写入器](scripts/review_sync.py)和[中断/冲突测试](scripts/test_review_sync.py)。[管理仓库协议](scripts/review_sync_management.py)及其[同仓库测试](scripts/test_review_sync_management.py)覆盖仅含操作日志的提交。明确授权的 Git 发布使用[条件发布器](scripts/review_publish.py)和[lease/未知结果测试](scripts/test_review_publish.py)。先阅读评论规则；宿主/UI 接线仍待完成。
+Git 读取不合并、不发布或改变点决定；已实现 review_workflow 在当前宿主权限下组合前置校验、同步和 Git／原生条件发布。
+应用前使用[前置校验](scripts/review_application.py)及[测试](scripts/test_review_application.py)；校验通过不等于写入，通过下述持久 writer 接续，不能绕过日志直接合并。
+获授权同步使用[持久 writer](scripts/review_sync.py)及[测试](scripts/test_review_sync.py)；[管理协议](scripts/review_sync_management.py)和[测试](scripts/test_review_sync_management.py)覆盖仅日志提交。获授权 Git 发布使用[条件发布器](scripts/review_publish.py)及[lease／未知测试](scripts/test_review_publish.py)。review_workflow 已组合调用；宿主凭据／权限是运行时依赖。
 
 [原生原文档传输层](scripts/review_native.py)与[本地 HTTP 测试](scripts/test_review_native.py)保留实际强 ETag 条件。这只是传输基础能力；持久化发布须使用下述日志发布器。
 
-持久化原生发布使用[原生 F03 发布器](scripts/review_native_publish.py)和[持久恢复测试](scripts/test_review_native_publish.py)。每次调用都独立传入真实宿主端点，不从日志重建凭据或权限。宿主/UI 接线及决定/质量集成仍待完成。
+通过 review_workflow 使用[原生持久发布器](scripts/review_native_publish.py)及[恢复测试](scripts/test_review_native_publish.py)。每次独立传入真实端点／当前权限，不从日志重建凭据或权限；发布不批准决定或质量结论。
 
 - 每个仓库独立处理；一个 feature 可以跨仓库。
 - 仓库定位顺序为：显式 `--repo NAME=PATH`、相对项目管理仓库根目录的 path hints、按注册 remote 身份进行 sibling/workspace 发现。不得把历史绝对路径当作定位器；缺失或歧义均停止。

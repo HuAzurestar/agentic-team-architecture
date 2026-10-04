@@ -14,7 +14,7 @@ read_reply／interpret／read_grant。本包不部署服务，也不因构造 se
 [decision_workflow.py](../scripts/decision_workflow.py)、
 [review_workflow.py](../scripts/review_workflow.py) 和
 [acceptance_workflow.py](../scripts/acceptance_workflow.py)。认证点流程的集中检查见
-[test_decision_workflow.py](../scripts/test_decision_workflow.py)；服务身份为合成夹具，
+[scripts/test_decision_workflow.py](../scripts/test_decision_workflow.py)；服务身份为合成夹具，
 不作为生产账号验证证据。
 
 ```text
@@ -60,6 +60,12 @@ F04-T06 要求的是保留旧尝试并取得真实处置，不是任意改写已
 
 创建复用前台协调锁下的既有 task_create，不承诺跨文件事务。中断或结果未知时先检查
 实际任务文件并恢复，再写入；不自动重试创建、提交、发布或合并。
+
+后继 writer 使用统一的最终 before_write guard：核对捕获的文件集，回读当前操作权限，
+回读结束后再次核对完整文件集，然后才允许 task_create 写准备内容。回读期间的其他编辑
+返回 SUCCESSOR_SOURCE_CHANGED，并保留原样；不新增后继、不执行补偿回滚。正常检查点／
+恢复后，依据保留的新内容重新制定计划，不用 reset 抹掉编辑。这是乐观本地核对，
+不是跨 ACL／文件的原子事务，也不锁住最后比较之后的任意外部 writer。
 
 ## 保留边界与验证
 

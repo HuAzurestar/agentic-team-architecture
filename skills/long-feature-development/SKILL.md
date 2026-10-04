@@ -5,37 +5,36 @@ description: Help Codex resume and advance a multi-session software feature from
 
 # Long Feature Development
 
-Use the [foreground host and acceptance continuation](references/host-workflow.md) for the [Skill-only caller](scripts/feature_host.py) and [rework coordinator](scripts/rework_workflow.py). The [concentrated real-Git continuation check](scripts/test_rework_workflow.py) covers a real negative disposition followed by a new pending acceptance and controlled downstream rewire; its human transport is synthetic, not independent review or production authentication.
+This Skill resumes a feature from versioned records, not development chat. The project selects `<Project-Manage>`; no fixed management repository is assumed.
 
-Its composed entries are the [human decision route](scripts/decision_workflow.py),
-[review route](scripts/review_workflow.py) and [acceptance route](scripts/acceptance_workflow.py).
-The [concentrated decision-route test](scripts/test_decision_workflow.py) uses a synthetic service identity.
+## Capability boundaries and call paths
 
-Use the [decision workflow entry](references/decision-workflow.md) for host/workbench inspection, single-point application and recovery. The [native human-source adapter](scripts/decision_native.py) reads independently configured message and authorization services and connects the existing acceptance reader; account mapping and endpoint credentials are runtime host configuration.
+### Implemented components
 
-Use the [foreground review workflow](references/review-workflow.md) to read selected authoritative comments, check actual targets, prepare/execute an authorized exact-master synchronization, and prepare/publish/reconcile retained drafts through either Git or native sources. Its standalone CLI only reads; operation permissions come from the configured host.
+Use the route for the current operation; do not preload every reference or call low-level legs as independent business workflows.
 
-The [quality host composition](scripts/quality_host.py) reads strict feature records, committed original report/test/checklist objects and actual delivery Git facts before assessing quality. Its [real-source regressions](scripts/test_quality_host.py) use synthetic identity transport; an authenticated provenance reader is still required. See [quality boundaries](references/quality.md).
+| Operation | Implemented entry | Read when needed |
+| --- | --- | --- |
+| Foreground composition / acceptance successor | [FeatureHost](scripts/feature_host.py), [ReworkWorkflow](scripts/rework_workflow.py) | [Host and continuation](references/host-workflow.md); [concentrated check](scripts/test_rework_workflow.py) |
+| Point decision, application and status recovery | [decision_workflow](scripts/decision_workflow.py), [native session adapter](scripts/decision_native.py) | [Decision workflow](references/decision-workflow.md) |
+| Authoritative review read, exact-master sync and Git/native conditional publication | [review_workflow](scripts/review_workflow.py) | [Review workflow](references/review-workflow.md) |
+| Retained acceptance preparation and guarded recording | [acceptance_workflow](scripts/acceptance_workflow.py), [source adapter](scripts/state_acceptance.py) | [Acceptance workflow](references/acceptance-workflow.md) |
+| Clean/prepared quality assessment and protected task writes | [quality_host](scripts/quality_host.py), [PreparedTransition](scripts/state_prepared.py), [state guard](scripts/state_guard.py) | [Quality paths, fact modules and focused regressions](references/quality.md) |
 
-The [test facts and applicability reader](scripts/quality_tests.py), with [concentrated content/dependency checks](scripts/test_quality_tests.py), separates unresolved count conflicts from content changes. Keep original test targets truthful; reuse across SHAs requires verified unchanged content/input coverage, not a retargeted PASS report.
+prepare/apply/status are recovery boundaries within the composed point route, not missing integrations or three user workflows. Quality/source integrity is not authentication, and `allowed` is not operation permission. Standalone inspection CLIs do not gain mutation authority from JSON or flags.
 
-Protected state writes use the [state evidence guard](scripts/state_guard.py), [writer tests](scripts/test_state_guard.py) and [quality boundary](references/quality.md). A human-looking actor label is not decision provenance; configured host readback is required.
+### Capabilities supplied by a trusted host
 
-Record an acceptance decision through the [actual acceptance-source adapter](scripts/state_acceptance.py) and its [real-original regressions](scripts/test_state_acceptance.py). It joins committed decision/brief originals, the product candidate and configured human readback without equating a recorded rejection with quality success. Authentication and interpretation remain host responsibilities.
+Bind actual message identity, interpretation, current grants/operation permissions, original-source locations, quality provenance and remote endpoints/credentials independently. Review dispatch needs explicit authorization and a verifiably fresh, read-only context. Session classes, hashes, uploaded actor names and synthetic test callbacks supply none of those facts. Adapters and business routes exist; deployment/account mapping is runtime host configuration, not another implicit product service.
 
-Use the [acceptance workflow entry](references/acceptance-workflow.md) to inspect a retained attempt and connect an exact clean-baseline preparation to that adapter and the guarded state writer. Its CLI only inspects; recording a real decision is an explicit configured-host operation followed by a separate management checkpoint.
+### Formal scenarios not established by component tests
 
-For metadata prepared before a protected write, use the [exact prepared-state reader](scripts/state_prepared.py) and its [real-Git regressions](scripts/test_state_prepared.py). Capture the clean baseline before preparing files; never substitute an ignore-dirty flag. See the quality boundary for host composition and remaining authentication/UI work.
+Packet validation is not blank-context review execution; isolated Git/HTTP fixtures are not a complete current-candidate review → rework → retest → rereview → human acceptance → integration/result-check chain. Track the actual scenario target, input/closure changes, evidence and unresolved outcomes in the feature records. Retain applicable prior observations rather than rerunning them solely because SHA changed. Do not close findings or advance a Gate from component existence or an author's PASS.
 
-The [quality/selector composition tests](scripts/test_quality_selection.py) cover stage-specific policy consumption; a ready summary cannot replace complete quality inputs for delivery. See [quality integration](references/quality.md).
+### Optional UI
 
-The [actual quality source reader](scripts/quality_source.py) and [real Git source tests](scripts/test_quality_source.py) bind complete policy objects to original documents. Source integrity alone never proves independent review or human authority; see [quality boundaries](references/quality.md).
+A workbench may consume these same host routes; this Skill does not require Web UI, SM-MD or a deployed message service. UI absence is not missing Skill-only wiring. UI authentication and browser/provider observations, when in scope, are separate from the core feature evidence.
 
-For three-phase release evidence, read [quality boundaries](references/quality.md). The [actual Git correspondence reader](scripts/quality_git.py) and [real-repository tests](scripts/test_quality_git.py) establish local ancestry/tree facts only; they do not replace aggregate quality assessment, acceptance or host integration.
-
-The [pure three-phase policy](scripts/quality_policy.py) and [policy tests](scripts/test_quality_policy.py) combine validated feature, detailed reports/tests, exact scope and host-verified observations. Its allowed result never grants an operation. Actual host source/authority adapters and task/UI wiring remain required; do not construct trusted observations from uploaded documents.
-
-This Codex skill uses a small, versioned feature record to continue development without relying on previous chat history. The project chooses the concrete path represented by `<Project-Manage>`; never assume MPA or another fixed repository.
 
 ## Select the current purpose
 
@@ -136,10 +135,9 @@ and use the pure [checker](scripts/decision_evidence.py) with its [tests](script
 Read local current material using the [Git source reader](scripts/decision_source.py), covered by [real Git tests](scripts/test_decision_source.py).
 Use the [host readback gateway](scripts/decision_host.py) and its [contract tests](scripts/test_decision_host.py) to connect authenticated reply reads, host policy and exact interpretation to the checker.
 The [single-point draft renderer](scripts/decision_point.py), covered by [draft tests](scripts/test_decision_point.py), preserves statements/history, moves disposition records and recomputes document state. It returns DRAFT_ONLY: it does not authenticate, write, commit, or complete a task. The durable writer must still revalidate the actual human source and current material.
-The [point commit preparer](scripts/decision_commit.py) connects strict recovery, actual Git sources and configured human readback before retaining one single-parent, single-document commit under a decision-specific Git ref. Its [real-Git tests](scripts/test_decision_commit.py) cover reentry, lost write responses, revoked grants and late source changes. COMMIT_PREPARED is not application: HEAD, the real index, working files and tasks remain unchanged; the application/status coordinator is still required.
-The [point application leg](scripts/decision_apply.py), with [real-Git application tests](scripts/test_decision_apply.py), revalidates authority, records dispatch, and fast-forwards only the exact prepared point commit. Unknown dispatch is observed, not automatically retried. Read-only recovery remains available after process loss. APPLIED_PENDING_STATUS is not task completion: finish the matching task-state/decision-SHA record separately. A prospective dependency violation refuses application; assigned downstream tasks are never silently changed. This leg is not yet the complete cross-file status coordinator.
-The [point status followup](scripts/decision_status.py) and [real-Git status tests](scripts/test_decision_status.py) bind a separate metadata commit to the applied decision SHA, recheck configured human authority, and use task_state transitions. Recovery reconstructs exact metadata from its committed parent; Git records are facts, not human authentication. Unknown dispatch is not retried. Consumed-point reopen coordination, production provider authentication and the full workflow/UI remain separate requirements.
-Live host transports, writers and quality policy still need integration; file claims cannot authenticate a human decision.
+The [point commit preparer](scripts/decision_commit.py) retains an authenticated single-parent, single-document commit under a decision-specific ref; [tests](scripts/test_decision_commit.py) cover reentry, lost responses and late changes. COMMIT_PREPARED leaves HEAD/index/files/tasks unchanged. Continue through the implemented point_workflow below, not a second invented coordinator.
+The [application leg](scripts/decision_apply.py), with [tests](scripts/test_decision_apply.py), revalidates authority, journals dispatch and fast-forwards only the exact commit. Unknown dispatch is observed, not retried. APPLIED_PENDING_STATUS requires the implemented status followup; this low-level leg does not complete a task or rewrite assigned consumers.
+The [status followup](scripts/decision_status.py) and [tests](scripts/test_decision_status.py) bind a separate metadata commit to the applied decision SHA and recheck human authority. Recovery reconstructs metadata from its parent; unknown dispatch is not retried. Reopening consumed points requires explicit dependency coordination, not a silent task reset. Production identity is host-supplied; UI is optional.
 
 The [point workflow entry](scripts/point_workflow.py) composes preparation, application and status followup, with [business-flow tests](scripts/test_point_workflow.py). It resumes an applied decision without reapplying it, observes unknown dispatch without retry, and names assigned downstream consumers requiring explicit coordination. A dependency handoff is not permission to reset tasks. The host must still bind real human/provider sources; no callbacks or authority are loaded from uploaded records.
 
@@ -148,13 +146,13 @@ The [point workflow entry](scripts/point_workflow.py) composes preparation, appl
 For editable RV comments, read [comment format and compatibility](references/review-comments.md),
 then use the [codec](scripts/review_comments.py) and [regressions](scripts/test_review_comments.py).
 Before review work or an explicit review-read request, invoke the foreground [source reader](scripts/review_source.py) with the registered binding; see its [real Git regressions](scripts/test_review_source.py).
-Git reading does not merge, publish, authorize application or change point decisions; native providers and conditional publication remain pending.
-Use the [application preflight](scripts/review_application.py) and [real Git tests](scripts/test_review_application.py) before application; passing still requires F03 intent/writer integration, not an unjournaled merge.
-For an authorized repository sync, use the [F03 journaled writer](scripts/review_sync.py) and [interruption/conflict tests](scripts/test_review_sync.py). The [management-repository protocol](scripts/review_sync_management.py) and [same-repository tests](scripts/test_review_sync_management.py) cover its journal-only commit. For explicitly authorized Git publication use the [conditional publisher](scripts/review_publish.py) and [lease/unknown tests](scripts/test_review_publish.py). Read the review-comments reference before using these; host/UI integration remains pending.
+Git reading does not merge, publish or change point decisions. The implemented review_workflow composes preflight, synchronization and Git/native conditional publication with current host permission.
+Use the [application preflight](scripts/review_application.py) and [tests](scripts/test_review_application.py) before application; a passing preflight is not a write. Continue through the journaled writer below, never an unjournaled merge.
+For authorized sync use the [journaled writer](scripts/review_sync.py) and [tests](scripts/test_review_sync.py). The [management protocol](scripts/review_sync_management.py) and [tests](scripts/test_review_sync_management.py) cover its journal-only commit. Authorized Git publication uses the [conditional publisher](scripts/review_publish.py) and [lease/unknown tests](scripts/test_review_publish.py). review_workflow is the composed caller; host credentials/permissions are runtime dependencies.
 
 The [native raw-document transport](scripts/review_native.py) and [loopback HTTP tests](scripts/test_review_native.py) preserve actual strong ETag conditions. It is a transport primitive; use the journaled publisher below for durable publication.
 
-For journaled native publication, use the [native F03 publisher](scripts/review_native_publish.py) and [durability tests](scripts/test_review_native_publish.py). Supply the actual host endpoint independently on each call; never reconstruct credentials or authority from the journal. Host/UI wiring and decision/quality integration remain required.
+Native publication uses the [journaled publisher](scripts/review_native_publish.py) and [durability tests](scripts/test_review_native_publish.py) through review_workflow. Independently supply the actual endpoint/current permission on every call; never reconstruct credentials or authority from the journal. Publication does not approve a decision or quality result.
 
 - Treat each repository independently. A feature may span several repositories.
 - Resolve repositories from `STATUS.md` in this order: explicit `--repo NAME=PATH`, registered path hints relative to the project-management repository root, then sibling/workspace discovery by registered remote identity. Never trust a historical absolute working path as the locator. Missing or ambiguous matches stop recovery.

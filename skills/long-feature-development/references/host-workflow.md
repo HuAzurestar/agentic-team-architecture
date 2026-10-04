@@ -19,7 +19,7 @@ The composed business entries are [point_workflow.py](../scripts/point_workflow.
 [review_workflow.py](../scripts/review_workflow.py) and
 [acceptance_workflow.py](../scripts/acceptance_workflow.py). The concentrated
 authenticated point-route check is
-[test_decision_workflow.py](../scripts/test_decision_workflow.py); its service
+[scripts/test_decision_workflow.py](../scripts/test_decision_workflow.py); its service
 identity is a synthetic fixture, not production-account evidence.
 
 ```text
@@ -82,6 +82,15 @@ Creation reuses the existing task_create writer under the foreground coordinator
 it is not a cross-file transaction. If creation is interrupted or its result is
 unknown, inspect/recover the actual task files before another write. This API
 does not automatically retry creation, commit, publish or merge.
+
+The successor writer has one final before_write guard: check the captured file
+set, read current operation authority, then check the complete file set again
+after that callback. Only then may task_create publish its prepared records.
+An editor's change during the host read returns SUCCESSOR_SOURCE_CHANGED and is
+preserved, with no successor or compensating rollback write. Rebuild the plan
+from the retained change after normal checkpoint/recovery; never reset it away.
+This is optimistic local checking, not an atomic ACL/file transaction or an OS
+lock against arbitrary writers after the final comparison.
 
 ## Preserved boundary and verification
 

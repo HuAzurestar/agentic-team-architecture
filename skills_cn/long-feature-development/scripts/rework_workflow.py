@@ -146,6 +146,9 @@ class ReworkWorkflow:
             # The old acceptance grant proves disposition, not permission to
             # perform this operation now. Re-read after the writer prepares.
             self._permission('create-acceptance-successor', dict(plan=plan.__dict__))
+            # Host reads can yield to other editors. Do not publish candidates
+            # prepared from stale bytes, or roll back over the editor's work.
+            require(file_snapshot(self.root) == before, 'SUCCESSOR_SOURCE_CHANGED')
 
         # Existing task_create owns its per-file write behavior. A lost effect
         # must be recovered from actual files, never automatically retried here.
