@@ -52,6 +52,8 @@ python <long-feature-skill>/scripts/task_context.py <feature-directory> --review
 
 不能先运行普通恢复输出。协调者准备有界、已声明的原始输入，包含当前规范性需求/设计摘录、授权和原始证据，并标记 `- Evidence type: original`。标记只是路由声明，不证明内容可信；reviewer 仍检查污染和缺失。blind 显示文档来源及点 ID，不默认输出任意管理全文。没有原始包表示输入不完整，不能 PASS。
 
+对 `BLOCKED`、`WAITING_HUMAN`、`WAITING_EXTERNAL`，将干净的行动边界和解除条件写为原始包的 `- Action boundary:`、`- Release condition:`（也支持“行动边界”“解除条件”）。helper 不透传混有旧结论的阻塞正文，缺干净摘录时明确诊断。原始包不能解除阻塞或授予权限；遵守现有边界，即使仍允许本地只读检查。
+
 若宿主已经把旧 findings 放入上下文，记录污染。保存盲审快照本身不证明独立上下文。
 
 ## 扫描
@@ -73,9 +75,10 @@ python <long-feature-skill>/scripts/task_context.py <feature-directory> --review
 - Review task: REVIEW-01
 - Target SHA: 实际审查的字面 commit
 - Review scope: review/v1 mode=strong
+- Review refs: 原样复制 blind 恢复输出的 JSON 对象
 ```
 
-多仓库另列各 base/head。后续核对新增发现不改写该快照。长程任务先声明快照 gist，再运行：
+多仓库另列各 base/head。长程任务原样复制 blind 的 `Review refs` JSON：绑定全部实现仓库 checkout、integration/PR refs 及字面 task 来源 refs。旧记录的 recorded-only refs 不代表实际 Git 已验证。不绑定项目管理 checkout HEAD，因为提交报告本身会推进它。refs 行缺失或不匹配时，在读取历史前拒绝 reconcile；旧快照应补做绑定版本的新盲审，不能事后补写证明。后续核对新增发现不改写该快照。先声明快照 gist，再运行：
 
 ```text
 python <long-feature-skill>/scripts/task_context.py <feature-directory> --review-phase reconcile --review-report gists/blind-01.md

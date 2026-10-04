@@ -1308,7 +1308,10 @@ def build_context(
             review_context.validate_candidate_target(target, repositories)
             if review_phase == "reconcile":
                 # Verify the current saved scan before reading historical gists.
-                snapshot = review_context.verify_blind_snapshot(review_report, review_paths, task_id, target, review_scope)
+                snapshot = review_context.verify_blind_snapshot(
+                    review_report, review_paths, task_id, target, review_scope,
+                    review_context.candidate_references(repositories, repository_refs, focused_status(status_text)),
+                )
         except ValueError as exc:
             raise ContextError(str(exc)) from exc
     # Preserve all original structural/ref validations above. Blind mode does not
@@ -1441,6 +1444,8 @@ def render_markdown(context: dict[str, Any]) -> str:
         parts.extend(("", "## Review view", "", f"- Phase: {review['phase']}", f"- Scope: {json.dumps(review['scope'], ensure_ascii=False)}", "- Independence: UNVERIFIED"))
         if review["phase"] == "blind":
             parts.extend((f"- Inputs ready: {review['inputs_ready']}", f"- Completeness: {review['completeness']}", f"- Action blocked: {review['action_blocked']}"))
+            parts.append(f"- Review refs: {json.dumps(review['candidate_refs'], ensure_ascii=False, sort_keys=True)}")
+            parts.extend((f"- Action boundary: {review['action_boundary'] or 'UNAVAILABLE'}", f"- Release condition: {review['release_condition'] or 'UNAVAILABLE'}"))
         parts.extend(f"- Diagnostic: {message}" for message in review.get("diagnostics", []))
         if "blind_snapshot" in review:
             parts.append(f"- Saved blind snapshot: {review['blind_snapshot']['path']} ({review['blind_snapshot']['sha256']})")

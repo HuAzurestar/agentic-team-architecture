@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import copy
 import hashlib
+import json
 import re
 import shlex
 from pathlib import Path
@@ -18,7 +19,9 @@ MAX_INPUTS = 1000
 
 
 def parse_review_scope(value: str | None = None) -> dict[str, Any]:
-    tokens = shlex.split(value or "review/v1")
+    if value is not None and not value.strip():
+        raise ValueError("Review scope is explicitly empty; omit the declaration to use defaults")
+    tokens = shlex.split("review/v1" if value is None else value)
     if not tokens or tokens[0] != "review/v1":
         raise ValueError("unsupported review protocol; expected review/v1")
     fields: dict[str, str] = {}
@@ -50,7 +53,7 @@ def parse_review_scope(value: str | None = None) -> dict[str, Any]:
 
 
 def scope_lines(text: str) -> list[str]:
-    return re.findall(r"^- (?:Review scope|审查范围)[:：][ \t]*(.+?)[ \t]*$", text, re.MULTILINE)
+    return re.findall(r"^- (?:Review scope|审查范围)[:：]([^\r\n]*)\r?$", text, re.MULTILINE)
 
 
 def configured_scope(solution: str, task_detail: str) -> dict[str, Any]:
@@ -99,7 +102,40 @@ def original_inputs(paths: list[str], declared: dict[str, Path]) -> list[dict[st
     return selected
 
 
-def verify_blind_snapshot(path: str | None, declared: dict[str, Path], task_id: str, target: str | None, scope: dict[str, Any]) -> dict[str, str]:
+def candidate_references(
+    repositories: dict[str, Any], repository_refs: list[dict[str, str]], feature: dict[str, Any]
+) -> dict[str, Any]:
+    """Bind every implementation checkout, plus literal task/intent source refs.
+
+    Never bind a management checkout HEAD: committing the report itself advances it.
+    Without a registry, task refs remain explicitly recorded-only evidence.
+    """
+    task_keys = ("branch", "head_sha", "baseline_history", "start_refs", "completion_sha")
+    refs = {item["repository"]: {key: item[key] for key in task_keys} for item in repository_refs}
+    for name, item in repositories.items():
+        if item["role"] == "implementation":
+            refs.setdefault(name, {}).update(
+                branch=item["actual_branch"], head_sha=item["actual_head"], verification="observed"
+            )
+    for name, item in refs.items():
+        item.setdefault("verification", "recorded-only")
+        if name in repositories and repositories[name]["role"] != "implementation":
+            continue
+        item["integration_refs"] = [
+            {"branch": row[1], "sha": row[2]}
+            for row in feature["integration_opponents"]["rows"] if row[0] == name
+        ]
+        item["pr_refs"] = [
+            {"source_branch": row[2], "source_sha": row[3], "target_branch": row[4], "target_sha": row[5]}
+            for row in feature["pr_mr_objects"]["rows"] if row[1] == name
+        ]
+    return refs
+
+
+def verify_blind_snapshot(
+    path: str | None, declared: dict[str, Path], task_id: str, target: str | None,
+    scope: dict[str, Any], candidate_refs: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     if path is None or path not in declared:
         raise ValueError("reconcile requires --review-report naming a declared blind snapshot gist")
     content = read_bounded(declared[path])
@@ -111,7 +147,25 @@ def verify_blind_snapshot(path: str | None, declared: dict[str, Path], task_id: 
     expected_scope = {key: scope[key] for key in ("protocol", "mode", "topics", "exclude", "focus")}
     if len(values) != 1 or parse_review_scope(values[0]) != expected_scope:
         raise ValueError("blind snapshot Review scope differs from current scope")
-    return {"path": path, "sha256": hashlib.sha256(declared[path].read_bytes()).hexdigest(), "target_sha": target}
+    values = re.findall(r"^- Review refs:([^\r\n]*)\r?$", content, re.MULTILINE)
+    if candidate_refs is None or len(values) != 1:
+        raise ValueError("blind snapshot requires one Review refs line and current per-repository candidate refs")
+
+    def unique_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+        result = {}
+        for key, value in pairs:
+            if key in result:
+                raise ValueError("blind snapshot Review refs contains a duplicate JSON key")
+            result[key] = value
+        return result
+
+    try:
+        saved_refs = json.loads(values[0], object_pairs_hook=unique_object)
+    except json.JSONDecodeError as exc:
+        raise ValueError("blind snapshot Review refs must be valid JSON") from exc
+    if saved_refs != candidate_refs:
+        raise ValueError("blind snapshot Review refs differ from current per-repository candidate refs")
+    return {"path": path, "sha256": hashlib.sha256(declared[path].read_bytes()).hexdigest(), "target_sha": target, "candidate_refs": candidate_refs}
 
 
 def blind_context(context: dict[str, Any], scope: dict[str, Any], inputs: list[dict[str, str]]) -> dict[str, Any]:
@@ -126,9 +180,13 @@ def blind_context(context: dict[str, Any], scope: dict[str, Any], inputs: list[d
     allowed_summary = {"Phase", "阶段", "Condition", "条件", "Current task", "当前任务", "Current gate", "当前 gate", "Next transition", "下一流转"}
     summary = [{"item": row["item"], "value": row["value"], "note": "-"} for row in feature["summary"] if row["item"] in allowed_summary]
 
-    def ref_table(table: dict[str, Any]) -> dict[str, Any]:
-        hidden = {"Note", "备注", "Receives", "接收", "Object", "对象"}
-        keep = [index for index, header in enumerate(table["header"]) if header not in hidden]
+    def ref_table(kind: str, table: dict[str, Any]) -> dict[str, Any]:
+        allowed = {
+            "working_branches": {"Repository", "仓库", "Local path", "本地路径", "Working branch", "工作分支", "Working HEAD SHA", "工作 HEAD SHA", "Current task", "当前 task", "当前任务"},
+            "integration_opponents": {"Repository", "仓库", "Integration branch", "Integration SHA"},
+            "pr_mr_objects": {"Repository", "仓库", "Source branch", "Source SHA", "Target branch", "Target SHA"},
+        }[kind]
+        keep = [index for index, header in enumerate(table["header"]) if header in allowed]
         return {"header": [table["header"][index] for index in keep], "rows": [[row[index] for index in keep] for row in table["rows"]]}
 
     intent = {
@@ -143,12 +201,25 @@ def blind_context(context: dict[str, Any], scope: dict[str, Any], inputs: list[d
     if not scope["topics"]:
         diagnostics.append("No review topics selected; do not claim PASS.")
     conditions = {row["item"]: row["value"] for row in summary}
-    blocked = task["state"] == "BLOCKED" or conditions.get("Condition", conditions.get("条件")) == "BLOCKED"
+    condition = conditions.get("Condition", conditions.get("条件"))
+    blocked = task["state"] == "BLOCKED" or condition in {"BLOCKED", "WAITING_HUMAN", "WAITING_EXTERNAL"}
+    boundaries = {}
+    for key, labels in (("action_boundary", "Action boundary|行动边界"), ("release_condition", "Release condition|解除条件")):
+        values = [
+            value.strip() for packet in inputs
+            for value in re.findall(rf"^- (?:{labels})[:：]([^\r\n]*)\r?$", packet["content"], re.MULTILINE)
+        ]
+        if len(values) > 1:
+            raise ValueError("original review inputs repeat an action boundary or release condition")
+        boundaries[key] = values[0] if values and values[0].casefold() not in {"", "-", "none", "n/a", "无", "无。"} else None
     if blocked:
-        diagnostics.append("An existing action blocker is active; retain its authorized action boundary in the original packet before proceeding.")
+        diagnostics.append(f"Existing action blocker: task={task['state']}, condition={condition}; do not resume blocked actions or infer authorization from review input readiness.")
+        for key, value in boundaries.items():
+            if value is None:
+                diagnostics.append(f"Missing clean {key}: STATUS.md/task blocker prose is withheld because it may contain old findings; provide a separated original excerpt before proceeding.")
     return {
         "feature_directory": context["feature_directory"],
-        "feature": {"summary": summary, **{key: ref_table(feature[key]) for key in ("working_branches", "integration_opponents", "pr_mr_objects")}},
+        "feature": {"summary": summary, **{key: ref_table(key, feature[key]) for key in ("working_branches", "integration_opponents", "pr_mr_objects")}},
         "repositories": {name: {key: item[key] for key in ("path", "actual_branch", "actual_head", "stable_branch", "integration_branch") if key in item} for name, item in context["repositories"].items()},
         "trace": copy.deepcopy(context["trace"]), "intent": intent,
         "task": task_metadata(task), "task_detail": f"# {task['id']} — Blind review\n\nManagement descriptions and previous conclusions withheld. Use the selected original input and current authorization.\n",
@@ -158,5 +229,7 @@ def blind_context(context: dict[str, Any], scope: dict[str, Any], inputs: list[d
         "dependencies": [{"task": task_metadata(item["task"]), "task_detail": "Historical task conclusions withheld.\n"} for item in context["dependencies"]],
         "topology": None, "gists": inputs,
         "review": {"phase": "blind", "scope": scope, "inputs_ready": bool(inputs) and bool(scope["topics"]) and not blocked,
+                   "candidate_refs": candidate_references(context["repositories"], context["repository_refs"], feature),
+                   "action_boundary": boundaries["action_boundary"], "release_condition": boundaries["release_condition"],
                    "completeness": "UNVERIFIED", "action_blocked": blocked, "diagnostics": diagnostics, "independence": "UNVERIFIED"},
     }

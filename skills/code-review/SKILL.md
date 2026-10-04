@@ -52,6 +52,8 @@ python <long-feature-skill>/scripts/task_context.py <feature-directory> --review
 
 Do not first run its ordinary recovery output. The coordinator prepares a bounded, declared raw input containing the current normative requirement/design excerpts, authorization and original evidence, marked `- Evidence type: original`. That marker is a routing declaration, not proof of trustworthy content. The reviewer still detects contamination and missing evidence. The blind view exposes source references and IDs, not arbitrary full management prose. No raw packet means inputs incomplete, not PASS.
 
+For `BLOCKED`, `WAITING_HUMAN` or `WAITING_EXTERNAL`, keep the action boundary and release condition as clean original-packet lines `- Action boundary:` and `- Release condition:`. The helper withholds mixed historical blocker prose and explicitly diagnoses missing clean excerpts. A packet cannot release a blocker or grant authorization; follow the recorded boundary even if local read-only work remains permitted.
+
 If the host already supplied old findings in this context, disclose contamination. A saved blind snapshot does not by itself prove an independent context.
 
 ## Scan the change
@@ -73,9 +75,10 @@ Save the blind result as a separate attempt report before reading history. Bind 
 - Review task: REVIEW-01
 - Target SHA: the literal reviewed commit
 - Review scope: review/v1 mode=strong
+- Review refs: copy the exact JSON object from blind recovery
 ```
 
-Record multi-repository base/head refs separately too. Preserve this snapshot when later reconciliation finds more issues. In a long feature, declare the snapshot gist in the task, then use:
+Record multi-repository base/head refs separately too. In a long feature, copy the blind view's `Review refs` JSON without editing it: it binds every implementation checkout and integration/PR refs, plus literal task source refs. Recorded-only legacy refs are not observed Git evidence. Do not bind the management checkout HEAD, which advances when committing the report. A missing/mismatched refs line rejects reconciliation before history loads; old snapshots need a new bound blind attempt, not a retroactive attestation. Preserve this snapshot when later reconciliation finds more issues. Declare the snapshot gist in the task, then use:
 
 ```text
 python <long-feature-skill>/scripts/task_context.py <feature-directory> --review-phase reconcile --review-report gists/blind-01.md

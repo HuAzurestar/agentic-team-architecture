@@ -2,6 +2,7 @@
 """Behavioral regression for blind context leakage, scope and reconciliation."""
 
 import contextlib
+import copy
 import io
 import json
 import tempfile
@@ -35,7 +36,192 @@ class ReviewContextTests(unittest.TestCase):
             "- Review phase: blind\n- Review task: REVIEW-01\n- Target SHA: 4444444\n- Review scope: review/v1\n\nSaved current scan.\n", encoding="utf-8"
         )
         task_context.sync_topology(root / "TASKS.md")
+        context = task_context.build_context(root, review_phase="blind")
+        with (root / "gists/blind-01.md").open("a", encoding="utf-8") as report:
+            report.write("\n- Review refs: " + json.dumps(context["review"]["candidate_refs"]) + "\n")
         return root
+
+    def test_renamed_and_added_status_columns_cannot_leak_blind_history(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = self.make_review(Path(temp))
+            path = root / "STATUS.md"
+            original = path.read_text(encoding="utf-8")
+            marker = "OLD_REVIEW_P0_SINGLE_EXPORT_BYPASSES_AUTH"
+            for header in ("Review result", "Conclusion", "审查结论", "任意字段"):
+                path.write_text(original.replace("| Integration SHA | Receives | Note |", f"| Integration SHA | Receives | {header} |").replace("| observed |", f"| {marker} |"), encoding="utf-8")
+                context = task_context.build_context(root, review_phase="blind", review_inputs=["gists/review-input.md"])
+                with self.subTest(header=header):
+                    self.assertNotIn(marker, json.dumps(context))
+                    self.assertNotIn(marker, task_context.render_markdown(context))
+                    self.assertTrue(context["review"]["inputs_ready"])
+            # Apply the same root-cause probe to every reference-table surface,
+            # including locale aliases, rather than just this reported column.
+            base = task_context.build_context(root)
+            for kind in ("working_branches", "integration_opponents", "pr_mr_objects"):
+                for locale in ("en", "cn"):
+                    probe = copy.deepcopy(base)
+                    table = probe["feature"][kind]
+                    if locale == "cn":
+                        table["header"] = [{"Repository": "仓库", "Local path": "本地路径", "Working branch": "工作分支", "Working HEAD SHA": "工作 HEAD SHA", "Current task": "当前 task"}.get(header, header) for header in table["header"]]
+                    table["header"].append("Unexpected review conclusion")
+                    for row in table["rows"]:
+                        row.append(marker)
+                    result = review_context.blind_context(probe, review_context.parse_review_scope(), [])
+                    with self.subTest(kind=kind, locale=locale):
+                        self.assertNotIn(marker, json.dumps(result))
+                        self.assertNotIn(marker, task_context.render_markdown(result))
+                        self.assertTrue(any(header in {"Repository", "仓库"} for header in result["feature"][kind]["header"]))
+
+    def test_waiting_states_fail_closed_when_clean_action_boundaries_are_missing(self):
+        for condition in ("WAITING_HUMAN", "WAITING_EXTERNAL", "BLOCKED"):
+            with self.subTest(condition=condition), tempfile.TemporaryDirectory() as temp:
+                root = self.make_review(Path(temp))
+                path = root / "STATUS.md"
+                marker = "USER_PAUSED_EXTERNAL_API_ACCESS_UNTIL_APPROVAL"
+                path.write_text(path.read_text(encoding="utf-8").replace("| Condition | `ACTIVE` |", f"| Condition | `{condition}` |").replace("| Blocker | None | - |", f"| Blocker | {marker} | old findings mixed with permission |"), encoding="utf-8")
+                context = task_context.build_context(root, review_phase="blind", review_inputs=["gists/review-input.md"])
+                self.assertTrue(context["review"]["action_blocked"])
+                self.assertFalse(context["review"]["inputs_ready"])
+                self.assertIsNone(context["review"]["action_boundary"])
+                self.assertNotIn(marker, json.dumps(context))
+                rendered = task_context.render_markdown(context)
+                self.assertIn("Missing clean action_boundary", rendered)
+                self.assertIn("Missing clean release_condition", rendered)
+                self.assertIn(condition, rendered)
+
+    def test_clean_boundaries_survive_both_outputs_without_granting_permission(self):
+        for labels in (("Action boundary", "Release condition"), ("行动边界", "解除条件")):
+            with self.subTest(labels=labels), tempfile.TemporaryDirectory() as temp:
+                root = self.make_review(Path(temp))
+                path = root / "STATUS.md"
+                path.write_text(path.read_text(encoding="utf-8").replace("`ACTIVE`", "`WAITING_HUMAN`"), encoding="utf-8")
+                path = root / "gists/review-input.md"
+                path.write_text(path.read_text(encoding="utf-8") + f"\n- {labels[0]}: Local isolated tests only; no external API access.\n- {labels[1]}: Explicit human authorization recorded before external access.\n", encoding="utf-8")
+                context = task_context.build_context(root, review_phase="blind", review_inputs=["gists/review-input.md"])
+                self.assertIn("no external API access", context["review"]["action_boundary"])
+                self.assertIn("Explicit human authorization", task_context.render_markdown(context))
+                self.assertFalse(context["review"]["inputs_ready"])
+                self.assertTrue(context["review"]["action_blocked"])
+                self.assertFalse(any("Missing clean" in value for value in context["review"]["diagnostics"]))
+
+    def test_task_blocker_is_not_cleared_by_an_input_packet(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = self.make_review(Path(temp))
+            path = root / "TASKS.md"
+            path.write_text(path.read_text(encoding="utf-8").replace("`WIP`", "`BLOCKED`"), encoding="utf-8")
+            task_context.sync_topology(path)
+            path = root / "STATUS.md"
+            path.write_text(path.read_text(encoding="utf-8").replace("`ACTIVE`", "`WAITING_HUMAN`"), encoding="utf-8")
+            path = root / "tasks/REVIEW-01.md"
+            path.write_text(path.read_text(encoding="utf-8").replace("- Blocker: none", "- Blocker: permission required").replace("- Impact: none", "- Impact: cannot access external API").replace("- Release condition: none", "- Release condition: explicit authorization"), encoding="utf-8")
+            context = task_context.build_context(root, review_phase="blind", review_inputs=["gists/review-input.md"])
+            self.assertTrue(context["review"]["action_blocked"])
+            self.assertIn("task=BLOCKED", " ".join(context["review"]["diagnostics"]))
+
+    def test_empty_or_conflicting_action_boundaries_do_not_appear_ready(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = self.make_review(Path(temp))
+            path = root / "STATUS.md"
+            path.write_text(path.read_text(encoding="utf-8").replace("`ACTIVE`", "`WAITING_HUMAN`"), encoding="utf-8")
+            path = root / "gists/review-input.md"
+            original = path.read_text(encoding="utf-8")
+            for missing in ("", "none", "无", "\t"):
+                path.write_text(original + f"\n- Action boundary: No external access.\n- Release condition: {missing}\n", encoding="utf-8")
+                context = task_context.build_context(root, review_phase="blind", review_inputs=["gists/review-input.md"])
+                with self.subTest(missing=missing):
+                    self.assertFalse(context["review"]["inputs_ready"])
+                    self.assertIsNone(context["review"]["release_condition"])
+                    self.assertIn("Missing clean release_condition", task_context.render_markdown(context))
+            for duplicate in ("Action boundary", "Release condition", "行动边界", "解除条件"):
+                path.write_text(original + "\n- Action boundary: No external access.\n- Release condition: Human authorization.\n" + f"- {duplicate}: Contradictory allowance.\n", encoding="utf-8")
+                with self.subTest(duplicate=duplicate), self.assertRaisesRegex(task_context.ContextError, "repeat"):
+                    task_context.build_context(root, review_phase="blind", review_inputs=["gists/review-input.md"])
+
+    def test_empty_scope_is_rejected_in_design_task_and_snapshot(self):
+        self.assertEqual(review_context.configured_scope("", "")["source"], "default")
+        for empty in ("", " ", "\t", "\r"):
+            with self.subTest(empty=empty), self.assertRaisesRegex(ValueError, "explicitly empty"):
+                review_context.parse_review_scope(empty)
+            for label in ("Review scope:", "审查范围："):
+                line = f"- {label}{empty}\n"
+                for design, task in ((line, ""), ("", line), (line + "- Review scope: review/v1\n", "")):
+                    with self.subTest(line=line, design=bool(design)), self.assertRaises(ValueError):
+                        review_context.configured_scope(design, task)
+        for document in ("SOLUTION.md", "tasks/REVIEW-01.md", "gists/blind-01.md"):
+            with self.subTest(document=document), tempfile.TemporaryDirectory() as temp:
+                root = self.make_review(Path(temp))
+                path = root / document
+                content = path.read_text(encoding="utf-8")
+                path.write_text(content.replace("- Review scope: review/v1", "- Review scope:") if document.startswith("gists") else content + "\n- Review scope:\n", encoding="utf-8")
+                with self.assertRaises(task_context.ContextError):
+                    task_context.build_context(root, review_phase="reconcile", review_report="gists/blind-01.md")
+
+    def test_snapshot_binds_every_checkout_and_ref_before_history_is_read(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = self.make_review(Path(temp))
+            repos = {}
+            for name in ("app", "second"):
+                repo = Path(temp) / name
+                fixtures.make_git_repo(repo, f"https://example.invalid/{name}.git", 2)
+                repos[name] = {"role": "implementation", "actual_branch": "main", "actual_head": fixtures.git(repo, "rev-parse", "HEAD")}
+            current = task_context.build_context(root)
+            scope = review_context.parse_review_scope()
+            refs = review_context.candidate_references(repos, current["repository_refs"], current["feature"])
+            target = repos["app"]["actual_head"]
+            report = root / "gists/blind-01.md"
+            original = f"- Review phase: blind\n- Review task: REVIEW-01\n- Target SHA: {target}\n- Review scope: review/v1\n- Review refs: {json.dumps(refs)}\n"
+            report.write_text(original, encoding="utf-8")
+            declared = {"gists/blind-01.md": report}
+            review_context.verify_blind_snapshot("gists/blind-01.md", declared, "REVIEW-01", target, scope, refs)
+            fixtures.git(Path(temp) / "second", "commit", "--allow-empty", "-m", "advance second candidate only")
+            repos["second"]["actual_head"] = fixtures.git(Path(temp) / "second", "rev-parse", "HEAD")
+            moved = review_context.candidate_references(repos, current["repository_refs"], current["feature"])
+            review_context.validate_candidate_target(target, repos)
+            with self.assertRaisesRegex(ValueError, "per-repository"):
+                review_context.verify_blind_snapshot("gists/blind-01.md", declared, "REVIEW-01", target, scope, moved)
+            for mutate in (
+                lambda value: value.pop("second"),
+                lambda value: value["second"].update(branch="other"),
+                lambda value: value["app"].update(baseline_history="main@fffffff"),
+                lambda value: value["app"]["integration_refs"][0].update(sha="f" * 40),
+                lambda value: value["app"]["pr_refs"][0].update(target_sha="f" * 40),
+                lambda value: value.update(extra={}),
+            ):
+                changed = copy.deepcopy(refs)
+                mutate(changed)
+                report.write_text(original.replace(json.dumps(refs), json.dumps(changed)), encoding="utf-8")
+                with self.assertRaisesRegex(ValueError, "per-repository"):
+                    review_context.verify_blind_snapshot("gists/blind-01.md", declared, "REVIEW-01", target, scope, refs)
+            # End-to-end reconcile must reject stale refs before touching history.
+            report.write_text("- Review phase: blind\n- Review task: REVIEW-01\n- Target SHA: 4444444\n- Review scope: review/v1\n- Review refs: {}\n", encoding="utf-8")
+            (root / "gists/parser.md").write_bytes(b"\xff")
+            with self.assertRaisesRegex(task_context.ContextError, "per-repository"):
+                task_context.build_context(root, review_phase="reconcile", review_report="gists/blind-01.md")
+
+    def test_report_commit_does_not_invalidate_unchanged_management_source_refs(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = self.make_review(Path(temp))
+            context = task_context.build_context(root)
+            repositories = {"pm": {"role": "project-management", "actual_branch": "feature", "actual_head": "a" * 40}}
+            before = review_context.candidate_references(repositories, context["repository_refs"], context["feature"])
+            repositories["pm"]["actual_head"] = "b" * 40
+            after = review_context.candidate_references(repositories, context["repository_refs"], context["feature"])
+            self.assertEqual(before, after)
+            self.assertEqual(after["pm"]["head_sha"], "3333333")
+            context["repository_refs"][1]["head_sha"] = "ccccccc"
+            self.assertNotEqual(after, review_context.candidate_references(repositories, context["repository_refs"], context["feature"]))
+
+    def test_snapshot_rejects_missing_duplicate_or_invalid_refs(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = self.make_review(Path(temp))
+            context = task_context.build_context(root, review_phase="blind")
+            refs = context["review"]["candidate_refs"]
+            path = root / "gists/blind-01.md"
+            prefix = "- Review phase: blind\n- Review task: REVIEW-01\n- Target SHA: 4444444\n- Review scope: review/v1\n"
+            for suffix in ("", "- Review refs: invalid\n", '- Review refs: {"app": {}, "app": {}}\n', f"- Review refs: {json.dumps(refs)}\n- Review refs: {json.dumps(refs)}\n"):
+                path.write_text(prefix + suffix, encoding="utf-8")
+                with self.subTest(suffix=suffix), self.assertRaises(task_context.ContextError):
+                    task_context.build_context(root, review_phase="reconcile", review_report="gists/blind-01.md")
 
     def test_blind_view_does_not_leak_history_through_markdown_or_json(self):
         with tempfile.TemporaryDirectory() as temp:
