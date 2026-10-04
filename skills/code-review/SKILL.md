@@ -40,6 +40,16 @@ Weak mode reads only the selected topics' detail references. Scan each applicabl
 
 ## Establish clean inputs
 
+Use the shared templates for either mode; load them at their own stage, not all at once:
+
+| Template | Generated artifact | When used |
+| --- | --- | --- |
+| [Original input](assets/REVIEW_INPUT.md) | A fresh raw packet such as gists/review-input.md | Coordinator prepares it before blind recovery; no historical conclusions. |
+| [Attempt report](assets/REVIEW_REPORT.md) | A frozen blind report, then a separate final report if reconciling history | Reviewer fills it from actual coverage, experiments and findings. |
+| [Ledger](assets/REVIEW.md) | The evolving REVIEW.md index | Only after the current blind report is saved. |
+
+Replace template variables before use. Keep per-attempt reports immutable and link them from the ledger; do not reuse a populated old report as input. Standalone use does not require a long-feature directory.
+
 Pin repository identity, base/head commits, requirement/design version, environment, scope and skill version. Distinguish author self-checks from an independent execution context; changing roles inside the same conversation is not independence. Do not create another task/session or delegate without existing authorization. If independence is unavailable, report that accurately and continue permitted self-checks.
 
 Before this attempt's blind scan, do not read the existing REVIEW.md, older review reports, findings, scores or summaries. Do not get the same conclusions indirectly from dependency details or author handoff notes. Existing source, tests, normative design and original runtime evidence remain usable. Keep real authorization and safety boundaries. If inputs mix these boundaries with old findings and cannot be separated, mark the limitation; do not claim a clean blind review.
@@ -68,7 +78,7 @@ Use permitted environments and data. Record expected versus observed results; ne
 
 ## Freeze, reconcile, and report
 
-Save the blind result as a separate attempt report before reading history. Bind it to the reviewed target and record:
+Use the attempt-report template to save the blind result separately before reading history. Bind it to the reviewed target and record:
 
 ```text
 - Review phase: blind

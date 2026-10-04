@@ -5,6 +5,7 @@ import contextlib
 import copy
 import io
 import json
+import re
 import tempfile
 import unittest
 from pathlib import Path
@@ -16,6 +17,59 @@ from test_task_context import DETAILS, STATUS, TASKS
 
 
 class ReviewContextTests(unittest.TestCase):
+    def test_locale_input_report_templates_round_trip_without_preloading_history(self):
+        repository = Path(__file__).resolve().parents[3]
+        for locale in ("skills", "skills_cn"):
+            with self.subTest(locale=locale), tempfile.TemporaryDirectory() as temp:
+                root = self.make_review(Path(temp))
+                assets = repository / locale / "code-review/assets"
+                scope = "review/v1 mode=strong topics=data exclude=ui"
+                path = root / "SOLUTION.md"
+                path.write_text(path.read_text(encoding="utf-8") + f"\n- Review scope: {scope}\n", encoding="utf-8")
+                marker = "OLD_FINDING_MUST_NOT_PRELOAD_FROM_TEMPLATE_FLOW"
+                (root / "REVIEW.md").write_text(marker, encoding="utf-8")
+                values = {
+                    "input_id": "isolated-template-fixture", "review_scope": scope,
+                    "review_task": "REVIEW-01", "target_sha": "4444444",
+                    "permitted_and_prohibited_actions": "In-memory fixtures only; external access prohibited.",
+                    "evidence_or_human_decision_required_to_release_wait": "No wait; new authority required for external access.",
+                    "known_counts": "0 / 0 / 0 / 0 known only",
+                }
+
+                def render(name):
+                    template = (assets / name).read_text(encoding="utf-8")
+                    if name == "REVIEW_REPORT.md":
+                        # This fixture tests the binding flow, not defect discovery.
+                        findings, result = ("## Findings", "## Result and handoff") if locale == "skills" else ("## 发现", "## 结果与交接")
+                        before, remainder = template.split(findings, 1)
+                        after = remainder.split(result, 1)[1]
+                        template = before + findings + "\n\nNo confirmed findings; completeness still unverified.\n\n" + result + after
+                        template = template.rsplit("\n## ", 1)[0] + "\n\nHistory: NOT READ.\n"
+                    return re.sub(r"\{\{([a-z_]+)\}\}", lambda match: values.get(match.group(1), "Isolated fixture evidence"), template)
+
+                (root / "gists/review-input.md").write_text(render("REVIEW_INPUT.md"), encoding="utf-8")
+                blind = task_context.build_context(root, review_phase="blind", review_inputs=["gists/review-input.md"])
+                self.assertTrue(blind["review"]["inputs_ready"])
+                self.assertNotIn(marker, json.dumps(blind))
+                self.assertNotIn(marker, task_context.render_markdown(blind))
+                self.assertEqual(blind["review"]["action_boundary"], values["permitted_and_prohibited_actions"])
+                report = root / "gists/blind-01.md"
+                # An unfilled report cannot establish a valid frozen snapshot.
+                report.write_text((assets / "REVIEW_REPORT.md").read_text(encoding="utf-8"), encoding="utf-8")
+                with self.assertRaises(task_context.ContextError):
+                    task_context.build_context(root, review_phase="reconcile", review_report="gists/blind-01.md")
+                values["review_refs_json"] = json.dumps(blind["review"]["candidate_refs"], ensure_ascii=False)
+                report.write_text(render("REVIEW_REPORT.md"), encoding="utf-8")
+                frozen = report.read_bytes()
+                reconciled = task_context.build_context(root, review_phase="reconcile", review_report="gists/blind-01.md")
+                self.assertIn(marker, task_context.render_markdown(reconciled))
+                self.assertEqual(reconciled["review"]["blind_snapshot"]["candidate_refs"], blind["review"]["candidate_refs"])
+                (root / "REVIEW.md").write_text((assets / "REVIEW.md").read_text(encoding="utf-8"), encoding="utf-8")
+                self.assertEqual(report.read_bytes(), frozen)
+                # Filled metadata is not completion or a perfect score.
+                self.assertRegex(report.read_text(encoding="utf-8"), r"(?m)^\| Score \| null \|$")
+                self.assertRegex(report.read_text(encoding="utf-8"), r"(?m)^\| Result \| INCOMPLETE \|$")
+
     def make_review(self, parent: Path) -> Path:
         root = fixtures.TaskContextTests().make_feature(
             parent,

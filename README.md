@@ -70,6 +70,8 @@ BG（组织单元；BG 成员 = AS、HR、CPO、CTO、COO、CKO、CRO、Assistan
 - [skills_cn/long-feature-development](skills_cn/long-feature-development/SKILL.md)：长程 feature 续接 skill 的中文快照，与英文版保持相同结构和执行行为。
 - [skills_cn/code-review](skills_cn/code-review/SKILL.md)：Code Review skill 的中文快照。
 
+代码审查的三类模板：[原始输入](skills_cn/code-review/assets/REVIEW_INPUT.md) → [逐轮报告](skills_cn/code-review/assets/REVIEW_REPORT.md) → [长期账本](skills_cn/code-review/assets/REVIEW.md)。报告先冻结再读历史，账本更新不改写旧报告。可查看[填好的合成输入](scripts/tests/code-review/examples/review-input.md)、[报告](scripts/tests/code-review/examples/blind-01.md)和[账本](scripts/tests/code-review/examples/REVIEW.md)；示例属于测试侧展示，不进入安装包，也不证明独立模型审查质量。
+
 ### 源码、安装包与测试
 
 语言内容与代码分开维护；同名内容目录和共享目录合并后，才是可安装的 skill：
