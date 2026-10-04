@@ -15,3 +15,19 @@ Agent 无需用户提醒，在以下时机创建本地 checkpoint：完成一个
 停止时先判断残留是否属于中断的 task，检查并测试后再 stage；创建有范围的 checkpoint，或只在确实不属于 Agent 时询问用户；新修改前重新运行恢复。
 
 保证边界是最近一次成功本地 checkpoint。任意断电瞬间零丢失需要宿主、编辑器、文件系统或常驻进程支持，Skill 不作虚假承诺。
+
+## 可选审查断点
+
+完整校验调用[只读审查恢复](../scripts/review_resume.py)，以[真实 Git/进程测试](../scripts/test_review_resume.py)验证版本拒绝及原文保持。该入口仅恢复引用与剩余发现，不做完整报告质量判断、独立性证明、发现关闭或人工接受。没有声明的旧 Feature 不需要新文件或服务。
+
+任务可在顶层声明一次 `- Review recovery: gists/resume.md`，完成为 DONE 后仍保留声明；在同一任务的 `- Gists:` 中列出该文件及全部 packet、report、checklist 和原始证据。引用对象包含 Feature 内相对 `path` 和原始字节的 `sha256`（包括换行编码）。不读取外链。缺材料为 EVIDENCE_MISSING；哈希变化、目标绑定或 attempt 不一致为 STALE_REVIEW。保留旧报告，新候选建立新 attempt，不能改旧 target 转移 PASS。
+
+恢复 gist 使用完整 JSON 对象，或唯一显式标记 `review-resume-v1` 的 fenced block；字段为 `schema`、`feature`、`review_task`、`attempt_id`、`target_refs`、`packet_ref`、`report_ref`、`checklist_ref`。`target_refs` 是已登记仓库名到完整 40 位 SHA 的映射，必须在真实仓库存在。进行中的审查必须绑定观察到的工作 HEAD。已完成 Review 的资料可作为历史保留在 DONE 的声明任务中，或直接依赖该 Review 的 Rework 任务中，允许修正后仍指向旧目标；该资格来自已校验的任务状态/依赖，不接受报告内自行声明的豁免标记。Packet/report 同样使用完整 JSON 或 `review-packet-v1` / `report-v1` 显式围栏，schema 对应；feature、review task、attempt、target refs、checklist ref、packet ID 必须一致。历史资料仍检查全部哈希、材料、commit 和摘要。这只校验恢复字段，不代表通过 F04 完整报告 schema。
+
+报告另含非空 `evidence_refs`、`findings` 和 `summary`。发现有报告内 `id` 和 `status`（open/addressed/closed），同一报告中完全一致的重复 ID 去重，矛盾重复拒绝；addressed 仍未关闭。摘要或恢复 gist 若提供 `open_finding_ids`，必须与派生集合一致，否则 REVIEW_SUMMARY_MISMATCH。其余质量计数、严重性规则与独立关闭证据交由报告评估器处理。
+
+聚焦输出的 `review_recovery` 给出报告/清单引用、attempt、未修改的报告 `target_refs`、实际 `current_target_refs`、`evidence_scope`、带报告作用域的未关闭发现及下一动作。当前候选有未关闭发现时为 `resume-rework`，否则 `needs-independent-recheck`。历史目标与实际候选不同时返回 `needs-recheck` 和 STALE_REVIEW/HISTORICAL_TARGET 诊断，不表示质量通过；已完成声明且目标相同时为 `historical-reference`。旧声明不再阻塞没有恢复声明的后续 TEST；历史材料无效或缺失仍阻塞完整校验。`quality_assessed` 始终 false，不授予接受、关闭 finding 或合并权限。Markdown 分别标注历史目标和当前候选，JSON 提供相同投影。CLI stderr 的 `review.resume` 事件只含摘要、数量、作用域、诊断及耗时，不记录意见正文。新进程仅证明持久恢复，不证明真实独立 Agent 审查会话。
+
+本地提交与独立记账需要可恢复意图时，使用可选的[操作恢复](operations.md)模式。旧 CLI 保持兼容；旧检查点未记录 operation 意图时，不补造其历史证据。
+
+工作目录、任务分支或集成观察漂移时，按[迁移与对账](reconciliation.md)先 inspect 再受控 apply。保留历史 refs，未通过真实身份与祖先检查时不得继续；提交管理记录后重新运行严格恢复入口。

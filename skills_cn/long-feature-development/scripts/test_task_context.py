@@ -6,11 +6,13 @@ from __future__ import annotations
 import contextlib
 import io
 import json
+import os
 import shutil
 import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 import task_context
@@ -209,6 +211,38 @@ DETAILS = {
 }
 
 
+class PointSectionTests(unittest.TestCase):
+    def test_fenced_heading_does_not_create_or_truncate_point(self):
+        for marker in ("```", "~~~", "   ````"):
+            with self.subTest(marker=marker):
+                body = ("## REQ-001 — Real\nBefore\n" + marker + "\n"
+                        "## REQ-999 — Example\n# Example boundary\n"
+                        + marker + "\nAfter\n")
+                self.assertEqual(task_context.point_sections(body + "## Appendix\n", "REQ"),
+                                 {"REQ-001": body})
+
+    def test_fenced_duplicate_is_not_an_actual_duplicate(self):
+        body = "## REQ-001\n```markdown\n## REQ-001\n```\n"
+        self.assertEqual(task_context.point_sections(body, "REQ"), {"REQ-001": body})
+        with self.assertRaises(task_context.ContextError):
+            task_context.point_sections(body + "## REQ-001\n", "REQ")
+
+    def test_short_or_annotated_closer_does_not_end_fence(self):
+        for fake_close in ("```", "````not-a-close", "~~~~"):
+            body = ("## REQ-001\n````markdown\n" + fake_close
+                    + "\n## REQ-999\n````\nAfter\n")
+            self.assertEqual(task_context.point_sections(body, "REQ"), {"REQ-001": body})
+
+    def test_quoted_and_indented_headings_are_point_content(self):
+        body = "## REQ-001\n> ## REQ-002\n    ## REQ-003\n"
+        self.assertEqual(task_context.point_sections(body, "REQ"), {"REQ-001": body})
+
+    def test_legacy_h3_point_preserves_fenced_content(self):
+        body = "### REQ-001\n~~~\n### REQ-999\n~~~\n#### Detail\n"
+        self.assertEqual(task_context.point_sections(body + "### Appendix\n", "REQ"),
+                         {"REQ-001": body})
+
+
 class TaskContextTests(unittest.TestCase):
     def make_feature(
         self,
@@ -321,6 +355,57 @@ class TaskContextTests(unittest.TestCase):
             points = task_context.build_context(root)["intent"]["requirement"]["points"]
             self.assertEqual(points[0]["id"], "CORR-REQ-02")
             self.assertEqual(points[0]["state"], "CONFIRMED")
+
+    def test_task_heading_accepts_one_leading_bom_without_rewriting_source(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = self.make_feature(Path(temp))
+            path = root / "tasks/DEV-02.md"
+            raw = b"\xef\xbb\xbf" + path.read_bytes()
+            path.write_bytes(raw)
+            context = task_context.build_context(root)
+            self.assertTrue(context["task_detail"].startswith("\ufeff# DEV-02"))
+            self.assertEqual(path.read_bytes(), raw)
+            path.write_bytes(b"\xef\xbb\xbf" + raw)
+            with self.assertRaisesRegex(task_context.ContextError, "level-one task heading"):
+                task_context.build_context(root)
+
+    def test_nonfocused_tasks_must_have_valid_point_selectors(self) -> None:
+        for task_id in ("REQ-001", "SOL-001", "GATE-ACCEPT"):
+            for label, value in (("Requirement points", "REQ-999"),
+                                 ("Solution points", "SOL-999"),
+                                 ("Requirement points", "SOL-001"),
+                                 ("Requirement points", "REQ-001, REQ-001")):
+                with self.subTest(task=task_id, label=label, value=value), tempfile.TemporaryDirectory() as temp:
+                    root = self.make_feature(Path(temp))
+                    path = root / "tasks" / (task_id + ".md")
+                    text = path.read_text(encoding="utf-8")
+                    lines = [f"- {label}: {value}" if line.startswith(f"- {label}:") else line
+                             for line in text.splitlines()]
+                    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+                    with self.assertRaises(task_context.ContextError):
+                        task_context.build_context(root)
+        for mode in ("missing", "duplicate"):
+            with self.subTest(mode=mode), tempfile.TemporaryDirectory() as temp:
+                root = self.make_feature(Path(temp))
+                path = root / "tasks/GATE-ACCEPT.md"
+                text = path.read_text(encoding="utf-8")
+                text = (text.replace("- Solution points: none\n", "") if mode == "missing"
+                        else text + "\n- Solution points: none\n")
+                path.write_text(text, encoding="utf-8")
+                with self.assertRaisesRegex(task_context.ContextError, "exactly one"):
+                    task_context.build_context(root)
+
+    def test_remote_identity_preserves_repository_path_case(self) -> None:
+        import task_reconcile
+        for remote in ("https://host.test/Owner/Repo.git", "git@host.test:Owner/Repo.git",
+                       "C:/Repos/Repo.git", "https://host.test/Repo.GIT"):
+            with self.subTest(remote=remote):
+                self.assertEqual(task_context.normalize_remote(remote),
+                                 task_reconcile.remote_identity(remote))
+                self.assertNotEqual(task_context.normalize_remote(remote),
+                                    task_context.normalize_remote(remote.replace("Repo", "repo")))
+        self.assertEqual(task_context.normalize_remote(" https://host.test/Owner/Repo.git/ "),
+                         "https://host.test/Owner/Repo")
 
     def test_missing_current_task_fails(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
@@ -447,12 +532,41 @@ class TaskContextTests(unittest.TestCase):
             resolved = task_context.resolve_repositories(feature, registry, {"app": app})
             self.assertEqual(Path(resolved["pm"]["path"]), pm.resolve())
             self.assertEqual(Path(resolved["app"]["path"]), app.resolve())
+            git(app, "remote", "set-url", "origin", "https://example.invalid/App.git")
+            with self.assertRaisesRegex(task_context.ContextError, "cannot be located"):
+                task_context.resolve_repositories(feature, registry, {"app": app})
+            git(app, "remote", "set-url", "origin", "https://example.invalid/app.git")
             with self.assertRaisesRegex(task_context.ContextError, "cannot be located"):
                 task_context.resolve_repositories(feature, registry, {"app": parent / "absent"})
             duplicate = parent / "duplicate-app"
             make_git_repo(duplicate, "https://example.invalid/app.git", 1)
             with self.assertRaisesRegex(task_context.ContextError, "location is ambiguous"):
                 task_context.resolve_repositories(feature, registry, {})
+
+    def test_case_distinct_local_repositories_are_not_collapsed(self) -> None:
+        if Path("Repo") == Path("repo"):
+            self.skipTest("platform Path semantics are case-insensitive")
+        with tempfile.TemporaryDirectory() as temp:
+            parent = Path(temp)
+            pm, upper, lower = parent / "pm", parent / "Repo", parent / "repo"
+            make_git_repo(pm, "https://example.invalid/pm.git", 1)
+            make_git_repo(upper, "https://example.invalid/app.git", 1)
+            make_git_repo(lower, "https://example.invalid/app.git", 1)
+            feature = pm / "project/PIRC-23"
+            feature.mkdir(parents=True)
+            registry = {
+                "pm": dict(repository="pm", role="project-management",
+                           remote="https://example.invalid/pm.git", path_hints=".",
+                           stable_branch="main", integration_branch="main"),
+                "app": dict(repository="app", role="implementation",
+                            remote="https://example.invalid/app.git", path_hints="../Repo",
+                            stable_branch="main", integration_branch="main"),
+            }
+            with self.assertRaisesRegex(task_context.ContextError, "location is ambiguous"):
+                task_context.resolve_repositories(feature, registry, {})
+            import task_reconcile
+            with self.assertRaisesRegex(task_reconcile.RecoveryError, "AMBIGUOUS_REPOSITORY"):
+                task_reconcile.resolve_repositories(feature, registry, {}, task_reconcile.GitProbe())
 
     def test_trace_graph_rejects_missing_ancestry_and_disconnected_pending_task(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
@@ -520,6 +634,39 @@ class TaskContextTests(unittest.TestCase):
             git(repo, "add", "project/PIRC-23")
             git(repo, "commit", "-m", "track feature")
             task_context.validate_shared_records(feature, resolved)
+            # Batch size must not scale the subprocess count, and NUL-delimited
+            # UTF-8 paths must not be interpreted as wildcard pathspecs.
+            import review_source
+            for index in range(30):
+                (feature / "gists" / f"bulk-{index}.md").write_text("shared", encoding="utf-8")
+            (feature / "gists" / "空 格.md").write_text("shared", encoding="utf-8")
+            (feature / "gists" / "literal1.md").write_text("tracked", encoding="utf-8")
+            git(repo, "add", "project/PIRC-23")
+            with patch.object(review_source, "_run", wraps=review_source._run) as commands:
+                task_context.validate_shared_records(feature, resolved)
+            self.assertEqual(commands.call_count, 2)
+            literal = feature / "gists" / "literal[1].md"
+            literal.write_text("untracked literal name", encoding="utf-8")
+            with self.assertRaisesRegex(task_context.ContextError, "not tracked"):
+                task_context.validate_shared_records(feature, resolved)
+            git(repo, "--literal-pathspecs", "add", "project/PIRC-23/gists/literal[1].md")
+            task_context.validate_shared_records(feature, resolved)
+            with patch.object(review_source, "_run", side_effect=review_source.ReviewSourceError("unavailable")):
+                with self.assertRaisesRegex(task_context.ContextError, "Git verification failed"):
+                    task_context.validate_shared_records(feature, resolved)
+            # Preparation is computation, not Git waiting. An expensive wrapper
+            # must not disappear from the cumulative recovery allowance.
+            import context_loader
+            clock = [0.0]
+            real_temporary = review_source.tempfile.TemporaryFile
+            def expensive_preparation(*args, **kwargs):
+                clock[0] += 3.0
+                return real_temporary(*args, **kwargs)
+            with patch.object(context_loader.time, "process_time", side_effect=lambda: clock[0]):
+                with patch.object(review_source.tempfile, "TemporaryFile", side_effect=expensive_preparation):
+                    with self.assertRaisesRegex(context_loader.LoaderError, "budget exceeded"):
+                        with context_loader.ComputationBudget().measure():
+                            task_context.validate_shared_records(feature, resolved)
             ignored = feature / "gists" / "ignored.log"
             ignored.write_text("ignored", encoding="utf-8")
             (repo / ".git" / "info" / "exclude").write_text(
@@ -762,6 +909,32 @@ class TaskContextTests(unittest.TestCase):
         with self.assertRaisesRegex(task_context.ContextError, "incomplete field: Failed"):
             task_context.validate_type_contract(record, detail, {"TEST-02": record})
 
+    def test_cli_unicode_output_does_not_depend_on_console_encoding(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = self.make_feature(Path(temp) / "中文 space")
+            gist = root / "gists" / "parser.md"
+            gist.write_text("中文正文 😀\n", encoding="utf-8")
+            env = dict(os.environ)
+            env.pop("PYTHONUTF8", None)
+            env["PYTHONIOENCODING"] = "gbk"
+            for output_format in ("json", "markdown"):
+                with self.subTest(format=output_format):
+                    run = subprocess.run(
+                        [sys.executable, "-X", "utf8=0", "-B", task_context.__file__,
+                         str(root), "--format", output_format], capture_output=True, env=env)
+                    self.assertEqual(run.returncode, 0, run.stderr)
+                    output = run.stdout.decode("utf-8")
+                    self.assertIn("中文正文 😀", output)
+                    self.assertNotIn("\r\n", output)
+                    if output_format == "json":
+                        self.assertEqual(json.loads(output)["task"]["id"], "DEV-02")
+            run = subprocess.run(
+                [sys.executable, "-X", "utf8=0", "-B", task_context.__file__,
+                 str(root / "缺失 😀")], capture_output=True, env=env)
+            self.assertEqual(run.returncode, 1)
+            self.assertIn("ERROR:", run.stderr.decode("utf-8"))
+            self.assertNotIn(b"Traceback", run.stderr)
+
     def test_cli_json_success_and_failure_exit_codes(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             root = self.make_feature(Path(temp))
@@ -851,6 +1024,43 @@ Accept or request changes.
             (app / "unfinished.py").write_text("unfinished", encoding="utf-8")
             with self.assertRaisesRegex(task_context.ContextError, "repository app"):
                 task_context.validate_recovery_cleanliness(feature, resolved)
+
+    def test_hidden_index_flags_are_rejected_without_touching_other_features(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            parent = Path(temp)
+            pm, app = parent / 'pm', parent / 'app'
+            make_git_repo(pm, 'https://example.invalid/pm.git', 1)
+            make_git_repo(app, 'https://example.invalid/app.git', 1)
+            feature = pm / 'project/PIRC-23'
+            feature.mkdir(parents=True)
+            unrelated = pm / 'project/PIRC-14/TASKS.md'
+            unrelated.parent.mkdir(parents=True)
+            for path in (feature / 'STATUS.md', unrelated, app / 'source.py'):
+                path.write_text('original\n', encoding='utf-8')
+            for repo in (pm, app):
+                git(repo, 'add', '.')
+                git(repo, 'commit', '-m', 'persist source fixture')
+            resolved = {'pm': {'role': 'project-management', 'path': str(pm)},
+                        'app': {'role': 'implementation', 'path': str(app)}}
+            git(pm, 'update-index', '--skip-worktree', 'project/PIRC-14/TASKS.md')
+            unrelated.write_text('other feature work\n', encoding='utf-8')
+            task_context.validate_recovery_cleanliness(feature, resolved)
+            for repo, relative in ((pm, 'project/PIRC-23/STATUS.md'), (app, 'source.py')):
+                for flag in ('assume-unchanged', 'skip-worktree'):
+                    with self.subTest(repo=repo.name, flag=flag):
+                        git(repo, 'update-index', '--' + flag, relative)
+                        try:
+                            (repo / relative).write_text('hidden edit\n', encoding='utf-8')
+                            self.assertEqual(git(repo, 'status', '--porcelain'), '')
+                            before = (repo / '.git/index').read_bytes()
+                            with self.assertRaisesRegex(task_context.ContextError, '^HIDDEN_INDEX_STATE$'):
+                                task_context.validate_recovery_cleanliness(feature, resolved)
+                            self.assertEqual(before, (repo / '.git/index').read_bytes())
+                            self.assertEqual((repo / relative).read_text(), 'hidden edit\n')
+                        finally:
+                            git(repo, 'update-index', '--no-' + flag, relative)
+                            (repo / relative).write_text('original\n', encoding='utf-8')
+            self.assertEqual(unrelated.read_text(), 'other feature work\n')
 
 
 if __name__ == "__main__":

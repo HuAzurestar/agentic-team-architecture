@@ -1,0 +1,27 @@
+# Decision evidence and applicability
+
+`scripts/decision_evidence.py` is a pure applicability checker. It does not write decisions, update task states, or assess quality. The local Git current-material reader is [decision_source.py](../scripts/decision_source.py), with [real Git tests](../scripts/test_decision_source.py). Human-source adapters, native-provider readers, writers and policy integration are still required.
+
+## Host readback gateway
+
+`decision_host.inspect_decision` connects three host-owned callbacks: `read_current()` independently reads the configured target; `read_reply(ref)` reads the actual authenticated conversation/platform message; `interpret(reply, record)` maps that exact reply and quoted material to a whole-record digest and interpretation reference. A host-owned `HumanGrant` enumerates the exact actor, feature, decision kind, source, scope and allowed outcomes. It is not loaded from the decision file. Missing callbacks, unverified grants, nonhuman actors, mismatched source/actor/time/reply, ambiguous interpretation or edited messages deny applicability. The gateway re-reads reply and current material; changed observations fail closed without automatic retry. Provider exception messages are not logged or returned.
+
+`HumanReply`, `HumanGrant` and `HumanInterpretation` are trusted in-process host contracts, not authentication by class name. The host must use actual authenticated transports and policy, allowlist reference destinations, bound network waits and verify the human interpretation before supplying them. Do not implement these callbacks by echoing the uploaded decision or a `Source: human` claim. This module intentionally supplies no universal network transport, CLI import, decision writer or merge permission. Synthetic contract tests and real local Git integration tests do not establish live human authentication. The gateway returns `NOT_APPLIED`; a subsequent writer must revalidate and conditionally apply through the established point/acceptance workflow.
+
+## Local Git current material
+
+`read_git_current(repo, relative_path, source_key=..., feature=..., decision_kind=..., exact_scope=..., expected_head=...)` reads a registered local repository and an independently observed full HEAD. The coordinator must resolve that binding independently, not blindly copy an uploaded decision's target. The reader verifies the repository root, HEAD, regular committed blob, index and working file; then rechecks index, file identity/content and HEAD. It refuses missing, dirty, ambiguous, changed, linked, unsafe or oversized sources without writing anything. Git environment overrides cannot redirect the read. Git pathspecs are literal, and replacement objects are disabled.
+
+Text CRLF is normalized to LF in both committed and working material, without trimming or other body normalization. A point read selects exactly one H2 REQ/SOL section, ignoring fenced/quoted headings; other kinds retain the entire document. The return value is current material for `check_decision`, not a verified human credential. It proves a bounded local observation only, not remote freshness or an atomic lock through a later write. The writer must repeat verification immediately before mutation and use its own conditional write protocol.
+
+The `decision-evidence-v1` record retains `decision_id`, `feature`, `human_source_ref`, `actor`, timezone-aware `received_at`, `decision_kind`, `target_ref`, `exact_scope`, `outcome`, `original_reply`, and `approved_body`. A target identifies its source and either a full Git SHA or an actual provider-native conditional version. Never fabricate a Git SHA for a provider object.
+
+- `point` binds exactly one REQ/SOL ID. Its outcomes are CONFIRMED, REJECTED, OUT-OF-SCOPE, INFEASIBLE, and REOPENED. Split enumerated multi-point replies into individually bound records and commits.
+- `acceptance` permits CONFIRMED, REJECTED, or REWORK. A negative decision can be recorded without granting merge authority.
+- `scope-exception` permits APPROVED or REJECTED for the exact enumerated scope; it is not point approval or general acceptance.
+
+Supply current material from an independently verified source read, not by copying the decision's claimed target. Feature, kind, scope, and source must match. A changed version or body produces `DECISION_STALE`; changed bodies produce a bounded linear changed-span diff. Preserve the original reply and approved material. Applicability never implies that a write occurred or that review, testing, or merge conditions are satisfied.
+
+`VerifiedDecisionSource` is host-only evidence, not authentication by Python type. Construct it only after actual conversation/platform readback verifies the human's identity, authority, interpretation, reply, and approved material. It binds the whole record's digest and the readback reference. Never create it from a Markdown/JSON claim that the source is human. Synthetic test instances are not real decisions. No importer or source-verification adapter is provided by this pure module.
+
+The combined record/current-material budget is 4 MiB, scope is limited to 1,000 explicit IDs, and the CPU budget is 2 seconds. Diffs retain at most 4,096 characters per side and report truncation. Budget or schema failures deny applicability. The event contains only decision ID, applicability, and reason codes, never reply, body, actor, or diff text.

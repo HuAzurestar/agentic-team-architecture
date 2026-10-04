@@ -9,7 +9,7 @@ title: <feature-key> 状态
 | Feature ID | `NO-FEAT-<6-char-random>` | 开发者在合适时分配正式 ID |
 | Previous IDs | - | ID 改变后追加旧别名 |
 | 阶段 | `PLANNING` | 只有已完成 gate 能改变 phase |
-| 条件 | `ACTIVE` | `ACTIVE`、`BLOCKED`、`WAITING_HUMAN`、`WAITING_EXTERNAL` 或终态 `COMPLETE` |
+| 条件 | `WAITING_HUMAN` | 初始提议等待人类决定；仅在当前任务已接取为 WIP/RECORDING 时使用 ACTIVE |
 | 下一流转 | `GATE-START` | 可执行下一次 feature 流转的 gate task |
 | 当前任务 | REQ-001 | 从 TASKS.md 定位，再读取 tasks/REQ-001.md |
 | 当前 gate | GATE-START | 它是 task ID，不是第二套状态机 |
