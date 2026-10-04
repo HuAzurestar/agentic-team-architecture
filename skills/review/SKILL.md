@@ -5,6 +5,8 @@ description: Review a software change or feature with topic-scoped strong or che
 
 # Review
 
+Paths such as `scripts/...` refer to the assembled skill root. For a repository checkout, first combine this locale's content with the same-named shared runtime directory; installed packages already include it. Development tests remain outside the skill.
+
 Use one scope and one finding protocol for both modes. Strong review explores each topic freely; weak review scans the selected topic's concrete content points. A content point can yield zero, one, or several independent findings. Do not score checklist answers.
 
 ## Select scope

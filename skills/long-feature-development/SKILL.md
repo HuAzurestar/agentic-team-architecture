@@ -5,6 +5,8 @@ description: Help Codex resume and advance a multi-session software feature from
 
 # Long Feature Development
 
+Paths such as `scripts/...` refer to the assembled skill root. For a repository checkout, first combine this locale's content with the same-named shared runtime directory; installed packages already include it. Development tests remain outside the skill.
+
 This Codex skill uses a small, versioned feature record to continue development without relying on previous chat history. The project chooses the concrete path represented by `<Project-Manage>`; never assume MPA or another fixed repository.
 
 ## Required feature layout

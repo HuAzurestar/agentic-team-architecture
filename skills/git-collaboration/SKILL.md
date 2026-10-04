@@ -5,6 +5,8 @@ description: Establish, assess, or apply repository Git collaboration convention
 
 # Git Collaboration
 
+Paths such as `scripts/...` refer to the assembled skill root. For a repository checkout, first combine this locale's content with the same-named shared runtime directory; installed packages already include it. Development tests remain outside the skill.
+
 Create a collaboration policy that is small enough to follow and strict enough to verify. Inspect the repository before proposing tools: read contributor instructions, manifests, lockfiles, CI workflows, protected-branch expectations, release process, and Git history when available. Preserve compatible local conventions and explain migrations.
 
 ## Select one mode
