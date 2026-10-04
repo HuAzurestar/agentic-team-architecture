@@ -250,9 +250,20 @@ def guard_sources(root, gist, source, before, after, gist_bytes):
                 raise Error("PRESTAGED_CHANGES")
 
 
+def write_authority(before_write, source_ref):
+    """Trusted in-process grant readback; no callback can be loaded from JSON."""
+    if before_write is not None:
+        if not callable(before_write):
+            raise Error('INVALID_WRITE_GUARD')
+        source_ref = before_write()
+        import task_operation as op
+        op.cp.safe_line(source_ref, 'authority source')
+    return source_ref
+
+
 def replace_dependencies(feature, task_id, expected_index_digest, dependency_ids, *,
                          operation_gist, repo_overrides=None, authority=False,
-                         authority_source_ref=""):
+                         authority_source_ref="", before_write=None):
     """Record intent then perform individually atomic writes; never commit."""
     import task_operation as op
     result = empty_result()
@@ -287,6 +298,7 @@ def replace_dependencies(feature, task_id, expected_index_digest, dependency_ids
                           recorded_fields=[])
             # Recheck all observations immediately before durable intent.
             raw, _, _, _ = op.read_gist(root, operation_gist)
+            record['authority_source_ref'] = write_authority(before_write, authority_source_ref)
             guard_sources(root, operation_gist, source, before, plan["after"], raw)
             if any(read_source(root, p) != raw for p, raw in before.items()):
                 raise Error("SOURCE_CHANGED")
@@ -296,7 +308,7 @@ def replace_dependencies(feature, task_id, expected_index_digest, dependency_ids
             result["changed_paths"] = []
             interruption_point("after-intent")
             return _reconcile_dependencies(root, operation_gist, record["operation_id"], overrides, True,
-                                          result=result)
+                                          result=result, before_write=before_write)
     except (Error, tc.ContextError, OSError, ValueError, KeyError, TypeError) as exc:
         # An exception is not proof that replace() had no effect. Preserve the
         # UUID before attempting intent I/O, then read back without replay.
@@ -311,7 +323,8 @@ def replace_dependencies(feature, task_id, expected_index_digest, dependency_ids
         return error_result(result, exc)
 
 
-def _reconcile_dependencies(root, gist, operation_id, overrides, write=False, *, result=None):
+def _reconcile_dependencies(root, gist, operation_id, overrides, write=False, *, result=None,
+                            before_write=None):
     """Called under the shared coordinator for writes; reads never replay."""
     import task_operation as op
     root = Path(root).resolve()
@@ -378,6 +391,8 @@ def _reconcile_dependencies(root, gist, operation_id, overrides, write=False, *,
         # Each file replacement has its own precondition. No all-file rollback.
         for relative in plan["changed_paths"]:
             interruption_point("before-" + relative)
+            if relative in observe()['pending_files']:
+                record['authority_source_ref'] = write_authority(before_write, record['authority_source_ref'])
             guard_sources(root, gist, source, before, plan["after"], raw)
             observed = observe()
             if relative in observed["pending_files"]:
@@ -390,6 +405,8 @@ def _reconcile_dependencies(root, gist, operation_id, overrides, write=False, *,
         guard_sources(root, gist, source, before, plan["after"], raw)
         record["observed_result"] = result["observed_result"]
         record["recorded_fields"] = list(plan["changed_paths"])
+        record['authority_source_ref'] = write_authority(before_write, record['authority_source_ref'])
+        guard_sources(root, gist, source, before, plan['after'], raw)
         if op.save(root, gist, record, raw) != raw:
             result["recorded_fields"].append(gist + "#observed_result")
         result.update(effect="APPLIED" if result["recorded_fields"] else "UNCHANGED",

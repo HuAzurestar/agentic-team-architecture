@@ -228,6 +228,48 @@ class ContinuationTests(unittest.TestCase):
         again = workflow.preview_successor(c.task, review_id, **binding)
         self.assertTrue(again.existing)
         self.assertEqual(workflow.create_successor(again, **binding)['effect'], 'UNCHANGED')
+        # The retained human disposition is not the current operation grant.
+        # Reject before durable intent if authority is withdrawn during either
+        # its later readback or the actual dependency writer's preparation.
+        disposition_reader = workflow.acceptance.verify_disposition
+        prepare_context = deps.checked_context
+        before_rewire = rework.file_snapshot(c.root)
+        for window in ('disposition-readback', 'writer-preparation'):
+            permitted = True
+            operation_reads = 0
+
+            def operation_authorize(request):
+                nonlocal operation_reads
+                operation_reads += 1
+                return valid_authorize(request) if permitted else None
+
+            def read_disposition(*args, **kwargs):
+                nonlocal permitted
+                value = disposition_reader(*args, **kwargs)
+                if window == 'disposition-readback' and operation_reads:
+                    permitted = False
+                return value
+
+            def prepare_dependencies(*args, **kwargs):
+                nonlocal permitted
+                value = prepare_context(*args, **kwargs)
+                if window == 'writer-preparation':
+                    permitted = False
+                return value
+
+            workflow.authorize = operation_authorize
+            with self.subTest(window=window), patch.object(
+                    workflow.acceptance, 'verify_disposition', read_disposition), patch.object(
+                    deps, 'checked_context', prepare_dependencies):
+                denied = workflow.rewire_pending(c.task, plan.task_id, 'GATE-ACCEPT',
+                    expected_index_digest=deps.recovery.digest((c.root / 'TASKS.md').read_bytes()),
+                    operation_gist=c.case.plan_ref, **binding)
+                self.assertEqual(denied['effect'], 'NOT_APPLIED', denied)
+                self.assertEqual(denied['conflicts'][0]['code'], 'OPERATION_AUTHORITY_UNVERIFIED')
+                self.assertEqual(operation_reads, 2)
+                self.assertEqual(rework.file_snapshot(c.root), before_rewire)
+                self.assertFalse((c.root / '.operation.lock').exists())
+        workflow.authorize = valid_authorize
         changed = workflow.rewire_pending(c.task, plan.task_id, 'GATE-ACCEPT',
             expected_index_digest=deps.recovery.digest((c.root / 'TASKS.md').read_bytes()),
             operation_gist=c.case.plan_ref, **binding)

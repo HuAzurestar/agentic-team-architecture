@@ -17,6 +17,10 @@ import quality_policy as policy
 import quality_tests as qt
 import review_report as reports
 import task_context as tc
+import task_create as create
+import task_state as state
+import state_guard as guard
+import state_prepared as prepared
 import test_task_reconcile as fixture
 import test_review_report as report_fixture
 from test_task_context import git
@@ -127,6 +131,68 @@ class HostTests(unittest.TestCase):
         self.assertIn('TEST_SUMMARY_DETAIL_CONFLICT', got['reason_codes'])
         self.assertEqual('UNRESOLVED', got['test_audits'][0]['status'])
 
+    def test_real_review_task_target_and_summary_conflicts_cannot_pass(self):
+        acceptance_id = create.create(self.root, create.parse_args([
+            str(self.root), '--type', 'Acceptance', '--name', 'Quality refusal fixture',
+            '--depends-on', 'REVIEW-1', '--goal', 'Inspect current candidate',
+            '--work', 'Synthetic host fixture, not human acceptance',
+            '--completion-condition', 'Record an actual decision', '--resume-action', 'Wait for quality',
+            '--requirement-points', 'REQ-001', '--solution-points', 'SOL-001',
+            '--repo-ref', f'app|task|main@{self.app_base}', '--contract', 'Target SHA=' + self.app_head]))
+        # Prepare the ordinary cross-file pickup refs; quality must be the
+        # refusing boundary, not an unrelated missing-start-ref fixture error.
+        acceptance = self.root / f'tasks/{acceptance_id}.md'
+        old_row = f'| app | task | main@{self.app_base} | - | - | - |'
+        detail = acceptance.read_text(encoding='utf-8')
+        self.assertIn(old_row, detail)
+        brief = 'gists/acceptance-brief.md'
+        (self.root / brief).write_text('# Acceptance brief\n\nTarget version: ' + self.app_head
+            + '\n\n' + '\n\n'.join('## ' + aliases[0] + '\n\nSynthetic fixture only; no human decision.'
+                                    for aliases in tc.ACCEPTANCE_BRIEF_HEADINGS) + '\n', encoding='utf-8')
+        detail = detail.replace('- Gists: none', '- Gists: ' + brief).replace(
+            '| Acceptance brief | - |', '| Acceptance brief | ' + brief + ' |')
+        acceptance.write_text(detail, encoding='utf-8')
+        pickup_detail = detail.replace(old_row,
+            f'| app | task | main@{self.app_base} | app@{self.app_head} | {self.app_head} | - |').encode('utf-8')
+        self.save()
+        path = self.root / 'tasks/REVIEW-1.md'
+        original = path.read_text(encoding='utf-8')
+        for source, replacement, code in (
+                (f'| Target SHA | {self.app_head} |', f'| Target SHA | {self.app_base} |',
+                 'REVIEW_TASK_REPORT_TARGET_MISMATCH'),
+                ('| Blocking findings | 0 |', '| Blocking findings | 1 |',
+                 'REVIEW_SUMMARY_DETAIL_CONFLICT')):
+            with self.subTest(code=code):
+                path.write_text(original.replace(source, replacement), encoding='utf-8')
+                self.save()
+                got = self.evaluate().result
+                self.assertFalse(got['allowed'], got)
+                self.assertIn(code, got['reason_codes'])
+                args = state.parse_args([str(self.root), acceptance_id, '--to', 'WIP',
+                    '--owner', 'synthetic-fixture', '--started-at', '2026-10-04T15:00:00Z',
+                    '--head', 'app@' + self.app_head])
+                plan = prepared.PreparedTransition(self.root, args,
+                    {f'tasks/{acceptance_id}.md': pickup_detail},
+                    repo_overrides={'app': self.app, 'pm': self.pm})
+                acceptance.write_bytes(pickup_detail)
+                before = {str(p): p.read_bytes() for repo in (self.app, self.pm)
+                          for p in repo.rglob('*') if p.is_file()}
+
+                def read_quality(request):
+                    assessment = host.evaluate_prepared(plan, request,
+                        documents=self.documents, roles=self.roles,
+                        repositories=(self.binding,), read_provenance=self.provenance)
+                    return guard.TransitionEvidence(request.digest,
+                        quality_inputs=assessment.for_task(request.digest, acceptance_id))
+
+                with self.assertRaisesRegex(tc.ContextError, code):
+                    state.update(self.root, args, evidence_reader=read_quality)
+                self.assertEqual(tc.task_records(tc.read_utf8(self.root / 'TASKS.md'))[
+                    acceptance_id]['state'], 'PENDING')
+                self.assertEqual(before, {str(p): p.read_bytes() for repo in (self.app, self.pm)
+                                         for p in repo.rglob('*') if p.is_file()})
+                acceptance.write_text(detail, encoding='utf-8')
+
     def test_old_truthful_test_reuses_verified_unused_addition_not_used_dependency(self):
         original_head = self.app_head
 
@@ -143,6 +209,9 @@ class HostTests(unittest.TestCase):
             status = self.root / 'STATUS.md'
             status.write_text(status.read_text(encoding='utf-8').replace(
                 original_head, current), encoding='utf-8')
+            review = self.root / 'tasks/REVIEW-1.md'
+            review.write_text(review.read_text(encoding='utf-8').replace(
+                f'| Target SHA | {original_head} |', f'| Target SHA | {current} |'), encoding='utf-8')
             self.write('report', self.request['report'])
             self.save()
 
@@ -172,6 +241,9 @@ class HostTests(unittest.TestCase):
         self.request['frozen']['app']['source_tree'] = self.binding.source_tree
         status = self.root / 'STATUS.md'
         status.write_text(status.read_text(encoding='utf-8').replace(old_current, new_current), encoding='utf-8')
+        review = self.root / 'tasks/REVIEW-1.md'
+        review.write_text(review.read_text(encoding='utf-8').replace(
+            f'| Target SHA | {old_current} |', f'| Target SHA | {new_current} |'), encoding='utf-8')
         self.write('report', self.request['report'])
         self.save()
         got = self.evaluate(read_provenance=provenance).result

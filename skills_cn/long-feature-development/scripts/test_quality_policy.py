@@ -24,8 +24,10 @@ class PolicyTests(unittest.TestCase):
             k: SimpleNamespace(content_digest=hashlib.sha256(v.encode()).hexdigest()) for k, v in self.bodies.items()})
         self.feature = tc.ValidatedFeature(documents,
             {'REVIEW-1': dict(type='Review', state='DONE'), 'TEST-1': dict(type='Test', state='DONE')},
-            {'TEST-1': ('', [dict(repository='app', head_sha='a' * 40)])},
-            {'TEST-1': dict(zip(('Target SHA', 'Executed', 'Passed', 'Failed', 'Skipped', 'Unknown'),
+            {'TEST-1': ('', [dict(repository='app', head_sha='a' * 40)]),
+             'REVIEW-1': ('', [dict(repository='app', head_sha='a' * 40)])},
+            {'REVIEW-1': {'Target SHA': 'a' * 40, 'Blocking findings': '0', 'Deferred findings': '0'},
+             'TEST-1': dict(zip(('Target SHA', 'Executed', 'Passed', 'Failed', 'Skipped', 'Unknown'),
                                ('a' * 40, '1', '1', '0', '0', '0')))},
             {'app': {'actual_branch': 'source', 'actual_head': 'a' * 40, 'role': 'implementation'}}, {}, {})
         report = reports.report()
@@ -80,6 +82,39 @@ class PolicyTests(unittest.TestCase):
         self.assertFalse(result['merge_authorized'])
         self.assertEqual(result['required_next_actions'], ['request-current-candidate-acceptance'])
         self.assertEqual(self.request, before)
+
+    def test_review_task_target_and_summary_match_report_in_every_phase(self):
+        for phase in q.PHASES:
+            self.setUp()
+            self.request['phase'] = phase
+            if phase != 'pre_accept':
+                self.acceptance()
+            if phase == 'post_merge':
+                self.request['frozen']['app']['result'] = 'd' * 40
+                self.feature.repositories['app']['actual_head'] = 'd' * 40
+                self.request['result_tests'] = copy.deepcopy(self.request['tests'])
+                self.request['result_tests'].update(test_task='TEST-RESULT', target_refs={'app': 'd' * 40})
+                self.feature.records['TEST-RESULT'] = dict(type='Test', state='DONE')
+                self.feature.details['TEST-RESULT'] = ('', [dict(repository='app', head_sha='d' * 40)])
+                self.feature.type_contracts['TEST-RESULT'] = dict(
+                    self.feature.type_contracts['TEST-1'], **{'Target SHA': 'd' * 40})
+            self.assertTrue(self.assess()['allowed'])
+            fields = self.feature.type_contracts['REVIEW-1']
+            for field, value, code in (
+                    ('Target SHA', 'e' * 40, 'REVIEW_TASK_REPORT_TARGET_MISMATCH'),
+                    ('Blocking findings', '1', 'REVIEW_SUMMARY_DETAIL_CONFLICT'),
+                    ('Deferred findings', '1', 'REVIEW_SUMMARY_DETAIL_CONFLICT'),
+                    ('Blocking findings', '-', 'INVALID_REVIEW_COUNTS')):
+                with self.subTest(phase=phase, field=field, value=value):
+                    original = fields[field]
+                    fields[field] = value
+                    try:
+                        self.assert_denied(code)
+                    finally:
+                        fields[field] = original
+            with self.subTest(phase=phase, missing_repository=True):
+                self.feature.details['REVIEW-1'] = ('', [])
+                self.assert_denied('REVIEW_TASK_REPOSITORY_MISMATCH')
 
     def test_unverified_or_mutated_host_scope_cannot_pass(self):
         self.assert_denied('QUALITY_SOURCES_UNVERIFIED', observed=None)

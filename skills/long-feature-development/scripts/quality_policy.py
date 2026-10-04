@@ -3,6 +3,7 @@
 from dataclasses import dataclass, field
 import hashlib
 import json
+import re
 import sys
 import time
 sys.dont_write_bytecode = True
@@ -153,6 +154,27 @@ def assess_quality(feature, request, *, observed=None, report_evidence=None, dec
                 and report['attempt_id'] == request['attempt_id']
                 and report['checklist_ref'] == request['checklist_ref'], 'STALE_REVIEW')
         blockers = [row['root'] for row in summary['ledger'] if row['blocking'] and not row['closed']]
+        # DONE means the report was delivered, not that its task metadata can
+        # contradict that original. Reuse the exact repository/Target-SHA binder;
+        # semantic test reuse never retargets a completed review task or report.
+        binding = qt.task_binding(feature, dict(test_task=report['review_task'],
+                                               target_refs=report['target_refs']))
+        if binding:
+            stale.add('review:task-report')
+            deny(binding.replace('TEST', 'REVIEW', 1))
+        fields = feature.type_contracts.get(report['review_task'], {})
+        review_counts = {}
+        for name in ('Blocking findings', 'Deferred findings'):
+            value = fields.get(name)
+            require(isinstance(value, str) and re.fullmatch(r'[0-9]{1,9}', value) is not None,
+                    'INVALID_REVIEW_COUNTS')
+            review_counts[name] = int(value)
+        deferred = sum(not row['blocking'] and not row['closed'] for row in summary['ledger'])
+        if (review_counts['Blocking findings'] != len(blockers)
+                or review_counts['Deferred findings'] != deferred):
+            deny('REVIEW_SUMMARY_DETAIL_CONFLICT')
+        if review_counts['Blocking findings']:
+            deny('REVIEW_TASK_RECORDED_BLOCKERS')
         if blockers:
             deny('OPEN_BLOCKERS')
         if report['result'] != 'SUCCESS':
@@ -302,7 +324,7 @@ def assess_quality(feature, request, *, observed=None, report_evidence=None, dec
                      'post_merge': 'record-result-and-evaluate-final-gate'}[phase])
     else:
         for code in reasons:
-            if code in {'OPEN_BLOCKERS', 'CLOSURE_UNVERIFIED'}:
+            if code in {'OPEN_BLOCKERS', 'CLOSURE_UNVERIFIED', 'REVIEW_TASK_RECORDED_BLOCKERS'}:
                 actions.add('rework-and-independently-recheck-blockers')
             elif code == 'ACCEPTANCE_NOT_CONFIRMED':
                 actions.add('follow-recorded-human-decision-no-merge')
@@ -312,6 +334,10 @@ def assess_quality(feature, request, *, observed=None, report_evidence=None, dec
                 actions.add('freeze-current-candidate-and-recheck-applicable-acceptance')
             elif code in {'TEST_SUMMARY_DETAIL_CONFLICT', 'TEST_COUNT_TOTAL_MISMATCH', 'INVALID_TEST_COUNTS'}:
                 actions.add('inspect-original-execution-and-reconcile-task-and-report')
+            elif code in {'REVIEW_SUMMARY_DETAIL_CONFLICT', 'INVALID_REVIEW_COUNTS'}:
+                actions.add('inspect-original-review-and-reconcile-task-and-report')
+            elif code in {'REVIEW_TASK_REPORT_TARGET_MISMATCH', 'REVIEW_TASK_REPOSITORY_MISMATCH'}:
+                actions.add('bind-review-task-to-original-report-target-and-reassess')
             elif 'TEST' in code or 'CHECK' in code or 'SCOPE' in code:
                 actions.add('complete-current-required-checks-and-scope-evidence')
             else:

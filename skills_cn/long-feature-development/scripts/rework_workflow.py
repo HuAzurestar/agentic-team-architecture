@@ -208,14 +208,24 @@ class ReworkWorkflow:
         preview = dependencies.plan_dependencies(dependencies.read_source(self.root, 'TASKS.md'),
             dependencies.read_source(self.root, f'tasks/{downstream_task}.md'), downstream_task,
             expected_index_digest, new_dependencies)
-        permission = self._permission('rewire-acceptance-successor', dict(old_task=old_task,
+        permission_scope = dict(old_task=old_task,
             successor_task=successor_task, downstream_task=downstream_task,
             index_digest=expected_index_digest, dependencies=new_dependencies,
             decision_digest=disposition['decision_digest'], source_digest=feature_digest(feature),
-            operation_gist=operation_gist, topology_digest=preview['topology_digest']))
+            operation_gist=operation_gist, topology_digest=preview['topology_digest'])
+        permission = self._permission('rewire-acceptance-successor', permission_scope)
         require(self.acceptance.verify_disposition(old_task, **binding) == disposition,
                 'ACCEPTANCE_SOURCE_CHANGED')
         require(feature_digest(self.acceptance._feature()) == feature_digest(feature), 'SUCCESSOR_SOURCE_CHANGED')
+        def before_write():
+            # The disposition readback can yield to revocation. The dependency
+            # writer also prepares and reads after this entry returns: re-read
+            # the current operation grant at every actual durable write boundary.
+            try:
+                return self._permission('rewire-acceptance-successor', permission_scope).source_ref
+            except tc.ContextError as exc:
+                raise dependencies.Error(str(exc)) from None
+
         return dependencies.replace_dependencies(self.root, downstream_task, expected_index_digest,
             new_dependencies, operation_gist=operation_gist, repo_overrides=self.overrides,
-            authority=True, authority_source_ref=permission.source_ref)
+            authority=True, authority_source_ref=permission.source_ref, before_write=before_write)

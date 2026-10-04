@@ -32,7 +32,8 @@ class SelectionTests(unittest.TestCase):
         operation = operation or ('accept' if phase == 'pre_accept' else 'gate' if phase == 'post_merge' else 'merge')
         tasks = (
             n.Task('TEST-1', 'DONE', (), 'Test', {'Target SHA': 'a' * 40, 'Executed': '1', 'Passed': '1', 'Failed': '0', 'Skipped': '0', 'Unknown': '0'}),
-            n.Task('REVIEW-1', 'DONE', ('TEST-1',), 'Review', {'Blocking findings': '0'}),
+            n.Task('REVIEW-1', 'DONE', ('TEST-1',), 'Review',
+                   {'Target SHA': 'a' * 40, 'Blocking findings': '0', 'Deferred findings': '0'}),
             n.Task('ACCEPT-1', 'PENDING' if phase == 'pre_accept' else 'DONE', ('REVIEW-1',), 'Acceptance',
                    {} if phase == 'pre_accept' else {'Decision': 'CONFIRMED', 'Target SHA': 'a' * 40}),
             n.Task('INTEGRATE', 'DONE' if phase == 'post_merge' else 'PENDING', ('ACCEPT-1',)),
