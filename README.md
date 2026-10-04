@@ -65,10 +65,10 @@ BG（组织单元；BG 成员 = AS、HR、CPO、CTO、COO、CKO、CRO、Assistan
 
 - [skills/git-collaboration](skills/git-collaboration/SKILL.md)：英文版 Git 协作 skill，用于建立、评估或实施仓库的分支、提交、PR、CI/CD 与代码评审规范。
 - [skills/long-feature-development](skills/long-feature-development/SKILL.md)：跨会话长程 feature 续接 skill，使用项目管理 Markdown 与 Git refs 恢复多仓库、多分支和 PR/MR 状态。
-- [skills/review](skills/review/SKILL.md)：按主题范围进行强审或内容点引导的弱审，统一问题状态和扣分，并在固定盲审结果后读取 REVIEW.md。
+- [skills/code-review](skills/code-review/SKILL.md)：针对软件变更的代码审查，按主题范围进行强审或内容点引导的弱审，统一问题状态和扣分，并在固定盲审结果后读取 REVIEW.md。
 - [skills_cn/git-collaboration](skills_cn/git-collaboration/SKILL.md)：中文版 Git 协作 skill。
 - [skills_cn/long-feature-development](skills_cn/long-feature-development/SKILL.md)：长程 feature 续接 skill 的中文快照，与英文版保持相同结构和执行行为。
-- [skills_cn/review](skills_cn/review/SKILL.md)：Review skill 的中文快照。
+- [skills_cn/code-review](skills_cn/code-review/SKILL.md)：Code Review skill 的中文快照。
 
 ### 源码、安装包与测试
 
@@ -81,12 +81,12 @@ scripts/<name>/scripts/              # 一份共享运行脚本
 scripts/tests/<name>/                # 一份测试、夹具与回放材料，不进入安装包
 ```
 
-本次整理 `git-collaboration`、`long-feature-development`、`review`。已有 `md-sync` 是独立应用，仍保留原启动方式；装配器拒绝其旧式目录，不顺带打包本地配置、凭据或日志。
+本次整理 `git-collaboration`、`long-feature-development`、`code-review`。已有 `md-sync` 是独立应用，仍保留原启动方式；装配器拒绝其旧式目录，不顺带打包本地配置、凭据或日志。
 
 `SKILL.md` 中 `scripts/...` 指合并后的包内路径，不是语言源码目录中的物理副本。使用[装配脚本](scripts/assemble_skill.py)，将所选语言的内容与同名共享目录合并到新的输出位置；不会覆盖现有安装，也不会带入 `scripts/tests`、`test_*` 或 Python 缓存。装配仅生成目录，不自动安装、发布或修改全局 skills。
 
 ```text
-python -B -X utf8 scripts/assemble_skill.py --skill review --locale cn --output <fresh-package-parent>
+python -B -X utf8 scripts/assemble_skill.py --skill code-review --locale cn --output <fresh-package-parent>
 python -B -X utf8 scripts/assemble_skill.py --skill long-feature-development --locale en --output <fresh-package-parent>
 ```
 
@@ -99,7 +99,7 @@ python -B -X utf8 scripts/tests/run_tests.py
 python -B -X utf8 scripts/tests/run_tests.py --skill long-feature-development
 ```
 
-回归只维护一份，不再分别执行两套相同脚本；packaging suite 另验证中英文实际安装包、CLI 启动、运行脚本一致性及测试不入包。结构与资源审计须针对装配后的 skill；不能用未装配的语言内容目录证明运行脚本完整。Review 合成回放位于 `scripts/tests/review/replay/`，夹具测试成功不证明 Agent 审查质量。
+回归只维护一份，不再分别执行两套相同脚本；packaging suite 另验证中英文实际安装包、CLI 启动、运行脚本一致性及测试不入包。结构与资源审计须针对装配后的 skill；不能用未装配的语言内容目录证明运行脚本完整。Code Review 合成回放位于 `scripts/tests/code-review/replay/`，夹具测试成功不证明 Agent 审查质量。
 
 ## 云端 ↔ 本地同步与迭代规则
 

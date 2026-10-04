@@ -66,7 +66,7 @@ class AssembleSkillTests(unittest.TestCase):
 
     def test_real_english_and_chinese_packages_have_identical_runtimes(self):
         with tempfile.TemporaryDirectory() as temp:
-            for name in ("git-collaboration", "long-feature-development", "review"):
+            for name in ("git-collaboration", "long-feature-development", "code-review"):
                 packages = [assemble_skill(REPOSITORY, name, locale, Path(temp) / locale) for locale in ("en", "cn")]
                 expected = {path.name: path.read_bytes() for path in (REPOSITORY / "scripts" / name / "scripts").glob("*.py")}
                 self.assertTrue(expected)
@@ -75,12 +75,13 @@ class AssembleSkillTests(unittest.TestCase):
                     self.assertEqual(actual, expected)
                     self.assertFalse(any(path.name.startswith("test_") or path.name == "tests" for path in package.rglob("*")))
                     self.assertTrue((package / "SKILL.md").is_file())
+                    self.assertIn(f"\nname: {name}\n", (package / "SKILL.md").read_text(encoding="utf-8"))
 
     def test_assembled_entrypoints_run_without_repository_pythonpath(self):
         commands = {
             "git-collaboration": ("validate_policy.py",),
             "long-feature-development": ("task_context.py", "task_state.py", "task_create.py", "task_checkpoint.py"),
-            "review": ("review_score.py",),
+            "code-review": ("review_score.py",),
         }
         with tempfile.TemporaryDirectory() as temp:
             for locale in ("en", "cn"):
@@ -93,7 +94,7 @@ class AssembleSkillTests(unittest.TestCase):
                             result = subprocess.run([sys.executable, "-B", "-X", "utf8", str(package / "scripts" / filename), "--help"], cwd=temp, env=environment, capture_output=True, text=True)
                             self.assertEqual(result.returncode, 0, result.stderr)
                             self.assertIn("usage:", result.stdout)
-                    if name == "review":
+                    if name == "code-review":
                         result = subprocess.run([sys.executable, "-B", str(package / "scripts/review_score.py"), "--complete", "--p1", "4"], cwd=temp, env=environment, capture_output=True, text=True, check=True)
                         self.assertEqual(json.loads(result.stdout)["score"], 60)
 

@@ -18,7 +18,7 @@ title: <feature-key> 方案
 
 - Review scope: review/v1
 
-仅保存短选择；默认 strong 和全部适用主题。排除 UI 用 exclude=ui，可选 topics/focus 指定范围及重点。弱审 detail 留在 review skill，任务快照必须匹配此权威行。
+仅保存短选择；默认 strong 和全部适用主题。排除 UI 用 exclude=ui，可选 topics/focus 指定范围及重点。弱审 detail 留在 `code-review` skill，任务快照必须匹配此权威行。
 
 ## SOL-001 — <point-title>
 

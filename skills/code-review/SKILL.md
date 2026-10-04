@@ -1,9 +1,9 @@
 ---
-name: review
+name: code-review
 description: Review a software change or feature with topic-scoped strong or checklist-guided weak execution, evidence-backed findings, and a versioned REVIEW.md ledger. Use for requested development self-checks, independent software reviews, and finding rechecks; not for scientific proof review or organizational audits.
 ---
 
-# Review
+# Code Review
 
 Paths such as `scripts/...` refer to the assembled skill root. For a repository checkout, first combine this locale's content with the same-named shared runtime directory; installed packages already include it. Development tests remain outside the skill.
 
