@@ -263,6 +263,22 @@ class PolicyTests(unittest.TestCase):
         self.feature.type_contracts['TEST-1']['Passed'] = '-1'
         self.assert_denied('INVALID_TEST_COUNTS')
 
+    def test_optional_unresolved_details_cannot_disappear_from_counts(self):
+        optional = copy.deepcopy(self.request['tests']['checks'][0])
+        optional.update(id='T-OPTIONAL', required=False)
+        self.request['tests']['checks'].append(optional)
+        for outcome in ('UNKNOWN', 'NOT-RUN'):
+            optional['outcome'] = outcome
+            with self.subTest(outcome=outcome):
+                got = self.assert_denied('TEST_SUMMARY_DETAIL_CONFLICT')
+                self.assertEqual('UNRESOLVED', got['test_audits'][0]['status'])
+                self.assertNotIn('REQUIRED_TEST_NOT_PASSED', got['reason_codes'])
+                self.feature.type_contracts['TEST-1']['Unknown'] = '1'
+                got = self.assert_denied('TEST_TASK_UNRESOLVED_RESULTS')
+                self.assertEqual('CONSISTENT', got['test_audits'][0]['status'])
+                self.assertNotIn('TEST_SUMMARY_DETAIL_CONFLICT', got['reason_codes'])
+                self.feature.type_contracts['TEST-1']['Unknown'] = '0'
+
     def test_task_target_cannot_be_masked_by_current_report(self):
         self.feature.type_contracts['TEST-1']['Target SHA'] = 'e' * 40
         got = self.assert_denied('TEST_TASK_REPORT_TARGET_MISMATCH')

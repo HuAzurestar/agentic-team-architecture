@@ -141,11 +141,17 @@ class ReworkWorkflow:
         self._permission('create-acceptance-successor', dict(plan=plan.__dict__))
         require(self.preview_successor(plan.old_task, plan.review_task, **binding) == plan, 'SUCCESSOR_SOURCE_CHANGED')
         before = file_snapshot(self.root)
+        def before_write():
+            require(file_snapshot(self.root) == before, 'SUCCESSOR_SOURCE_CHANGED')
+            # The old acceptance grant proves disposition, not permission to
+            # perform this operation now. Re-read after the writer prepares.
+            self._permission('create-acceptance-successor', dict(plan=plan.__dict__))
+
         # Existing task_create owns its per-file write behavior. A lost effect
         # must be recovered from actual files, never automatically retried here.
         with operations.coordinator(self.root):
             require(file_snapshot(self.root) == before, 'SUCCESSOR_SOURCE_CHANGED')
-            task_id = create.create(self.root, create.parse_args(list(plan.argv)))
+            task_id = create.create(self.root, create.parse_args(list(plan.argv)), before_write=before_write)
         require(task_id == plan.task_id, 'SUCCESSOR_SOURCE_CHANGED')
         return dict(task_id=task_id, effect='APPLIED_PENDING_CHECKPOINT',
             required_next_action='CHECKPOINT_MANAGEMENT_FILES', merge_authorized=False)

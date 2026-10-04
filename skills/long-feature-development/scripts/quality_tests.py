@@ -33,6 +33,7 @@ def audit_counts(contract, checks):
         reasons.add('TEST_COUNT_TOTAL_MISMATCH')
     if (('FAIL' in outcomes) != bool(counts['Failed'])
             or 'PASS' in outcomes and counts['Passed'] == 0
+            or outcomes & {'UNKNOWN', 'NOT-RUN'} and counts['Unknown'] == 0
             or counts['Executed'] == 0 and outcomes & {'PASS', 'FAIL'}):
         reasons.add('TEST_SUMMARY_DETAIL_CONFLICT')
     if counts['Failed']:

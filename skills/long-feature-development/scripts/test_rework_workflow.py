@@ -1,8 +1,10 @@
 """One concentrated real-Git continuation check; human transport is synthetic."""
 import hashlib
+import tempfile
 from pathlib import Path
 from types import SimpleNamespace
 import unittest
+from unittest.mock import patch
 import acceptance_workflow as acceptance
 import task_context as tc
 import task_create as create
@@ -10,10 +12,51 @@ import task_dependencies as deps
 import rework_workflow as rework
 from decision_evidence import canonical
 import test_state_acceptance as fixture
+from test_task_create import TaskCreateTests
 from test_quality_host import git
 
 
 class ContinuationTests(unittest.TestCase):
+    def test_revocation_inside_writer_preparation_prevents_first_write(self):
+        # Source/identity is stubbed here; actual task creation and files are
+        # real. The integration case below covers retained human disposition.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = TaskCreateTests().make_feature(Path(tmp))
+            argv = (str(root), '--type', 'Acceptance', '--name', 'Acceptance successor fixture',
+                '--depends-on', 'SOL-001', '--requirement-points', 'REQ-001',
+                '--solution-points', 'SOL-001', '--goal', 'New acceptance',
+                '--work', 'Prepare a new brief', '--completion-condition', 'Actual human decision',
+                '--resume-action', 'Wait for review', '--repo-ref', 'app|feature|main@1111111')
+            plan = rework.SuccessorPlan('ACCEPT-OLD', 'REVIEW-NEW', 'ACCEPT-01',
+                                       'synthetic-source', 'synthetic-decision', argv, 'synthetic-detail')
+            workflow = rework.ReworkWorkflow.__new__(rework.ReworkWorkflow)
+            workflow.root = root
+            workflow.preview_successor = lambda *args, **kwargs: plan
+            prepared = False
+            authority_reads = []
+
+            def authorize(request):
+                authority_reads.append(prepared)
+                return None if prepared else rework.OperationPermission(
+                    hashlib.sha256(canonical(request)).hexdigest(), 'synthetic:current-operation')
+
+            original_validate = create.task_context.validate_type_contract
+
+            def validate(*args, **kwargs):
+                nonlocal prepared
+                value = original_validate(*args, **kwargs)
+                prepared = True
+                return value
+
+            workflow.authorize = authorize
+            before = rework.file_snapshot(root)
+            with patch.object(create.task_context, 'validate_type_contract', validate):
+                with self.assertRaisesRegex(tc.ContextError, 'OPERATION_AUTHORITY_UNVERIFIED'):
+                    workflow.create_successor(plan)
+            self.assertEqual(authority_reads, [False, True])
+            self.assertEqual(rework.file_snapshot(root), before)
+            self.assertFalse((root / '.operation.lock').exists())
+
     def test_negative_disposition_successor_and_pending_gate_preserve_old_attempt(self):
         c = fixture.AcceptanceTests()
         c.setUp()
@@ -58,6 +101,32 @@ class ContinuationTests(unittest.TestCase):
         self.assertFalse((c.root / f'tasks/{plan.task_id}.md').exists())
         workflow.authorize = lambda request: rework.OperationPermission(
             hashlib.sha256(canonical(request)).hexdigest(), 'synthetic:host-operation')
+        valid_authorize = workflow.authorize
+        snapshot = rework.file_snapshot(c.root)
+        original_preview = workflow.preview_successor
+        for window in ('source-recheck',):
+            authorized = True
+            preview_calls = 0
+
+            def authorize(request):
+                return valid_authorize(request) if authorized else None
+
+            def preview(*args, **kwargs):
+                nonlocal authorized, preview_calls
+                value = original_preview(*args, **kwargs)
+                preview_calls += 1
+                if window == 'source-recheck' and preview_calls == 2:
+                    authorized = False
+                return value
+
+            workflow.authorize = authorize
+            with self.subTest(window=window), patch.object(workflow, 'preview_successor', preview):
+                with self.assertRaisesRegex(tc.ContextError, 'OPERATION_AUTHORITY_UNVERIFIED'):
+                    workflow.create_successor(plan, **binding)
+            self.assertEqual(rework.file_snapshot(c.root), snapshot)
+            self.assertEqual(git(c.case.pm, 'rev-parse', 'HEAD'), head)
+            self.assertEqual(git(c.case.app, 'rev-parse', 'HEAD'), c.case.app_head)
+        workflow.authorize = valid_authorize
         created = workflow.create_successor(plan, **binding)
         self.assertEqual(created['effect'], 'APPLIED_PENDING_CHECKPOINT')
         c.case.commit_records()
