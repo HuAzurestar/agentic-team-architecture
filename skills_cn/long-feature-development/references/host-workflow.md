@@ -10,6 +10,13 @@ read_reply／interpret／read_grant。本包不部署服务，也不因构造 se
 
 ## 调用入口
 
+组合的业务入口为 [point_workflow.py](../scripts/point_workflow.py)、
+[decision_workflow.py](../scripts/decision_workflow.py)、
+[review_workflow.py](../scripts/review_workflow.py) 和
+[acceptance_workflow.py](../scripts/acceptance_workflow.py)。认证点流程的集中检查见
+[test_decision_workflow.py](../scripts/test_decision_workflow.py)；服务身份为合成夹具，
+不作为生产账号验证证据。
+
 ```text
 python scripts/feature_host.py FEATURE context --format json
 python scripts/feature_host.py FEATURE review --purpose development

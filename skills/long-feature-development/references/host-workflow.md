@@ -14,6 +14,14 @@ a service or certify a production account merely by constructing a session.
 
 ## Caller routes
 
+The composed business entries are [point_workflow.py](../scripts/point_workflow.py),
+[decision_workflow.py](../scripts/decision_workflow.py),
+[review_workflow.py](../scripts/review_workflow.py) and
+[acceptance_workflow.py](../scripts/acceptance_workflow.py). The concentrated
+authenticated point-route check is
+[test_decision_workflow.py](../scripts/test_decision_workflow.py); its service
+identity is a synthetic fixture, not production-account evidence.
+
 ```text
 python scripts/feature_host.py FEATURE context --format json
 python scripts/feature_host.py FEATURE review --purpose development
