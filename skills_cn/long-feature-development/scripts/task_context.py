@@ -674,24 +674,30 @@ def repository_changes(path: Path) -> list[str]:
     return [line for line in process.stdout.splitlines() if line]
 
 
+def validate_index_visibility(feature_root: Path, repository: dict[str, Any]) -> None:
+    """Refuse edit-hiding flags without clearing them or changing the index."""
+    path = Path(repository["path"])
+    # A clean status is insufficient when index flags suppress observation.
+    # Scope management checks to this feature; do not disturb other features.
+    from review_source import _run, ReviewSourceError
+    index_scope = ["--"]
+    if repository.get("role") == "project-management":
+        index_scope.append(feature_root.relative_to(path).as_posix())
+    try:
+        entries = _run(path, "ls-files", "-v", "-z", *index_scope, configured=True)[1]
+    except ReviewSourceError:
+        raise ContextError("INDEX_STATE_UNAVAILABLE") from None
+    if any(entry[:1] == b"S" or entry[:1].islower() for entry in entries.split(b"\0") if entry):
+        raise ContextError("HIDDEN_INDEX_STATE")
+
+
 def validate_recovery_cleanliness(
     feature_root: Path, resolved: dict[str, dict[str, Any]]
 ) -> None:
     """Stop recovery before new work when a relevant repository has residue."""
     for name, item in resolved.items():
         path = Path(item["path"])
-        # A clean status is insufficient when index flags suppress observation.
-        # Scope management checks to this feature; do not disturb other features.
-        from review_source import _run, ReviewSourceError
-        index_scope = ["--"]
-        if item.get("role") == "project-management":
-            index_scope.append(feature_root.relative_to(path).as_posix())
-        try:
-            entries = _run(path, "ls-files", "-v", "-z", *index_scope, configured=True)[1]
-        except ReviewSourceError:
-            raise ContextError("INDEX_STATE_UNAVAILABLE") from None
-        if any(entry[:1] == b"S" or entry[:1].islower() for entry in entries.split(b"\0") if entry):
-            raise ContextError("HIDDEN_INDEX_STATE")
+        validate_index_visibility(feature_root, item)
         changes = repository_changes(path)
         if item.get("role") == "project-management":
             relative_feature = feature_root.relative_to(path).as_posix().rstrip("/") + "/"

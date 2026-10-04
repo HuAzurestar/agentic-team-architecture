@@ -13,10 +13,71 @@ import rework_workflow as rework
 from decision_evidence import canonical
 import test_state_acceptance as fixture
 from test_task_create import TaskCreateTests
+from test_task_reconcile import RecoveryTests
 from test_quality_host import git
 
 
 class ContinuationTests(unittest.TestCase):
+    def test_final_permission_hidden_index_edit_is_preserved(self):
+        # Plan/disposition and identity are synthetic; repository resolution,
+        # Git/index, control files and task creation are real. No flag cleanup
+        # is used to obtain a success: each case owns a fresh temporary repo.
+        for flag in (None, 'assume-unchanged', 'skip-worktree'):
+            with self.subTest(flag=flag):
+                c = RecoveryTests()
+                c.setUp()
+                self.addCleanup(c.doCleanups)
+                argv = (str(c.root), '--type', 'Acceptance', '--name', 'Successor guard fixture',
+                    '--depends-on', 'SOL-001', '--requirement-points', 'REQ-001',
+                    '--solution-points', 'SOL-001', '--goal', 'New acceptance',
+                    '--work', 'Prepare a new brief', '--completion-condition', 'Actual human decision',
+                    '--resume-action', 'Wait for review', '--repo-ref', f'app|task|main@{c.app_base}')
+                plan = rework.SuccessorPlan('ACCEPT-OLD', 'REVIEW-NEW', 'ACCEPT-01',
+                    'synthetic-source', 'synthetic-decision', argv, 'synthetic-detail')
+                workflow = rework.ReworkWorkflow.__new__(rework.ReworkWorkflow)
+                workflow.root = c.root
+                workflow.overrides = {'pm': c.pm, 'app': c.app}
+                workflow.preview_successor = lambda *args, **kwargs: plan
+                before = rework.file_snapshot(c.root)
+                pm_head = git(c.pm, 'rev-parse', 'HEAD')
+                product = c.app / 'owned.py'
+                changed = product.read_bytes() + b'\nversion = 3  # hidden external edit\n'
+                reads = 0
+                retained_index = None
+
+                def authorize(request):
+                    nonlocal reads, retained_index
+                    reads += 1
+                    if reads == 2 and flag is not None:
+                        git(c.app, 'update-index', '--' + flag, 'owned.py')
+                        product.write_bytes(changed)
+                        retained_index = (c.app / '.git/index').read_bytes()
+                    return rework.OperationPermission(
+                        hashlib.sha256(canonical(request)).hexdigest(), 'synthetic:current-operation')
+
+                workflow.authorize = authorize
+                if flag is None:
+                    result = workflow.create_successor(plan)
+                    self.assertEqual(result['effect'], 'APPLIED_PENDING_CHECKPOINT')
+                    self.assertFalse(result['merge_authorized'])
+                    self.assertTrue((c.root / 'tasks/ACCEPT-01.md').exists())
+                else:
+                    with self.assertRaisesRegex(tc.ContextError, '^HIDDEN_INDEX_STATE$'):
+                        workflow.create_successor(plan)
+                    self.assertEqual(git(c.app, 'status', '--porcelain'), '')
+                    self.assertEqual(product.read_bytes(), changed)
+                    self.assertEqual((c.app / '.git/index').read_bytes(), retained_index)
+                    self.assertEqual(rework.file_snapshot(c.root), before)
+                    self.assertFalse((c.root / 'tasks/ACCEPT-01.md').exists())
+                    with self.assertRaisesRegex(tc.ContextError, '^HIDDEN_INDEX_STATE$'):
+                        tc.build_context(c.root, repo_overrides=workflow.overrides)
+                    self.assertEqual(product.read_bytes(), changed)
+                    self.assertEqual((c.app / '.git/index').read_bytes(), retained_index)
+                self.assertEqual(reads, 2)
+                self.assertEqual(git(c.app, 'rev-parse', 'HEAD'), c.app_head)
+                self.assertEqual(git(c.pm, 'rev-parse', 'HEAD'), pm_head)
+                self.assertFalse((c.root / '.operation.lock').exists())
+
     def test_revocation_inside_writer_preparation_prevents_first_write(self):
         # Source/identity is stubbed here; actual task creation and files are
         # real. The integration case below covers retained human disposition.

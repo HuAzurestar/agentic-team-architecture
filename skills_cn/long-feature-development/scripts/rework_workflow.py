@@ -53,6 +53,10 @@ class ReworkWorkflow:
     def _repositories(self):
         repositories = tc.resolve_repositories(self.root, tc.repository_registry(
             tc.read_utf8(self.root / 'STATUS.md')), self.overrides)
+        for repository in repositories.values():
+            # Shared with strict recovery: status may hide externally edited
+            # source behind assume-unchanged/skip-worktree. Never clear flags.
+            tc.validate_index_visibility(self.root, repository)
         observations = repo_snapshot(self.root, repositories)
         for name, repo in repositories.items():
             if repo['role'] == 'project-management':
