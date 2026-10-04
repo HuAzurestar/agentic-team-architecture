@@ -93,7 +93,7 @@ For an acceptance task, create and validate the plain-language brief described i
 
 During design, record one short `- Review scope: review/v1 mode=strong exclude=ui` line in `SOLUTION.md`. Optional `topics` selects a subset, and `focus` adds specific promises; absence defaults to all applicable topics. The task may record the identical short snapshot plus source/version and ledger path. Do not copy topic checklists into feature records. Unknown/duplicate configuration is an error; a differing task snapshot is stale, not a new scope decision. Existing records without this metadata remain recoverable.
 
-The optional `review` skill provides topic-based strong review, weak-mode details and the shared finding/score protocol. This skill's recovery views work without that skill, SM-MD or a service. See [review_context.py](scripts/review_context.py) for configuration and view mechanics, and [the integration tests](scripts/test_review_context.py) for isolation and compatibility cases.
+The optional `review` skill provides topic-based strong review, weak-mode details and the shared finding/score protocol. This skill's recovery views work without that skill, SM-MD or a service. See [review_context.py](scripts/review_context.py) for configuration and view mechanics.
 
 Initial blind input includes current candidate refs, point IDs/statuses, dependency metadata and only explicitly declared raw packets marked `- Evidence type: original`. The coordinator prepares current normative requirement/design excerpts, real authorization and original evidence. The marker routes a packet; it does not certify clean content. Blind recovery withholds arbitrary management prose, task/dependency conclusions, old scores and ledger/review bodies before Markdown or JSON serialization. Full structural/ref/cleanliness validations still run. Missing packets, active action blockers or an empty topic selection are diagnosed as incomplete; do not claim PASS or independent execution.
 
@@ -142,14 +142,3 @@ Leave a resumable state containing:
 Before ending, rerun `task_context.py` for the current task. A failed context check means the state is not resumable.
 
 Before that final recovery check, checkpoint every coherent owned implementation change. Unexpected power loss can recover through the last successful checkpoint; do not claim zero-loss recovery beyond that boundary.
-
-## Validate this Skill
-
-After changing task orchestration, recovery, or checkpoint behavior, run the [context regression tests](scripts/test_task_context.py), [task creation tests](scripts/test_task_create.py), [checkpoint tests](scripts/test_task_checkpoint.py), and deterministic audit:
-
-```text
-python scripts/test_task_context.py
-python scripts/test_task_create.py
-python scripts/test_task_checkpoint.py
-python <skill-quality-reviewer>/scripts/skill-audit.py <skill-root> --format json
-```

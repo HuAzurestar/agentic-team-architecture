@@ -70,6 +70,37 @@ BG（组织单元；BG 成员 = AS、HR、CPO、CTO、COO、CKO、CRO、Assistan
 - [skills_cn/long-feature-development](skills_cn/long-feature-development/SKILL.md)：长程 feature 续接 skill 的中文快照，与英文版保持相同结构和执行行为。
 - [skills_cn/review](skills_cn/review/SKILL.md)：Review skill 的中文快照。
 
+### 源码、安装包与测试
+
+语言内容与代码分开维护；同名内容目录和共享目录合并后，才是可安装的 skill：
+
+```text
+skills/<name>/                       # 英文 SKILL、references、assets、templates
+skills_cn/<name>/                    # 中文内容，不再复制脚本或测试
+scripts/<name>/scripts/              # 一份共享运行脚本
+scripts/tests/<name>/                # 一份测试、夹具与回放材料，不进入安装包
+```
+
+本次整理 `git-collaboration`、`long-feature-development`、`review`。已有 `md-sync` 是独立应用，仍保留原启动方式；装配器拒绝其旧式目录，不顺带打包本地配置、凭据或日志。
+
+`SKILL.md` 中 `scripts/...` 指合并后的包内路径，不是语言源码目录中的物理副本。使用[装配脚本](scripts/assemble_skill.py)，将所选语言的内容与同名共享目录合并到新的输出位置；不会覆盖现有安装，也不会带入 `scripts/tests`、`test_*` 或 Python 缓存。装配仅生成目录，不自动安装、发布或修改全局 skills。
+
+```text
+python -B -X utf8 scripts/assemble_skill.py --skill review --locale cn --output <fresh-package-parent>
+python -B -X utf8 scripts/assemble_skill.py --skill long-feature-development --locale en --output <fresh-package-parent>
+```
+
+将生成的 `<fresh-package-parent>/<name>` 作为 skill 本体使用。直接在源码仓库执行运行脚本时，路径为 `scripts/<name>/scripts/<entry>.py`。
+
+统一测试入口在 [scripts/tests/run_tests.py](scripts/tests/run_tests.py)，按 skill 分组并使用隔离的进程加载共享运行脚本：
+
+```text
+python -B -X utf8 scripts/tests/run_tests.py
+python -B -X utf8 scripts/tests/run_tests.py --skill long-feature-development
+```
+
+回归只维护一份，不再分别执行两套相同脚本；packaging suite 另验证中英文实际安装包、CLI 启动、运行脚本一致性及测试不入包。结构与资源审计须针对装配后的 skill；不能用未装配的语言内容目录证明运行脚本完整。Review 合成回放位于 `scripts/tests/review/replay/`，夹具测试成功不证明 Agent 审查质量。
+
 ## 云端 ↔ 本地同步与迭代规则
 
 **架构文档以云端 GitHub 仓库为主源（source of truth），本地工作目录作为它的工作副本；任何一次迭代都要同时落在两边。**

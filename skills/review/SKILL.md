@@ -126,8 +126,6 @@ python scripts/review_score.py --incomplete --p0 1
 
 Incomplete scope, missing critical evidence or interruption gives INCOMPLETE and a null score, retaining known counts. The helper does not read the ledger or decide evidence applicability. Zero discoveries alone do not establish completeness.
 
-After changing scoring behavior, run [the score regression tests](scripts/test_review_score.py).
-
 Report completion, score result, mandatory rework and human acceptance separately. An issue-bearing report can complete. P0 requires rework/valid rejection; P1/P2/P3 do not create endless automatic rework even below 60. PASS does not authorize acceptance, merge or release.
 
 Within existing authority, continue technical reproduction, fixes, tests and rechecks. Product semantics/scope/budget/data-access changes and final acceptance/release retain their decision boundaries. Do not start unsupported independent execution automatically. Handoff states what changed against baseline, how to try it, limitations, exact next action, and actual human decisions needed. Record evidence blockers and who/what can release them; workflow column position is not quality evidence.

@@ -85,7 +85,7 @@ description: 从项目管理目录恢复并推进跨会话的软件 feature，�
 
 设计阶段在 SOLUTION.md 保存唯一短行 `- Review scope: review/v1 mode=strong exclude=ui`。可选 topics 指定子集，focus 增加重点；缺少配置时默认全部适用主题。Task 可保存相同短快照、来源/版本及账本路径，不复制内容点。未知/重复配置报错，任务快照不一致表示陈旧，不自动变更范围。无元数据的旧记录仍可恢复。
 
-可选 review skill 提供强审主题、弱审 detail 和共用问题/计分协议；恢复视图本身不依赖该 skill、SM-MD 或服务。[review_context.py](scripts/review_context.py) 实现配置和视图，[接入测试](scripts/test_review_context.py) 验证隔离及兼容。
+可选 review skill 提供强审主题、弱审 detail 和共用问题/计分协议；恢复视图本身不依赖该 skill、SM-MD 或服务。[review_context.py](scripts/review_context.py) 实现配置和视图。
 
 blind 输入保留候选 refs、点 ID/状态、依赖元数据，仅加载显式声明、标记 `- Evidence type: original` 的原始包。协调者准备当前规范性需求/设计摘录、真实授权和原始证据；标记只路由，不证明干净。任意管理正文、任务/依赖结论、旧分数、账本/报告内容在 Markdown/JSON 序列化前隔离。原有结构、refs 和洁净校验仍执行。缺原始包、现有行动阻塞或空主题选择会诊断不完整，不能 PASS 或冒充独立执行。
 
@@ -114,14 +114,3 @@ REVIEW DONE、评分、必须返工、最终接受分开。review/v1 使用 `max
 ## 结束一次运行
 
 保留可恢复状态：当前 task/state、观察到的各仓 branch/SHA、PR/MR refs、本轮 commits、准确下一动作、blocker 与解除条件。结束前先 checkpoint 所有连贯且属于 Agent 的实现修改，再重新运行当前 task 的 `task_context.py`；失败表示状态不可恢复。Skill 只承诺恢复到最近一次成功 checkpoint，不虚假承诺任意断电瞬间零丢失。
-
-## 验证本 Skill
-
-修改 task 编排、恢复或 checkpoint 行为后，运行[上下文回归测试](scripts/test_task_context.py)、[task 创建测试](scripts/test_task_create.py)、[checkpoint 测试](scripts/test_task_checkpoint.py)和确定性审计：
-
-```text
-python scripts/test_task_context.py
-python scripts/test_task_create.py
-python scripts/test_task_checkpoint.py
-python <skill-quality-reviewer>/scripts/skill-audit.py <skill-root> --format json
-```

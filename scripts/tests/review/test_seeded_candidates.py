@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 
 
-path = Path(__file__).parent / "original/candidate.py"
+path = Path(__file__).parent / "replay/original/candidate.py"
 spec = importlib.util.spec_from_file_location("replay_candidate", path)
 candidate = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(candidate)
