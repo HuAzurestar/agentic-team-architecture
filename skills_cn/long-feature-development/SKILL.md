@@ -5,6 +5,8 @@ description: 从项目管理目录恢复并推进跨会话的软件 feature，�
 
 # 长程 Feature 开发
 
+`scripts/...` 指合并后的 skill 根目录。使用仓库源码时，先将本语言内容与同名的共享运行目录合并；已安装的包本身包含这些脚本。开发测试不属于 skill 本体。
+
 本 Skill 使用小型、版本化的 feature 记录续接开发，不依赖旧聊天。项目自行决定 `<Project-Manage>` 的实际路径；不得假定为 MPA 或其他固定仓库。
 
 ## 必需结构
@@ -41,7 +43,7 @@ description: 从项目管理目录恢复并推进跨会话的软件 feature，�
 ## 开始或恢复
 
 1. 解析准确的 `<Project-Manage>` 映射和 feature ID；存在歧义就停止。
-2. 运行 `python <skill-root>/scripts/task_context.py <feature-directory>`。仅在人类明确选择非当前 task 时使用 `--task`。仓库移动或 path hint 不可用时，用可重复的 `--repo NAME=PATH` 显式覆盖。该命令是唯一恢复读取器，会校验 task 索引、拓扑、仓库身份、实际 Git refs 和必需追溯闭合，再输出聚焦上下文。
+2. 运行 `python <skill-root>/scripts/task_context.py <feature-directory>`。初次或重复盲审 REVIEW 的首次调用必须改用 `--review-phase blind`，只指定已准备的 `--review-input gists/raw-input.md` 原始包，不能先打印普通恢复；详见下文审查接入。仅在人类明确选择非当前 task 时使用 `--task`。仓库移动或 path hint 不可用时，用可重复的 `--repo NAME=PATH` 显式覆盖。该命令是唯一恢复读取器，会校验 task 索引、拓扑、仓库身份、实际 Git refs 和必需追溯闭合，再输出聚焦上下文。
 3. 从输出核对需求和方案逐点确认状态，再把它们当作固定边界。
 4. 对每个仓库分别核对工作 branch/HEAD、开发期 integration branch/SHA、最终 PR/MR source/target refs。
 5. 无法取得的远端状态标为未验证，不得猜测。
@@ -81,6 +83,20 @@ description: 从项目管理目录恢复并推进跨会话的软件 feature，�
 
 改变 task 状态或下一流转时读取 [references/transitions.md](references/transitions.md)。创建、接取、记录或完成质量 task 时读取 [references/task-contracts.md](references/task-contracts.md)。创建/执行 gate 或改变 feature phase/condition 时读取 [references/feature-gates.md](references/feature-gates.md)。验收 task 还需按 [references/acceptance.md](references/acceptance.md) 创建并主动展示普通用户可理解的短验收包；不得要求用户理解 `ACCEPT-*`、point ID、合同或内部命令。
 
+## 审查范围与盲审恢复
+
+设计阶段在 SOLUTION.md 保存唯一短行 `- Review scope: review/v1 mode=strong exclude=ui`。可选 topics 指定子集，focus 增加重点；缺少配置时默认全部适用主题，显式空声明则报错。Task 可保存相同短快照、来源/版本及账本路径，不复制内容点。未知/重复配置报错，任务快照不一致表示陈旧，不自动变更范围。无元数据的旧记录仍可恢复。
+
+可选 `code-review` skill 提供强审主题、弱审 detail 和共用问题/计分协议；恢复视图本身不依赖该 skill、SM-MD 或服务。[review_context.py](scripts/review_context.py) 实现配置和视图。
+
+blind 输入保留候选 refs、点 ID/状态、依赖元数据，仅加载显式声明、标记 `- Evidence type: original` 的原始包。协调者准备当前规范性需求/设计摘录、真实授权和原始证据；标记只路由，不证明干净。任意管理正文、任务/依赖结论、旧分数、账本/报告内容在 Markdown/JSON 序列化前隔离。原有结构、refs 和洁净校验仍执行。缺原始包、现有行动阻塞或空主题选择会诊断不完整，不能 PASS 或冒充独立执行。
+
+refs 表按列白名单过滤并支持语言别名，未知列不透传。`BLOCKED`、`WAITING_HUMAN`、`WAITING_EXTERNAL` 都阻止行动就绪。原始包应提供独立的 `- Action boundary:`、`- Release condition:`（支持“行动边界”“解除条件”）；不复制混合阻塞正文，缺干净边界时明确诊断。输入就绪不能覆盖授权或解除等待。
+
+先保存盲审报告，再用 `--review-phase reconcile --review-report gists/blind-01.md`。已声明快照必须各有一条 `- Field: value`：Review phase=blind、Review task=当前 REVIEW-*、Target SHA=当前合约目标、Review scope=当前配置、Review refs=从 blind 原样复制的 JSON。refs 绑定全部实现 checkout、integration/PR 端点及字面 task 来源 refs，不绑定提交报告本身会推进的项目管理 checkout HEAD；无 registry 时 refs 仍是 recorded-only。缺失或陈旧 refs 在读历史前拒绝核对；旧的未绑定报告需新盲审。reconcile 记录快照 digest 后才展示历史和 Feature 根 REVIEW.md。逐轮报告保存在声明 gist，普通恢复不默认加载根账本。快照本身不证明独立上下文或人类决定来源。
+
+REVIEW DONE、评分、必须返工、最终接受分开。review/v1 使用 `max(0,100-100*P0-10*P1-2*P2-P3)`，无未关闭 P0 且至少 60 分通过。P0 修复复核或以明确项目设计及技术依据证明误报；P1/P2/P3 修复可选，保留仍扣分，score FAIL 不自动无限返工。已有必需检查、授权及最终人工接受继续适用，不静默替换旧严重度/blocking 协议。
+
 ## Git 与平台边界
 
 - 每个仓库独立处理；一个 feature 可以跨仓库。
@@ -102,14 +118,3 @@ description: 从项目管理目录恢复并推进跨会话的软件 feature，�
 ## 结束一次运行
 
 保留可恢复状态：当前 task/state、观察到的各仓 branch/SHA、PR/MR refs、本轮 commits、准确下一动作、blocker 与解除条件。结束前先 checkpoint 所有连贯且属于 Agent 的实现修改，再重新运行当前 task 的 `task_context.py`；失败表示状态不可恢复。Skill 只承诺恢复到最近一次成功 checkpoint，不虚假承诺任意断电瞬间零丢失。
-
-## 验证本 Skill
-
-修改 task 编排、恢复或 checkpoint 行为后，运行[上下文回归测试](scripts/test_task_context.py)、[task 创建测试](scripts/test_task_create.py)、[checkpoint 测试](scripts/test_task_checkpoint.py)和确定性审计：
-
-```text
-python scripts/test_task_context.py
-python scripts/test_task_create.py
-python scripts/test_task_checkpoint.py
-python <skill-quality-reviewer>/scripts/skill-audit.py <skill-root> --format json
-```

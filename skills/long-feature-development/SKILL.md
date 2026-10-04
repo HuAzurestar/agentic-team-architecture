@@ -5,6 +5,8 @@ description: Help Codex resume and advance a multi-session software feature from
 
 # Long Feature Development
 
+Paths such as `scripts/...` refer to the assembled skill root. For a repository checkout, first combine this locale's content with the same-named shared runtime directory; installed packages already include it. Development tests remain outside the skill.
+
 This Codex skill uses a small, versioned feature record to continue development without relying on previous chat history. The project chooses the concrete path represented by `<Project-Manage>`; never assume MPA or another fixed repository.
 
 ## Required feature layout
@@ -41,7 +43,7 @@ The Agent owns initial task IDs, types, dependencies, and selectors. The user su
 ## Start or resume
 
 1. Resolve the exact `<Project-Manage>` mapping and feature ID. Stop if either is ambiguous.
-2. Run `python <skill-root>/scripts/task_context.py <feature-directory>`. Use `--task <task-id>` only when the user explicitly selects a non-current task. If a repository moved or a path hint is unavailable, pass an explicit `--repo NAME=PATH` for each override. The command is the single recovery reader: it validates the task index, topology, repository identities, real Git refs and required trace closure, then prints the focused feature/task context.
+2. Run `python <skill-root>/scripts/task_context.py <feature-directory>`. For an initial or repeated blind REVIEW, the first call must instead include `--review-phase blind` and only explicitly prepared `--review-input gists/raw-input.md` packets; never print ordinary recovery first. See the review integration below. Use `--task <task-id>` only when the user explicitly selects a non-current task. If a repository moved or a path hint is unavailable, pass an explicit `--repo NAME=PATH` for each override. The command is the single recovery reader: it validates the task index, topology, repository identities, real Git refs and required trace closure, then prints the focused feature/task context.
 3. From that output, verify the requirement and solution confirmation states before treating them as fixed boundaries.
 4. For every repository, separately verify the working branch/HEAD, the integration branch/SHA used for ongoing task merges, and the final PR/MR source/target refs.
 5. Mark unavailable remote state as unverified instead of guessing.
@@ -89,6 +91,20 @@ Read [references/task-contracts.md](references/task-contracts.md) only when crea
 
 For an acceptance task, create and validate the plain-language brief described in [references/acceptance.md](references/acceptance.md). When waiting for a decision, proactively show `task_context.py ... --format acceptance`; do not make the user interpret `ACCEPT-*`, point IDs, contracts, or internal commands.
 
+## Review scope and blind recovery
+
+During design, record one short `- Review scope: review/v1 mode=strong exclude=ui` line in `SOLUTION.md`. Optional `topics` selects a subset, and `focus` adds specific promises; absence defaults to all applicable topics, but an explicitly empty declaration is an error. The task may record the identical short snapshot plus source/version and ledger path. Do not copy topic checklists into feature records. Unknown/duplicate configuration is an error; a differing task snapshot is stale, not a new scope decision. Existing records without this metadata remain recoverable.
+
+The optional `code-review` skill provides topic-based strong review, weak-mode details and the shared finding/score protocol. This skill's recovery views work without that skill, SM-MD or a service. See [review_context.py](scripts/review_context.py) for configuration and view mechanics.
+
+Initial blind input includes current candidate refs, point IDs/statuses, dependency metadata and only explicitly declared raw packets marked `- Evidence type: original`. The coordinator prepares current normative requirement/design excerpts, real authorization and original evidence. The marker routes a packet; it does not certify clean content. Blind recovery withholds arbitrary management prose, task/dependency conclusions, old scores and ledger/review bodies before Markdown or JSON serialization. Full structural/ref/cleanliness validations still run. Missing packets, active action blockers or an empty topic selection are diagnosed as incomplete; do not claim PASS or independent execution.
+
+Reference-table columns are allowlisted, including locale aliases; unknown columns are withheld. `BLOCKED`, `WAITING_HUMAN` and `WAITING_EXTERNAL` all block action readiness. Provide separated `- Action boundary:` and `- Release condition:` lines in original packets; mixed blocker prose is not copied, and missing clean boundaries are diagnosed. Input readiness cannot override authorization or release a wait.
+
+After saving the blind result, use `--review-phase reconcile --review-report gists/blind-01.md`. The declared snapshot must contain exactly one `Review phase: blind`, `Review task: REVIEW-*`, `Target SHA` matching the selected contract, `Review scope` matching the current configuration, and `Review refs` copied as JSON from the blind view, each as a `- Field: value` line. Refs bind every implementation checkout, integration/PR endpoint and literal task source refs, not the report's self-advancing management checkout HEAD. Without a registry, refs remain recorded-only. Missing/stale refs reject reconciliation before history loads; old unbound reports need a new blind attempt. Reconcile records the snapshot digest and may then expose history and the feature-root `REVIEW.md` ledger. Preserve immutable attempt reports under declared gists; normal recovery does not preload the root ledger. A saved snapshot alone proves neither independent context nor authenticity of a human decision.
+
+Keep REVIEW DONE, score, mandatory rework and final acceptance separate. review/v1 computes `max(0,100-100*P0-10*P1-2*P2-P3)`, with PASS at 60 and no open P0. P0 must be fixed/rechecked or disproved by explicit project design and technical evidence. P1/P2/P3 fixes are optional and retained issues still deduct points; score FAIL alone does not create automatic endless rework. Existing required checks, authorization and final human acceptance remain applicable. Do not silently replace legacy review severity/blocking contracts with this versioned scoring protocol.
+
 Read [references/feature-gates.md](references/feature-gates.md) only when creating or executing a gate or changing feature phase/condition. A gate checks refs and dependencies; it does not replace a human acceptance decision.
 
 ## Git and forge boundary
@@ -130,14 +146,3 @@ Leave a resumable state containing:
 Before ending, rerun `task_context.py` for the current task. A failed context check means the state is not resumable.
 
 Before that final recovery check, checkpoint every coherent owned implementation change. Unexpected power loss can recover through the last successful checkpoint; do not claim zero-loss recovery beyond that boundary.
-
-## Validate this Skill
-
-After changing task orchestration, recovery, or checkpoint behavior, run the [context regression tests](scripts/test_task_context.py), [task creation tests](scripts/test_task_create.py), [checkpoint tests](scripts/test_task_checkpoint.py), and deterministic audit:
-
-```text
-python scripts/test_task_context.py
-python scripts/test_task_create.py
-python scripts/test_task_checkpoint.py
-python <skill-quality-reviewer>/scripts/skill-audit.py <skill-root> --format json
-```

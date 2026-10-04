@@ -11,6 +11,9 @@ import sys
 from pathlib import Path, PurePosixPath
 from typing import Any
 
+sys.dont_write_bytecode = True
+import review_context
+
 
 ALLOWED_STATES = {"PENDING", "WIP", "BLOCKED", "RECORDING", "DONE"}
 TASK_ID_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*\Z")
@@ -94,6 +97,9 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         action="store_true",
         help="Rewrite only the generated Mermaid block in TASKS.md before validation",
     )
+    parser.add_argument("--review-phase", choices=("blind", "reconcile"), help="Use a clean initial review view or reconcile after saving the blind report")
+    parser.add_argument("--review-input", action="append", default=[], metavar="GIST", help="Explicit declared original-input gist for blind review; repeat as needed")
+    parser.add_argument("--review-report", metavar="GIST", help="Saved declared blind snapshot required before reconciliation")
     return parser.parse_args(argv)
 
 
@@ -1247,7 +1253,16 @@ def build_context(
     feature_directory: Path,
     requested_task: str | None = None,
     repo_overrides: dict[str, Path] | None = None,
+    review_phase: str | None = None,
+    review_inputs: list[str] | None = None,
+    review_report: str | None = None,
 ) -> dict[str, Any]:
+    if review_phase not in {None, "blind", "reconcile"}:
+        raise ContextError("invalid review phase")
+    if review_phase is None and (review_inputs or review_report):
+        raise ContextError("review input/report requires --review-phase")
+    if review_phase == "blind" and review_report or review_phase == "reconcile" and review_inputs:
+        raise ContextError("review-input is for blind; review-report is for reconcile")
     root = feature_directory.resolve()
     if not root.is_dir():
         raise ContextError(f"feature directory not found: {root}")
@@ -1279,13 +1294,34 @@ def build_context(
     solution_ids = point_selectors(
         detail, "Solution points", ("Solution points", "方案点")
     )
-    gists = declared_gists(detail, root)
     selected_contract = type_contracts.get(task_id)
+    review_scope = None
+    snapshot = None
+    review_paths = {}
+    if review_phase:
+        if not task_id.startswith("REVIEW-"):
+            raise ContextError("review phase requires a REVIEW task")
+        try:
+            review_scope = review_context.configured_scope(solution_text, detail)
+            review_paths = dict(declared_gist_paths(detail, root))
+            target = (selected_contract or {}).get("Target SHA")
+            review_context.validate_candidate_target(target, repositories)
+            if review_phase == "reconcile":
+                # Verify the current saved scan before reading historical gists.
+                snapshot = review_context.verify_blind_snapshot(
+                    review_report, review_paths, task_id, target, review_scope,
+                    review_context.candidate_references(repositories, repository_refs, focused_status(status_text)),
+                )
+        except ValueError as exc:
+            raise ContextError(str(exc)) from exc
+    # Preserve all original structural/ref validations above. Blind mode does not
+    # preload gist bodies; only explicitly selected original inputs are exposed.
+    gists = [] if review_phase == "blind" else declared_gists(detail, root)
     acceptance_brief = None
     if selected_contract and selected_contract.get("Acceptance brief") not in {None, "-"}:
         brief_path = selected_contract["Acceptance brief"]
         acceptance_brief = {"path": brief_path, "content": read_utf8(root / brief_path)}
-    return {
+    context = {
         "feature_directory": str(root),
         "feature": focused_status(status_text),
         "repositories": repositories,
@@ -1310,6 +1346,20 @@ def build_context(
         "topology": mermaid_topology(records),
         "gists": gists,
     }
+    if review_phase:
+        try:
+            if review_phase == "blind":
+                inputs = review_context.original_inputs(review_inputs or [], review_paths)
+                return review_context.blind_context(context, review_scope, inputs)
+            ledger = root / "REVIEW.md"
+            if ledger.exists():
+                if ledger.resolve().parent != root:
+                    raise ValueError("review ledger must stay inside the feature directory")
+                context["review_ledger"] = {"path": "REVIEW.md", "content": review_context.read_bounded(ledger)}
+            context["review"] = {"phase": "reconcile", "scope": review_scope, "blind_snapshot": snapshot, "independence": "UNVERIFIED"}
+        except ValueError as exc:
+            raise ContextError(str(exc)) from exc
+    return context
 
 
 def render_table(table: dict[str, Any]) -> list[str]:
@@ -1389,6 +1439,18 @@ def render_markdown(context: dict[str, Any]) -> str:
         )
     for gist in context["gists"]:
         parts.extend(("", f"## Gist: {gist['path']}", "", gist["content"].rstrip()))
+    if "review" in context:
+        review = context["review"]
+        parts.extend(("", "## Review view", "", f"- Phase: {review['phase']}", f"- Scope: {json.dumps(review['scope'], ensure_ascii=False)}", "- Independence: UNVERIFIED"))
+        if review["phase"] == "blind":
+            parts.extend((f"- Inputs ready: {review['inputs_ready']}", f"- Completeness: {review['completeness']}", f"- Action blocked: {review['action_blocked']}"))
+            parts.append(f"- Review refs: {json.dumps(review['candidate_refs'], ensure_ascii=False, sort_keys=True)}")
+            parts.extend((f"- Action boundary: {review['action_boundary'] or 'UNAVAILABLE'}", f"- Release condition: {review['release_condition'] or 'UNAVAILABLE'}"))
+        parts.extend(f"- Diagnostic: {message}" for message in review.get("diagnostics", []))
+        if "blind_snapshot" in review:
+            parts.append(f"- Saved blind snapshot: {review['blind_snapshot']['path']} ({review['blind_snapshot']['sha256']})")
+    if "review_ledger" in context:
+        parts.extend(("", "## Review ledger", "", context["review_ledger"]["content"].rstrip()))
     return "\n".join(parts).rstrip() + "\n"
 
 
@@ -1405,9 +1467,13 @@ def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
     root = Path(args.feature_directory).resolve()
     try:
+        if args.review_phase and args.sync_topology:
+            raise ContextError("review recovery views are read-only; repair topology separately")
         if args.sync_topology:
             sync_topology(root / "TASKS.md")
-        context = build_context(root, args.task, parse_repo_overrides(args.repo))
+        if args.review_phase and args.format == "acceptance":
+            raise ContextError("review views cannot use acceptance format")
+        context = build_context(root, args.task, parse_repo_overrides(args.repo), args.review_phase, args.review_input, args.review_report)
     except (ContextError, OSError) as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 1
