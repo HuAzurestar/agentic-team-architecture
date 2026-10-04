@@ -17,6 +17,8 @@ description: 从项目管理目录恢复并推进跨会话的软件 feature，�
 
 [质量宿主组合入口](scripts/quality_host.py)先读取严格 Feature 记录、已提交的报告/测试/清单原件及实际 Git 交付事实，再重算质量。[真实来源回归](scripts/test_quality_host.py)的身份 transport 为合成夹具，仍需真实认证的来源读回器；详见[质量边界](references/quality.md)。
 
+[测试事实与适用性读取器](scripts/quality_tests.py)及[集中内容/依赖检查](scripts/test_quality_tests.py)区分未查清的计数冲突与内容变化。保留真实原测试目标；跨 SHA 复用依赖可核验的不变内容/输入范围，不得把 PASS 报告改标为新目标。
+
 受保护状态写入使用[状态证据检查](scripts/state_guard.py)、[writer 测试](scripts/test_state_guard.py)和[质量边界](references/quality.md)。像人名的 actor 字段不是决定出处，必须经已配置宿主读回核验。
 
 记录接受决定时使用[实际接受来源适配器](scripts/state_acceptance.py)及[原件回归](scripts/test_state_acceptance.py)，组合已提交决定/brief 原件、产品候选与已配置真人读回；记录拒绝不等于质量成功。认证与自然语言解释仍由真实宿主负责。

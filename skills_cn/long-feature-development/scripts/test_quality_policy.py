@@ -23,8 +23,11 @@ class PolicyTests(unittest.TestCase):
         documents = SimpleNamespace(root=Path('PIRC-31'), read=self.bodies.__getitem__, records={
             k: SimpleNamespace(content_digest=hashlib.sha256(v.encode()).hexdigest()) for k, v in self.bodies.items()})
         self.feature = tc.ValidatedFeature(documents,
-            {'REVIEW-1': dict(type='Review', state='DONE'), 'TEST-1': dict(type='Test', state='DONE')}, {}, {},
-            {'app': {'actual_branch': 'source', 'actual_head': 'a' * 40}}, {}, {})
+            {'REVIEW-1': dict(type='Review', state='DONE'), 'TEST-1': dict(type='Test', state='DONE')},
+            {'TEST-1': ('', [dict(repository='app', head_sha='a' * 40)])},
+            {'TEST-1': dict(zip(('Target SHA', 'Executed', 'Passed', 'Failed', 'Skipped', 'Unknown'),
+                               ('a' * 40, '1', '1', '0', '0', '0')))},
+            {'app': {'actual_branch': 'source', 'actual_head': 'a' * 40, 'role': 'implementation'}}, {}, {})
         report = reports.report()
         report['result'] = 'SUCCESS'
         report['checks'][0]['scope_ids'] = ['REQ-001', 'SOL-001']
@@ -166,7 +169,11 @@ class PolicyTests(unittest.TestCase):
         self.acceptance()
         self.assert_denied('TEST_DETAILS_REQUIRED')
         self.request['result_tests'] = copy.deepcopy(self.request['tests'])
+        self.request['result_tests']['test_task'] = 'TEST-RESULT'
         self.request['result_tests']['target_refs']['app'] = 'd' * 40
+        self.feature.records['TEST-RESULT'] = dict(type='Test', state='DONE')
+        self.feature.details['TEST-RESULT'] = ('', [dict(repository='app', head_sha='d' * 40)])
+        self.feature.type_contracts['TEST-RESULT'] = dict(self.feature.type_contracts['TEST-1'], **{'Target SHA': 'd' * 40})
         self.assertTrue(self.assess()['allowed'])
         self.request['result_tests']['checks'][0]['outcome'] = 'FAIL'
         self.assert_denied('REQUIRED_TEST_NOT_PASSED')
@@ -242,6 +249,41 @@ class PolicyTests(unittest.TestCase):
         self.feature.records['TEST-1']['state'] = 'WIP'
         got = q.assess_quality(self.feature, self.request, observed=observed)
         self.assertIn('QUALITY_SOURCES_UNVERIFIED', got['reason_codes'])
+
+    def test_counter_conflict_is_unresolved_not_a_guessed_product_failure(self):
+        self.feature.type_contracts['TEST-1'].update(Passed='0', Failed='1')
+        got = self.assert_denied('TEST_SUMMARY_DETAIL_CONFLICT')
+        self.assertEqual('UNRESOLVED', got['test_audits'][0]['status'])
+        self.assertEqual('P1', got['test_audits'][0]['severity'])
+        self.assertIn('inspect-original-execution-and-reconcile-task-and-report', got['required_next_actions'])
+
+    def test_suite_execution_count_is_not_checklist_row_count(self):
+        self.feature.type_contracts['TEST-1'].update(Executed='37', Passed='37')
+        self.assertTrue(self.assess()['allowed'])
+        self.feature.type_contracts['TEST-1']['Passed'] = '-1'
+        self.assert_denied('INVALID_TEST_COUNTS')
+
+    def test_task_target_cannot_be_masked_by_current_report(self):
+        self.feature.type_contracts['TEST-1']['Target SHA'] = 'e' * 40
+        got = self.assert_denied('TEST_TASK_REPORT_TARGET_MISMATCH')
+        self.assertIn('candidate:task-report', got['stale_refs'])
+
+    def test_old_original_requires_fresh_bound_applicability_not_retargeting(self):
+        tests = self.request['tests']
+        tests.update(target_refs={'app': 'e' * 40}, attempt_id='old-attempt')
+        self.feature.type_contracts['TEST-1']['Target SHA'] = 'e' * 40
+        self.feature.details['TEST-1'][1][0]['head_sha'] = 'e' * 40
+        self.assert_denied('STALE_TESTS')
+        key = q.test_applicability_key(tests, self.request['target_refs'], self.request['attempt_id'])
+        observed = replace(self.observed(), applicable_tests=frozenset({key}), test_impacts={key: 'UNCHANGED_VERIFIED_INPUTS'})
+        self.assertTrue(self.assess(observed=observed)['allowed'])
+        # A task's bookkeeping HEAD is not its execution target.
+        self.feature.details['TEST-1'][1][0]['head_sha'] = 'a' * 40
+        observed = replace(self.observed(), applicable_tests=frozenset({key}), test_impacts={key: 'UNCHANGED_VERIFIED_INPUTS'})
+        self.assertTrue(self.assess(observed=observed)['allowed'])
+        self.assertEqual('e' * 40, tests['target_refs']['app'])
+        tests['checks'][0]['reason'] = 'modified after observation'
+        self.assert_denied('QUALITY_SOURCES_UNVERIFIED', observed=observed)
 
 
 if __name__ == '__main__':

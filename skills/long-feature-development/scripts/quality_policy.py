@@ -9,6 +9,7 @@ sys.dont_write_bytecode = True
 import task_context as tc
 import review_report as rr
 import decision_evidence as de
+import quality_tests as qt
 
 PHASES = ('pre_accept', 'pre_merge', 'post_merge')
 MAX_ITEMS, MAX_LINKS, MAX_BYTES, CPU_SECONDS = 10000, 30000, 64 * 1024 * 1024, 2.0
@@ -37,6 +38,8 @@ class QualityObservations:
     required_repositories: frozenset = field(default_factory=frozenset)
     checklist_binding: str = ''
     current_review_digest: str = ''
+    applicable_tests: frozenset = field(default_factory=frozenset)
+    test_impacts: dict = field(default_factory=dict)
 
 
 class Invalid(ValueError):
@@ -70,8 +73,12 @@ def feature_digest(feature):
     require(type(feature) is tc.ValidatedFeature, 'VALIDATED_FEATURE_REQUIRED')
     return request_digest(dict(feature=feature.documents.root.name,
         sources={p: r.content_digest for p, r in feature.documents.records.items()},
-        tasks=feature.records, contracts=feature.type_contracts,
+        tasks=feature.records, contracts=feature.type_contracts, task_refs=feature.details,
         repositories={n: [r['actual_branch'], r['actual_head']] for n, r in feature.repositories.items()}))
+
+
+def test_applicability_key(tests, expected, attempt):
+    return request_digest(dict(tests=tests, expected=expected, attempt=attempt))
 
 
 def _ids(values):
@@ -83,6 +90,7 @@ def _ids(values):
 def assess_quality(feature, request, *, observed=None, report_evidence=None, decision_sources=None):
     started = time.process_time()
     reasons, missing, stale, blockers, evidence = set(), set(), set(), [], set()
+    test_audits = []
     event_targets = {}
     phase = request.get('phase') if isinstance(request, dict) else None
     phase = phase if phase in PHASES else None
@@ -200,8 +208,16 @@ def assess_quality(feature, request, *, observed=None, report_evidence=None, dec
                     'TEST_NOT_COMPLETE')
             items += len(tests['checks'])
             require(items <= MAX_ITEMS, 'RESOURCE_LIMIT')
+            binding_error = qt.task_binding(feature, tests)
+            if binding_error:
+                stale.add(label + ':task-report'); deny(binding_error)
+            applicability = test_applicability_key(tests, expected, request['attempt_id'])
             if tests['target_refs'] != expected or tests['attempt_id'] != request['attempt_id']:
-                stale.add(label); deny('STALE_TESTS')
+                if applicability not in observed.applicable_tests:
+                    stale.add(label); deny('STALE_TESTS')
+                    impact = observed.test_impacts.get(applicability)
+                    if impact in {'TEST_INPUTS_CHANGED', 'UNVERIFIED_TEST_IMPACT'}:
+                        deny(impact)
             seen, coverage = set(), set()
             for check in tests['checks']:
                 budget()
@@ -225,6 +241,12 @@ def assess_quality(feature, request, *, observed=None, report_evidence=None, dec
                         missing.add(label + ':' + check['id']); deny('REQUIRED_TEST_NOT_PASSED')
             if not required_scope <= coverage:
                 missing.update(required_scope - coverage); deny('MISSING_TEST_SCOPE')
+            audit = qt.audit_counts(feature.type_contracts.get(tests['test_task'], {}), tests['checks'])
+            test_audits.append(dict(label=label, test_task=tests['test_task'], **audit,
+                applicability=observed.test_impacts.get(applicability, 'EXACT_TARGET_AND_ATTEMPT'
+                    if tests['target_refs'] == expected and tests['attempt_id'] == request['attempt_id']
+                    else 'UNVERIFIED_TEST_IMPACT')))
+            reasons.update(audit['reason_codes'])
         test_details(request['tests'], targets, 'candidate')
         require(items <= MAX_ITEMS and set(request['frozen']) == set(targets), 'INVALID_FROZEN_TARGET')
         results = {}
@@ -288,6 +310,8 @@ def assess_quality(feature, request, *, observed=None, report_evidence=None, dec
                 actions.add('obtain-exact-current-human-acceptance-evidence')
             elif 'STALE' in code or 'MOVED' in code or code in {'MERGE_CORRESPONDENCE_UNVERIFIED', 'NEW_CANDIDATE_REQUIRES_NEW_ATTEMPT'}:
                 actions.add('freeze-current-candidate-and-recheck-applicable-acceptance')
+            elif code in {'TEST_SUMMARY_DETAIL_CONFLICT', 'TEST_COUNT_TOTAL_MISMATCH', 'INVALID_TEST_COUNTS'}:
+                actions.add('inspect-original-execution-and-reconcile-task-and-report')
             elif 'TEST' in code or 'CHECK' in code or 'SCOPE' in code:
                 actions.add('complete-current-required-checks-and-scope-evidence')
             else:
@@ -295,6 +319,7 @@ def assess_quality(feature, request, *, observed=None, report_evidence=None, dec
     return dict(eligible=allowed, allowed=allowed, reason_codes=sorted(reasons), missing_checks=sorted(missing),
         open_blockers=blockers, stale_refs=sorted(stale), evidence_refs=[dict(path=p, sha256=s) for p, s in sorted(evidence)],
         required_next_actions=sorted(actions),
+        test_audits=test_audits,
         merge_authorized=False, effect='NOT_APPLIED',
         event=dict(name='quality.evaluate', stage=phase, allowed=allowed, reason_codes=sorted(reasons),
                    target_refs=event_targets, cpu_ms=round((time.process_time() - started) * 1000, 3)))

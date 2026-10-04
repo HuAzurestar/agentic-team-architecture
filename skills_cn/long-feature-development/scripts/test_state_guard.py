@@ -226,7 +226,12 @@ class QualityGuardTests(unittest.TestCase):
         self.policy.request['frozen']['app']['result'] = 'd' * 40
         self.policy.feature.repositories['app']['actual_head'] = 'd' * 40
         self.policy.request['result_tests'] = copy.deepcopy(self.policy.request['tests'])
+        self.policy.request['result_tests']['test_task'] = 'TEST-RESULT'
         self.policy.request['result_tests']['target_refs'] = {'app': 'd' * 40}
+        self.policy.feature.records['TEST-RESULT'] = dict(type='Test', state='DONE')
+        self.policy.feature.details['TEST-RESULT'] = ('', [dict(repository='app', head_sha='d' * 40)])
+        self.policy.feature.type_contracts['TEST-RESULT'] = dict(
+            self.policy.feature.type_contracts['TEST-1'], **{'Target SHA': 'd' * 40})
         request = replace(self.request, task_id='GATE-1', target='DONE')
         guard.verify(request, self.reader, self.records, {'To phase': 'DONE'})
         self.policy.request['result_tests']['checks'][0]['outcome'] = 'UNKNOWN'

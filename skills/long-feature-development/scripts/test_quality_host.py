@@ -13,6 +13,8 @@ sys.dont_write_bytecode = True
 import quality_host as host
 import quality_source as source
 import quality_git as integration
+import quality_policy as policy
+import quality_tests as qt
 import review_report as reports
 import task_context as tc
 import test_task_reconcile as fixture
@@ -106,6 +108,75 @@ class HostTests(unittest.TestCase):
         self.assertEqual(before, {str(p): p.read_bytes() for repo in (self.app, self.pm) for p in repo.rglob('*') if p.is_file()})
         inputs = result.for_task('host:current-selection', 'DEV-02')
         self.assertEqual(inputs.observations.source_refs, frozenset((p, hashlib.sha256((self.root/p).read_bytes()).hexdigest()) for p in self.paths))
+
+    def test_task_target_report_conflict_and_task_counter_conflict_are_exposed(self):
+        path = self.root / 'tasks/TEST-1.md'
+        original = path.read_text(encoding='utf-8')
+        path.write_text(original.replace(f'| Target SHA | {self.app_head} |',
+                                        f'| Target SHA | {self.app_base} |'), encoding='utf-8')
+        self.save()
+        got = self.evaluate().result
+        self.assertFalse(got['allowed'], got)
+        self.assertIn('TEST_TASK_REPORT_TARGET_MISMATCH', got['reason_codes'])
+        self.assertIn('candidate:task-report', got['stale_refs'])
+        path.write_text(original.replace('| Passed | 1 |', '| Passed | 0 |').replace(
+            '| Failed | 0 |', '| Failed | 1 |'), encoding='utf-8')
+        self.save()
+        got = self.evaluate().result
+        self.assertFalse(got['allowed'], got)
+        self.assertIn('TEST_SUMMARY_DETAIL_CONFLICT', got['reason_codes'])
+        self.assertEqual('UNRESOLVED', got['test_audits'][0]['status'])
+
+    def test_old_truthful_test_reuses_verified_unused_addition_not_used_dependency(self):
+        original_head = self.app_head
+
+        def advance(content):
+            (self.app / 'unrelated.py').write_text(content, encoding='utf-8')
+            git(self.app, 'add', 'unrelated.py')
+            git(self.app, 'commit', '-qm', 'unused addition')
+            current = git(self.app, 'rev-parse', 'HEAD')
+            tree = git(self.app, 'rev-parse', 'HEAD^{tree}')
+            self.binding = replace(self.binding, source_sha=current, source_tree=tree)
+            self.request['target_refs'] = {'app': current}
+            self.request['report']['target_refs'] = {'app': current}
+            self.request['frozen']['app']['source_tree'] = tree
+            status = self.root / 'STATUS.md'
+            status.write_text(status.read_text(encoding='utf-8').replace(
+                original_head, current), encoding='utf-8')
+            self.write('report', self.request['report'])
+            self.save()
+
+        advance('VALUE = 2\n')
+        # Keep both task and test original on the actual old tested commit.
+        got = self.evaluate().result
+        self.assertFalse(got['allowed'], got)
+        self.assertIn('UNVERIFIED_TEST_IMPACT', got['reason_codes'])
+        coverage = qt.TestCoverage(policy.request_digest(self.request['tests']), 'app',
+                                   ('owned.py',), 'fixture:complete-static-inputs-unchanged-runtime')
+
+        def provenance(probe):
+            return replace(self.provenance(probe), test_coverage=(coverage,))
+
+        assessment = self.evaluate(read_provenance=provenance)
+        self.assertTrue(assessment.result['allowed'], assessment.result)
+        self.assertEqual(original_head, assessment.request['tests']['target_refs']['app'])
+        self.assertEqual('UNCHANGED_VERIFIED_INPUTS', assessment.result['test_audits'][0]['applicability'])
+        (self.app / 'owned.py').write_text('from unrelated import VALUE\n', encoding='utf-8')
+        git(self.app, 'add', 'owned.py')
+        git(self.app, 'commit', '-qm', 'now used dependency')
+        old_current = self.binding.source_sha
+        new_current = git(self.app, 'rev-parse', 'HEAD')
+        self.binding = replace(self.binding, source_sha=new_current, source_tree=git(self.app, 'rev-parse', 'HEAD^{tree}'))
+        self.request['target_refs'] = {'app': new_current}
+        self.request['report']['target_refs'] = {'app': new_current}
+        self.request['frozen']['app']['source_tree'] = self.binding.source_tree
+        status = self.root / 'STATUS.md'
+        status.write_text(status.read_text(encoding='utf-8').replace(old_current, new_current), encoding='utf-8')
+        self.write('report', self.request['report'])
+        self.save()
+        got = self.evaluate(read_provenance=provenance).result
+        self.assertFalse(got['allowed'], got)
+        self.assertIn('TEST_INPUTS_CHANGED', got['reason_codes'])
 
     def test_no_provenance_cannot_promote_real_originals(self):
         result = self.evaluate(read_provenance=None)

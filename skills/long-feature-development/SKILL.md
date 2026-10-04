@@ -17,6 +17,8 @@ Use the [foreground review workflow](references/review-workflow.md) to read sele
 
 The [quality host composition](scripts/quality_host.py) reads strict feature records, committed original report/test/checklist objects and actual delivery Git facts before assessing quality. Its [real-source regressions](scripts/test_quality_host.py) use synthetic identity transport; an authenticated provenance reader is still required. See [quality boundaries](references/quality.md).
 
+The [test facts and applicability reader](scripts/quality_tests.py), with [concentrated content/dependency checks](scripts/test_quality_tests.py), separates unresolved count conflicts from content changes. Keep original test targets truthful; reuse across SHAs requires verified unchanged content/input coverage, not a retargeted PASS report.
+
 Protected state writes use the [state evidence guard](scripts/state_guard.py), [writer tests](scripts/test_state_guard.py) and [quality boundary](references/quality.md). A human-looking actor label is not decision provenance; configured host readback is required.
 
 Record an acceptance decision through the [actual acceptance-source adapter](scripts/state_acceptance.py) and its [real-original regressions](scripts/test_state_acceptance.py). It joins committed decision/brief originals, the product candidate and configured human readback without equating a recorded rejection with quality success. Authentication and interpretation remain host responsibilities.

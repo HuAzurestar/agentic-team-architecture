@@ -6,7 +6,7 @@
 
 必需字段：`Target SHA`、`Environment`、`Planned checks`、`Executed`、`Passed`、`Failed`、`Skipped`、`Unknown`、`Result gist`。
 
-- 报告绑定一个字面 tested SHA；实现 SHA 改变后必须建立新 attempt 或 task。
+- 报告绑定实际被测的字面 SHA，不改标为当前候选或记账 HEAD。影响被测功能及依赖闭包的语义变化才要求新测试 attempt/task；整树未变或宿主新鲜核验完整输入闭包未变时，可以在当前质量 attempt 中复用原结果，不改写旧任务/报告目标。详见[质量适用性](quality.md)。
 - 合同只放数量和短检查名；命令、日志、截图、失败原因和覆盖详情放入 `gists/TEST-*.md`。
 - 执行、通过、失败、跳过、未知分别记录，不得把部分执行写成“全部通过”。
 - 项目已有受支持 Docker 环境时优先使用，不为满足规则而引入 Docker。

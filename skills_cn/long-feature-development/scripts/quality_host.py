@@ -18,6 +18,7 @@ import quality_source as sources
 import quality_git as git
 import quality_policy as policy
 import review_report as reports
+import quality_tests as qt
 from review_resume import _object
 
 MAX_CONFIG_BYTES = 4 * 1024 * 1024
@@ -59,6 +60,7 @@ class HostProvenance:
     current_review_digest: str = ''
     report_evidence: object = None
     decision_sources: object = None
+    test_coverage: tuple = ()
 
 
 @dataclass(frozen=True)
@@ -147,6 +149,44 @@ def _delivery(feature, bindings, request):
     return observed
 
 
+def _test_impacts(feature, request, proof):
+    """Separate truthful test originals from current content applicability."""
+    require(type(proof.test_coverage) is tuple and len(proof.test_coverage) <= 1000,
+            'INVALID_TEST_COVERAGE')
+    coverage = {}
+    for row in proof.test_coverage:
+        require(type(row) is qt.TestCoverage, 'INVALID_TEST_COVERAGE')
+        key = (row.test_digest, row.repository_ref)
+        require(key not in coverage, 'INVALID_TEST_COVERAGE')
+        coverage[key] = row
+    selected = [(request['tests'], request['target_refs'])]
+    if request['phase'] == 'post_merge':
+        selected.append((request['result_tests'], {n: r['result'] for n, r in request['frozen'].items()}))
+    applicable, impacts = set(), {}
+    for tests, expected in selected:
+        if not isinstance(tests, dict) or qt.task_binding(feature, tests):
+            continue  # Policy exposes the exact task/report binding diagnosis.
+        key = policy.test_applicability_key(tests, expected, request['attempt_id'])
+        if set(tests['target_refs']) != set(expected):
+            impacts[key] = 'UNVERIFIED_TEST_IMPACT'
+            continue
+        digest = policy.request_digest(tests)
+        statuses = []
+        for name, original in tests['target_refs'].items():
+            if original == expected[name]:
+                statuses.append('UNCHANGED_TREE')  # Exact actual commit already checked by delivery.
+                continue
+            statuses.append(qt.observe_impact(feature.repositories[name]['path'], original, expected[name],
+                                             coverage=coverage.get((digest, name))))
+        status = ('TEST_INPUTS_CHANGED' if 'TEST_INPUTS_CHANGED' in statuses else
+                  'UNVERIFIED_TEST_IMPACT' if 'UNVERIFIED_TEST_IMPACT' in statuses else
+                  'UNCHANGED_VERIFIED_INPUTS' if 'UNCHANGED_VERIFIED_INPUTS' in statuses else 'UNCHANGED_TREE')
+        impacts[key] = status
+        if status in {'UNCHANGED_TREE', 'UNCHANGED_VERIFIED_INPUTS'}:
+            applicable.add(key)
+    return frozenset(applicable), impacts
+
+
 def evaluate(root, *, documents, roles, repositories, read_provenance=None, repo_overrides=None):
     """Strict local feature + committed originals + live Git + real host reader.
 
@@ -207,13 +247,14 @@ def _evaluate(root, *, documents, roles, repositories, read_provenance, read_fea
             return result
 
         proof = provenance()
+        applicable, impacts = _test_impacts(feature, request, proof)
         observed = policy.QualityObservations(policy.request_digest(request), feature_digest,
             source_refs=snapshot.source_refs, independent_reports=proof.independent_reports,
             excluded_scopes=proof.excluded_scopes, reused_checks=proof.reused_checks,
             integration=delivery, remote_targets=frozenset((name, facts['remote_target']) for name, facts in delivery.items()),
             acceptance_bindings=proof.acceptance_bindings, required_repositories=frozenset(delivery),
             checklist_binding=policy.request_digest(dict(ref=request['checklist_ref'], required_checks=request['required_checks'])),
-            current_review_digest=proof.current_review_digest)
+            current_review_digest=proof.current_review_digest, applicable_tests=applicable, test_impacts=impacts)
         result = policy.assess_quality(feature, request, observed=observed,
                                        report_evidence=proof.report_evidence, decision_sources=proof.decision_sources)
         # Recheck complete originals, feature graph, actual refs and authority;
@@ -223,6 +264,7 @@ def _evaluate(root, *, documents, roles, repositories, read_provenance, read_fea
         require(again == snapshot, 'QUALITY_SOURCE_CHANGED')
         require(policy.feature_digest(read_feature()) == feature_digest, 'QUALITY_FEATURE_CHANGED')
         require(_delivery(feature, repositories, request) == delivery, 'QUALITY_DELIVERY_CHANGED')
+        require(_test_impacts(feature, request, proof) == (applicable, impacts), 'QUALITY_TEST_IMPACT_CHANGED')
         return Assessment(result, feature, request, observed, proof.report_evidence, proof.decision_sources)
     except Exception as error:
         # Never echo parser bodies, repository URLs, credentials or callback text.
@@ -291,6 +333,9 @@ def render_result(result):
             lines.extend(['', label + ':'])
             lines.extend('- ' + (value if isinstance(value, str) else json.dumps(value, ensure_ascii=True))
                          for value in values)
+    if result.get('test_audits'):
+        lines.extend(['', 'Test audits:'])
+        lines.extend('- ' + json.dumps(row, ensure_ascii=True) for row in result['test_audits'])
     return '\n'.join(lines)
 
 

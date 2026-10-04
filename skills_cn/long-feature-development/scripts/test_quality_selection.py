@@ -26,16 +26,20 @@ class SelectionTests(unittest.TestCase):
             p.request['frozen']['app']['result'] = result
             p.feature.repositories['app']['actual_head'] = result
             p.request['result_tests'] = copy.deepcopy(p.request['tests'])
+            p.request['result_tests']['test_task'] = 'TEST-RESULT'
             p.request['result_tests']['target_refs'] = {'app': result}
         target = 'ACCEPT-1' if phase == 'pre_accept' else 'GATE-1' if phase == 'post_merge' else 'INTEGRATE'
         operation = operation or ('accept' if phase == 'pre_accept' else 'gate' if phase == 'post_merge' else 'merge')
         tasks = (
-            n.Task('TEST-1', 'DONE', (), 'Test', {'Executed': '1', 'Passed': '1', 'Failed': '0', 'Skipped': '0', 'Unknown': '0'}),
+            n.Task('TEST-1', 'DONE', (), 'Test', {'Target SHA': 'a' * 40, 'Executed': '1', 'Passed': '1', 'Failed': '0', 'Skipped': '0', 'Unknown': '0'}),
             n.Task('REVIEW-1', 'DONE', ('TEST-1',), 'Review', {'Blocking findings': '0'}),
             n.Task('ACCEPT-1', 'PENDING' if phase == 'pre_accept' else 'DONE', ('REVIEW-1',), 'Acceptance',
                    {} if phase == 'pre_accept' else {'Decision': 'CONFIRMED', 'Target SHA': 'a' * 40}),
             n.Task('INTEGRATE', 'DONE' if phase == 'post_merge' else 'PENDING', ('ACCEPT-1',)),
             n.Task('GATE-1', 'PENDING', ('INTEGRATE',), 'Gate', {'To phase': 'DONE'}))
+        if phase == 'post_merge':
+            tasks += (n.Task('TEST-RESULT', 'DONE', (), 'Test', dict(tasks[0].contract, **{'Target SHA': result})),)
+            p.feature.details['TEST-RESULT'] = ('', [dict(repository='app', head_sha=result)])
         p.feature.records.clear()
         p.feature.records.update({t.id: dict(type=t.kind, state=t.state, dependencies=list(t.dependencies)) for t in tasks})
         p.feature.type_contracts.update({t.id: dict(t.contract) for t in tasks})
@@ -87,6 +91,18 @@ class SelectionTests(unittest.TestCase):
         self.evidence.tasks[self.target] = replace(gate, quality_inputs=replace(gate.quality_inputs,
             observations=replace(observed, integration=broken)))
         self.assertNotEqual('assign', self.select().action)
+
+    def test_hidden_test_counter_failure_blocks_all_three_delivery_phases(self):
+        for phase in ('pre_accept', 'pre_merge', 'post_merge'):
+            with self.subTest(phase=phase):
+                self.setUp()
+                self.inputs(phase)
+                tasks = tuple(replace(t, contract=dict(t.contract, Passed='0', Failed='1'))
+                              if t.id == 'TEST-1' else t for t in self.ctx.tasks)
+                self.ctx = replace(self.ctx, tasks=tasks)
+                self.policy.feature.type_contracts['TEST-1'].update(Passed='0', Failed='1')
+                self.refresh()
+                self.assertNotEqual('assign', self.select().action)
 
     def test_ready_summary_and_uploaded_dict_cannot_bypass_policy(self):
         self.inputs()

@@ -58,6 +58,16 @@ The immutable snapshot's `object(path, schema)` parses a complete JSON object or
 
 ## Three-phase pure assessment
 
+### 测试一致性与按影响判断适用性
+
+三个阶段均核验选中的候选/结果 Test 合同，即使它在 Review/Acceptance 后面属于间接依赖。`test_audits` 输出固定诊断及原计数，核验非负数字、执行总数的可能范围、已记失败/未知及摘要/明细冲突。清单行不等于执行单位：一个 PASS 套件可能含多个通过执行；不擅自假定所有 runner 都将跳过/未知计入 Executed。`Failed > 0` 不能被 PASS 明细掩盖。冲突记为 `UNRESOLVED`，在核对原始执行前按 P1 阻断；不猜测已经证实是产品缺陷、夹具问题还是陈旧摘要。核对声明的执行证据、协调两份原件后再评估，不为获得放行直接清零计数。无关历史失败 attempt 保留，不替代选中的当前/适用 attempt。
+
+Test 的 `Target SHA` 必须与原详细结果一致，在任务留存仓库行中唯一对应已登记的被测产品仓库；管理 SHA 或含糊的主目标不能满足绑定。额外被测仓库须有留存快照绑定。主任务的检查点/完成 HEAD 可以独立前进，不是执行目标。把报告改标为候选不能修复旧任务目标错配；输出 `TEST_TASK_REPORT_TARGET_MISMATCH` 和 task/report 陈旧提示。
+
+原执行目标与当前候选适用性分开。宿主比较真实不可变 Git commit：SHA 不同但整树相同可复用旧结果/旧执行 attempt，不冒充重新测试。不同树本身只是 `UNVERIFIED_TEST_IMPACT`，不证明所有新增文件都被使用。选择性复用需要真实认证、新鲜的 `HostProvenance.test_coverage`，其中 `quality_tests.TestCoverage(test_digest, repository_ref, paths, runtime_basis)` 证明完整相关语义输入/依赖闭包及外部输入未变。路径包括 runner、源码/import、配置/锁文件、完整动态发现目录以及尚不存在的可选输入。实际 Git 比较捕捉闭包内增删/模式/依赖变化；核验闭包外未使用的新增可复用，新增 import、依赖或被发现插件则属于变化。不完整或无界动态依赖不能用短文件列表冒充闭包。dataclass/字符串不是认证，不提供上传 JSON 或 CLI 放行开关。整树比较仅证明 Git 内容等价，不证明运行时/环境等价；非 Git 前置仍由当前宿主来源核验负责。
+
+`applicable_tests` key 绑定完整原测试、当前目标集合及质量 attempt。宿主范围证明绑定当前完整 provenance probe 并读两次，返回前连同原件/feature/交付事实再读 Git 适用性。原目标/计数/历史均不改写，精确操作 SHA/lease、仓库身份、干净工作树及 source/result 祖先约束不弱化。不据此转移真人接受到任意新候选、关闭 finding 或授权合并。
+
 `quality_policy.assess_quality(validated_feature, request, observed=..., report_evidence=..., decision_sources=...)` is read-only. The input feature must be the existing `task_context.ValidatedFeature`, not a JSON substitute. The host-only `QualityObservations` binds the complete request digest and feature read-set/repository digest. Its fields mean verified source `(path, sha256)` readbacks, reviewer independence, current review chain, complete repository scope, checklist-to-required-check correspondence, human-approved exclusions, per-check reuse, actual integration facts, authoritative remote targets, and exact acceptance-to-candidate bindings. A dataclass or hash is not authentication. These values must be established by actual host reads; this pure module does not provide that adapter or import trusted facts from documents. Synthetic tests are not proof of independent review, human acceptance or real platform authority.
 
 The exact `quality-request-v1` fields are `schema, feature, phase, target_refs, attempt_id, checklist_ref, required_checks, report, related_reports, tests, result_tests, frozen, acceptance`. Reports are original report-v1 objects, not count summaries. Each required-check entry has `id, scope_ids`; its mapping must match the independently read checklist. Full confirmed active REQ/SOL scope comes from validated feature documents, not the report's self-selected scope. The current Review task and Test tasks must actually be DONE, but DONE never substitutes for successful details. A test-results-v1 object has `schema, test_task, target_refs, attempt_id, checks`; each check has `id, required, outcome, scope_ids, evidence_refs, reason`. Required failures/unknown/not-run, missing checks/scope, unknown source refs and unverified closures block assessment. N/A cannot remove required scope without an exact current human exclusion verified by the host.
