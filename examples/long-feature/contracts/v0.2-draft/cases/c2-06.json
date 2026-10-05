@@ -1,0 +1,18 @@
+{
+  "case_id": "C2-06",
+  "conditional_write": true,
+  "current_content": "one\n",
+  "current_selection": "one",
+  "current_source_key": "route:A",
+  "expected_content": "one\n",
+  "expected_index": "index:rev-1",
+  "expected_selection": "one",
+  "expected_source_key": "route:A",
+  "operation": "preview_apply",
+  "parent_ref": "beacon-api:project/BEACON-1",
+  "preview_alive": false,
+  "preview_id": "preview:BEACON-1:1",
+  "ref": "beacon-binding:DOC-01",
+  "target_exists": false,
+  "target_id": "DOC-01"
+}

@@ -5,7 +5,42 @@ description: Help Codex resume and advance a multi-session software feature from
 
 # Long Feature Development
 
-This Codex skill uses a small, versioned feature record to continue development without relying on previous chat history. The project chooses the concrete path represented by `<Project-Manage>`; never assume MPA or another fixed repository.
+This Skill resumes a feature from versioned records, not development chat. The project selects `<Project-Manage>`; no fixed management repository is assumed.
+
+## Capability boundaries and call paths
+
+### Implemented components
+
+Use the route for the current operation; do not preload every reference or call low-level legs as independent business workflows.
+
+| Operation | Implemented entry | Read when needed |
+| --- | --- | --- |
+| Foreground composition / acceptance successor | [FeatureHost](scripts/feature_host.py), [ReworkWorkflow](scripts/rework_workflow.py) | [Host and continuation](references/host-workflow.md); [concentrated check](scripts/test_rework_workflow.py) |
+| Point decision, application and status recovery | [decision_workflow](scripts/decision_workflow.py), [native session adapter](scripts/decision_native.py) | [Decision workflow](references/decision-workflow.md) |
+| Authoritative review read, exact-master sync and Git/native conditional publication | [review_workflow](scripts/review_workflow.py) | [Review workflow](references/review-workflow.md) |
+| Retained acceptance preparation and guarded recording | [acceptance_workflow](scripts/acceptance_workflow.py), [source adapter](scripts/state_acceptance.py) | [Acceptance workflow](references/acceptance-workflow.md) |
+| Clean/prepared quality assessment and protected task writes | [quality_host](scripts/quality_host.py), [PreparedTransition](scripts/state_prepared.py), [state guard](scripts/state_guard.py) | [Quality paths, fact modules and focused regressions](references/quality.md) |
+
+prepare/apply/status are recovery boundaries within the composed point route, not missing integrations or three user workflows. Quality/source integrity is not authentication, and `allowed` is not operation permission. Standalone inspection CLIs do not gain mutation authority from JSON or flags.
+
+### Capabilities supplied by a trusted host
+
+Bind actual message identity, interpretation, current grants/operation permissions, original-source locations, quality provenance and remote endpoints/credentials independently. Review dispatch needs explicit authorization and a verifiably fresh, read-only context. Session classes, hashes, uploaded actor names and synthetic test callbacks supply none of those facts. Adapters and business routes exist; deployment/account mapping is runtime host configuration, not another implicit product service.
+
+### Formal scenarios not established by component tests
+
+Packet validation is not blank-context review execution; isolated Git/HTTP fixtures are not a complete current-candidate review → rework → retest → rereview → human acceptance → integration/result-check chain. Track the actual scenario target, input/closure changes, evidence and unresolved outcomes in the feature records. Retain applicable prior observations rather than rerunning them solely because SHA changed. Do not close findings or advance a Gate from component existence or an author's PASS.
+
+### Optional UI
+
+A workbench may consume these same host routes; this Skill does not require Web UI, SM-MD or a deployed message service. UI absence is not missing Skill-only wiring. UI authentication and browser/provider observations, when in scope, are separate from the core feature evidence.
+
+
+## Select the current purpose
+
+The helper reads only the common section and the chosen section of [purpose prompts](references/prompts.md). For background/provider mutations, first read [capability boundaries](references/capability-boundaries.md); this reader does not supply a write engine.
+
+Choose one purpose: `requirement`, `solution`, `development`, `review`, or `delivery`. Run `python <skill-root>/scripts/context.py --task-ref <feature-directory> --purpose <purpose>` for its prompt and common constraints. Optional environment material is selected through exact heading paths; read [context selection](references/context-selection.md) only when using background. The [background template](templates/BACKGROUND.md) is optional. A complete selection does not replace the task/Git recovery check below. Install a pinned version or upgrade/roll back using [Skill-only installation](references/installation.md); no SMMD or UI is required.
 
 ## Required feature layout
 
@@ -27,9 +62,9 @@ All six entries are shared project-management records when `<Project-Manage>` is
 1. Resolve `<Project-Manage>`. If the developer has not assigned a feature ID, use `NO-FEAT` when unique or `NO-FEAT-<6-char-random>` when collision is possible. Do not delay initialization to invent an official ID.
 2. Copy the four matching files from `templates/`, then copy `templates/TASK.md` once per initial task into local `tasks/<task-id>.md`.
 3. Replace or remove every angle-bracket placeholder. Keep exactly one `TASKS.md` index row and one `tasks/<task-id>.md` detail file per task; the supplied `REQ-001` and `SOL-001` point tasks are mandatory until replaced by real point IDs.
-4. Create `gists/` only when a task needs one; keep every gist bounded and trace-oriented.
+4. Create `gists/` at initialization; track an empty `gists/.gitkeep` until real gists exist so a clone retains the required directory. Gist content is optional and must remain bounded and trace-oriented.
 5. If `<Project-Manage>` is a Git repository, verify that `TASKS.md`, `tasks/`, and `gists/` are not ignored and add them to version control with the other feature records.
-6. Run the [task context helper](scripts/task_context.py) as `python <skill-root>/scripts/task_context.py <feature-directory>` before the first project-management commit. Fix every reported mismatch.
+6. Follow the [first-record bootstrap](references/bootstrap.md): inspect the initial records and observed refs, make a scoped local initialization commit explicitly pending validation, then run the [task context helper](scripts/task_context.py) as `python <skill-root>/scripts/task_context.py <feature-directory>`. Do not assign tasks, decide points or advance a Gate until strict recovery passes. Normal dirty-tree recovery is never bypassed.
 7. Leave requirement and solution in `DRAFT`. Their overall states are derived from point states, never set by a global approval.
 
 The Agent owns initial task IDs, types, dependencies, and selectors. The user supplies business intent and decisions, not internal bookkeeping labels.
@@ -48,6 +83,10 @@ The Agent owns initial task IDs, types, dependencies, and selectors. The user su
 6. Compare recorded and observed refs. Resolve stale state before changing code.
 
 Treat a nonzero `task_context.py` exit as a hard stop. Do not infer a missing current-task field, `TASKS.md` row, task detail file, dependency, Git ref, or declared gist. An old task table in `STATUS.md` is not silently migrated.
+
+For verified workspace relocation or integration-observation drift, read [reconciliation](references/reconciliation.md) and use its read-only inspector before a scoped repair. This repairs the recorded facts under existing session authority; it does not bypass the strict recovery check or authorize Git side effects.
+
+For a checkpoint interrupted between commit and bookkeeping, read [operation recovery](references/operations.md). Preserve the successful commit; reconcile its recorded intent before any retry.
 
 The recovery command is an internal Skill action, not an instruction the user must put in a prompt. It also checks relevant staged, unstaged, and untracked changes. A dirty implementation repository, or residue inside this feature's project-management directory, enters recovery-required mode before any new edits. Read [references/checkpoints.md](references/checkpoints.md) when that happens.
 
@@ -91,7 +130,29 @@ For an acceptance task, create and validate the plain-language brief described i
 
 Read [references/feature-gates.md](references/feature-gates.md) only when creating or executing a gate or changing feature phase/condition. A gate checks refs and dependencies; it does not replace a human acceptance decision.
 
+For decision applicability work, read [decision evidence](references/decision-evidence.md)
+and use the pure [checker](scripts/decision_evidence.py) with its [tests](scripts/test_decision_evidence.py).
+Read local current material using the [Git source reader](scripts/decision_source.py), covered by [real Git tests](scripts/test_decision_source.py).
+Use the [host readback gateway](scripts/decision_host.py) and its [contract tests](scripts/test_decision_host.py) to connect authenticated reply reads, host policy and exact interpretation to the checker.
+The [single-point draft renderer](scripts/decision_point.py), covered by [draft tests](scripts/test_decision_point.py), preserves statements/history, moves disposition records and recomputes document state. It returns DRAFT_ONLY: it does not authenticate, write, commit, or complete a task. The durable writer must still revalidate the actual human source and current material.
+The [point commit preparer](scripts/decision_commit.py) retains an authenticated single-parent, single-document commit under a decision-specific ref; [tests](scripts/test_decision_commit.py) cover reentry, lost responses and late changes. COMMIT_PREPARED leaves HEAD/index/files/tasks unchanged. Continue through the implemented point_workflow below, not a second invented coordinator.
+The [application leg](scripts/decision_apply.py), with [tests](scripts/test_decision_apply.py), revalidates authority, journals dispatch and fast-forwards only the exact commit. Unknown dispatch is observed, not retried. APPLIED_PENDING_STATUS requires the implemented status followup; this low-level leg does not complete a task or rewrite assigned consumers.
+The [status followup](scripts/decision_status.py) and [tests](scripts/test_decision_status.py) bind a separate metadata commit to the applied decision SHA and recheck human authority. Recovery reconstructs metadata from its parent; unknown dispatch is not retried. Reopening consumed points requires explicit dependency coordination, not a silent task reset. Production identity is host-supplied; UI is optional.
+
+The [point workflow entry](scripts/point_workflow.py) composes preparation, application and status followup, with [business-flow tests](scripts/test_point_workflow.py). It resumes an applied decision without reapplying it, observes unknown dispatch without retry, and names assigned downstream consumers requiring explicit coordination. A dependency handoff is not permission to reset tasks. The host must still bind real human/provider sources; no callbacks or authority are loaded from uploaded records.
+
 ## Git and forge boundary
+
+For editable RV comments, read [comment format and compatibility](references/review-comments.md),
+then use the [codec](scripts/review_comments.py) and [regressions](scripts/test_review_comments.py).
+Before review work or an explicit review-read request, invoke the foreground [source reader](scripts/review_source.py) with the registered binding; see its [real Git regressions](scripts/test_review_source.py).
+Git reading does not merge, publish or change point decisions. The implemented review_workflow composes preflight, synchronization and Git/native conditional publication with current host permission.
+Use the [application preflight](scripts/review_application.py) and [tests](scripts/test_review_application.py) before application; a passing preflight is not a write. Continue through the journaled writer below, never an unjournaled merge.
+For authorized sync use the [journaled writer](scripts/review_sync.py) and [tests](scripts/test_review_sync.py). The [management protocol](scripts/review_sync_management.py) and [tests](scripts/test_review_sync_management.py) cover its journal-only commit. Authorized Git publication uses the [conditional publisher](scripts/review_publish.py) and [lease/unknown tests](scripts/test_review_publish.py). review_workflow is the composed caller; host credentials/permissions are runtime dependencies.
+
+The [native raw-document transport](scripts/review_native.py) and [loopback HTTP tests](scripts/test_review_native.py) preserve actual strong ETag conditions. It is a transport primitive; use the journaled publisher below for durable publication.
+
+Native publication uses the [journaled publisher](scripts/review_native_publish.py) and [durability tests](scripts/test_review_native_publish.py) through review_workflow. Independently supply the actual endpoint/current permission on every call; never reconstruct credentials or authority from the journal. Publication does not approve a decision or quality result.
 
 - Treat each repository independently. A feature may span several repositories.
 - Resolve repositories from `STATUS.md` in this order: explicit `--repo NAME=PATH`, registered path hints relative to the project-management repository root, then sibling/workspace discovery by registered remote identity. Never trust a historical absolute working path as the locator. Missing or ambiguous matches stop recovery.
@@ -109,6 +170,22 @@ Read [references/feature-gates.md](references/feature-gates.md) only when creati
 - Invoke the available `git-collaboration` skill only at Git-policy boundaries such as creating branches, committing, synchronizing, opening PRs/MRs, reviewing, or configuring CI. Do not load its full references during ordinary context restoration.
 
 ## Context boundary
+
+Recovery shares one two-second computation budget across loading, complete validation (including review-reference checks), and focused projection. Exhaustion returns RESOURCE_LIMIT with no partial context or next action. Only the concrete Git subprocess call is excluded as external execution/I/O; parsing and checks before/after it are counted. This is a cooperative computation bound, not a two-second wall-clock deadline for Git. Reusing exhausted loaded documents cannot reset the budget.
+
+For an interrupted review with declared source materials, use the optional recovery branch in [checkpoints](references/checkpoints.md). The [review reference helper](scripts/review_resume.py) and [real Git/process tests](scripts/test_review_resume.py) restore attempt/target-bound references; they do not assess quality or grant acceptance.
+
+For a new review or recheck handoff, read [review](references/review.md), prepare the [packet template](templates/REVIEW-PACKET.md), and validate it with [review_packet.py](scripts/review_packet.py). Material completeness is not independent execution: actual host authorization, verified fresh context and enforced read-only access are required; this helper never dispatches a reviewer. Run the [packet regressions](scripts/test_review_packet.py) when changing this boundary.
+
+For complete reports, read [report semantics](references/review-report.md), use the [report template](templates/REVIEW-REPORT.md), and run the pure [report calculator](scripts/review_report.py). It keeps unknown/not-run checks and historical blockers visible; schema/count validity is not source verification or quality approval. Validate changes with [report tests](scripts/test_review_report.py) and the bundled [synthetic fixtures](scripts/fixtures/review-report.json).
+
+Use the [dependency helper](scripts/task_dependencies.py) only for unstarted PENDING tasks, following [review](references/review.md). Preview first; authorized writes record intent before per-file replacement and use F03 reconciliation after interruption. Run [planner tests](scripts/test_task_dependencies.py) and [real-file writer tests](scripts/test_dependency_write.py). Dependency READY is not quality approval.
+
+Run the [real-Git rework-chain fixtures](scripts/test_rework_chain.py) for report delivery, versioned repair/retest/recheck, active-attempt protection and abrupt-process recovery. Their synthetic reviewer claims do not constitute independent review or human acceptance.
+
+The [local document loader](scripts/context_loader.py) reads complete raw task and declared-gist sources before validation. `task_context.py` separates full validation with the host-selected local Git probe from focused projection; a comparison loader cannot replace local repository facts. When changing this boundary, run the [loader and actual-Git regressions](scripts/test_context_loader.py) as well as the existing context tests. Structured envelope output uses `lfd-context-v1`; default CLI output remains compatible. This interface does not supply review-breakpoint recovery by itself.
+
+For next-action selection after recovery, read [references/selection.md](references/selection.md). The [pure core/CLI](scripts/task_next.py) uses a [strict-reader adapter](scripts/selection_context.py); validate with [core tests](scripts/test_task_next.py) and [real Git/CLI tests](scripts/test_selection_context.py). Selection never grants execution authority or changes task state.
 
 Treat individually confirmed requirement points as approved intent, individually confirmed solution points as the retained implementation plan, Git as implementation state, `STATUS.md` as the primary feature/repository entry, `TASKS.md` as the task/ref index, and `tasks/` plus `gists/` as shared focused trace records. If they disagree, report the conflict; do not rewrite a decided point to hide it.
 
@@ -132,6 +209,8 @@ Before ending, rerun `task_context.py` for the current task. A failed context ch
 Before that final recovery check, checkpoint every coherent owned implementation change. Unexpected power loss can recover through the last successful checkpoint; do not claim zero-loss recovery beyond that boundary.
 
 ## Validate this Skill
+
+After changing initialization instructions or templates, run the real-Git [bootstrap regression](scripts/test_bootstrap.py).
 
 After changing task orchestration, recovery, or checkpoint behavior, run the [context regression tests](scripts/test_task_context.py), [task creation tests](scripts/test_task_create.py), [checkpoint tests](scripts/test_task_checkpoint.py), and deterministic audit:
 

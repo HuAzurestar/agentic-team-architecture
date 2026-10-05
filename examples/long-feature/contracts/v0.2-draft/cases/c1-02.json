@@ -1,0 +1,171 @@
+{
+  "available_evidence": [
+    "review/attempt-1.md"
+  ],
+  "candidate_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "case_id": "C1-02",
+  "declared_evidence": [
+    "review/attempt-1.md"
+  ],
+  "expected_counts": {
+    "all": 2,
+    "findings_total": 1,
+    "open_by_severity": {
+      "P0": 0,
+      "P1": 1,
+      "P2": 0
+    },
+    "pass": 1
+  },
+  "feature": "BEACON-1",
+  "points": [
+    {
+      "class": "ACTIVE",
+      "decided_at": "2026-09-29",
+      "decided_by": "project owner",
+      "decision_history": [
+        "approved at source ref"
+      ],
+      "id": "REQ-001",
+      "state": "CONFIRMED",
+      "text": "Review before acceptance"
+    },
+    {
+      "class": "ACTIVE",
+      "decision_history": [],
+      "id": "SOL-001",
+      "state": "PROPOSED",
+      "text": "Record evidence per check"
+    }
+  ],
+  "request_acceptance": true,
+  "request_rework": true,
+  "review": {
+    "attempt": "1",
+    "checks": [
+      {
+        "check_id": "CHK-1",
+        "evidence": [
+          "review/attempt-1.md#check-1"
+        ],
+        "finding_ids": [],
+        "reason": "",
+        "requirement_or_case": "REQ-001",
+        "result": "PASS"
+      },
+      {
+        "check_id": "CHK-2",
+        "evidence": [
+          "review/attempt-1.md#check-2"
+        ],
+        "finding_ids": [
+          "F-1"
+        ],
+        "reason": "open finding",
+        "requirement_or_case": "SOL-001",
+        "result": "FAIL"
+      }
+    ],
+    "findings": [
+      {
+        "affected_scope": "BEACON-1/DEV-01",
+        "closed_for_candidate": false,
+        "description": "blocking discrepancy",
+        "evidence": "review/attempt-1.md#finding-1",
+        "finding_id": "F-1",
+        "resolution": "open; rework required",
+        "severity": "P1"
+      },
+      {
+        "affected_scope": "BEACON-1/DEV-01",
+        "closed_for_candidate": false,
+        "description": "blocking discrepancy",
+        "evidence": "review/attempt-1.md#finding-1",
+        "finding_id": "F-1",
+        "resolution": "open; rework required",
+        "severity": "P1"
+      }
+    ],
+    "independent_context": "separate read-only review session against source refs",
+    "report_done": true,
+    "report_id": "R-1",
+    "reviewer": "independent reviewer",
+    "scope": "BEACON-1 F01",
+    "source_refs": [
+      "beacon-api@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    ],
+    "target_repo": "beacon-api",
+    "target_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "source_scope": {
+    "document_ref": "beacon-api@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:project/BEACON-1",
+    "environment": "staging",
+    "project": "BEACON-1"
+  },
+  "tasks": [
+    {
+      "completed_at": "2026-09-29",
+      "depends_on": [],
+      "detail_ref": "tasks/DEV-01.md",
+      "id": "DEV-01",
+      "owner": "developer",
+      "point_selectors": {
+        "requirements": [
+          "REQ-001"
+        ],
+        "solutions": [
+          "SOL-001"
+        ]
+      },
+      "repository_refs": [
+        "beacon-api@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      ],
+      "started_at": "2026-09-28",
+      "state": "DONE",
+      "type": "Development"
+    },
+    {
+      "completed_at": "2026-09-29",
+      "depends_on": [
+        "DEV-01"
+      ],
+      "detail_ref": "tasks/REVIEW-01.md",
+      "id": "REVIEW-01",
+      "owner": "independent reviewer",
+      "point_selectors": {
+        "requirements": [
+          "REQ-001"
+        ],
+        "solutions": [
+          "SOL-001"
+        ]
+      },
+      "repository_refs": [
+        "beacon-api@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      ],
+      "started_at": "2026-09-29",
+      "state": "DONE",
+      "type": "Review"
+    },
+    {
+      "depends_on": [],
+      "detail_ref": "tasks/DEV-01.md",
+      "id": "DEV-01",
+      "owner": "developer",
+      "point_selectors": {
+        "requirements": [
+          "REQ-001"
+        ],
+        "solutions": [
+          "SOL-001"
+        ]
+      },
+      "repository_refs": [
+        "beacon-api@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      ],
+      "started_at": "2026-09-28",
+      "state": "WIP",
+      "type": "Development"
+    }
+  ]
+}

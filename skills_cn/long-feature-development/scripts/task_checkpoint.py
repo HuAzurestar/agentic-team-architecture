@@ -31,6 +31,9 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--summary", required=True)
     parser.add_argument("--resume-action", required=True)
     parser.add_argument("--repo", action="append", default=[], metavar="NAME=PATH")
+    parser.add_argument("--operation-gist", help="Declared tracked gist for a recoverable operation")
+    parser.add_argument("--operation-id", help="Resume an existing operation by its exact UUID")
+    parser.add_argument("--authority-source-ref", help="Actual caller/session authorization reference, not a Markdown approval")
     return parser.parse_args(argv)
 
 
@@ -169,6 +172,11 @@ def atomic_write(path: Path, text: str) -> None:
 
 
 def checkpoint(args: argparse.Namespace) -> str:
+    if getattr(args, "operation_gist", None):
+        import task_operation
+        return task_operation.checkpoint(args)
+    if getattr(args, "operation_id", None) or getattr(args, "authority_source_ref", None):
+        raise task_context.ContextError("operation options require --operation-gist")
     root = Path(args.feature_directory).resolve()
     tasks_path = root / "TASKS.md"
     tasks_text = task_context.read_utf8(tasks_path)
@@ -208,6 +216,13 @@ def checkpoint(args: argparse.Namespace) -> str:
     summary = safe_line(args.summary, "summary")
     resume_action = safe_line(args.resume_action, "resume action")
     feature_key = safe_line(root.name, "feature key")
+    # Validate both metadata transformations before staging or committing code.
+    # A malformed resume record must not leave an unrecorded implementation SHA.
+    detail_path = root / "tasks" / f"{args.task_id}.md"
+    observed_head = task_context.run_git(repo, "rev-parse", "HEAD").lower()
+    replace_detail_checkpoint(task_context.read_utf8(detail_path), args.repository,
+                              observed_head, resume_action, summary)
+    replace_task_head(tasks_text, args.task_id, args.repository, observed_head)
     subprocess.run(["git", "-C", str(repo), "add", "--", *includes], check=True)
     subprocess.run(
         ["git", "-C", str(repo), "commit", "-m", f"{feature_key}/{args.task_id}: checkpoint {summary}"],

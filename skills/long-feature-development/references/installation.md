@@ -1,0 +1,25 @@
+# Skill-only installation and lifecycle
+
+## Runtime requirements
+
+Use Python 3.12 for this candidate. Author regressions have run on Windows/NTFS with CPython 3.12.10 and on Linux with CPython 3.12.15; this is a tested environment statement, not a promise for every 3.12 patch, operating system, or filesystem. Other Python versions and macOS are not validated by these runs. Git must be available on PATH. Before installation, run `python --version` and `git --version`, and record their actual output with the pinned product SHA. Invoke that same Python executable for the checks below. The helpers use the Python standard library; the separate repository skill-audit tool has its own dependencies.
+
+## Install and verify
+
+For the first project-management records, follow [first-record bootstrap](bootstrap.md). Installation and feature initialization are separate: strict task recovery requires a clean initial checkpoint, and creating it does not approve a requirement or grant execution authority.
+
+The `context.py` and `task_context.py` command-line outputs (stdout and stderr) use UTF-8 with LF line endings, including redirected pipes on Windows. Consumers must decode them as UTF-8. Chinese paths and Unicode background text do not require `PYTHONUTF8` or `PYTHONIOENCODING` workarounds. The context size budget measures the JSON payload; its trailing LF is framing, not selected content.
+
+Use the repository's existing `skills/long-feature-development` directory (or `skills_cn/long-feature-development` for the Chinese entry) with your host's directory-based skill installation. No installer service, SMMD, UI, Docker or provider credentials are required. Python and Git are needed for the local helpers. Use an explicit full 40-character commit and record it outside the installed directory; a moving branch is not an installation version. The release/test evidence must specify which commit was actually tested.
+
+For a clean installation, clone `https://github.com/HuAzurestar/agentic-team-architecture.git` into a new checkout, fetch the intended published ref if necessary, then `git checkout --detach <full-sha>` and check `git rev-parse HEAD`. Copy the complete selected Skill directory, including `references`, `templates` and `scripts`, to a new host skill directory. Use exclusive creation of the destination: an existing directory is a conflict to inspect, not permission to overwrite it. Keep project Markdown, Git repositories, credentials and backgrounds outside this program directory.
+
+For a host with no install facility, the checkout is a usable explicit Skill root: open its `SKILL.md`, run `python scripts/context.py --task-ref <project-directory> --purpose development`, and run `python scripts/task_context.py <feature-directory>` against the real project. This is an explicit-root route, not proof of automatic host discovery.
+
+Verify the installed copy rather than only the checkout. Start a new process/session, read its `SKILL.md`, run its `scripts/test_context.py`, and obtain a DIRECT context with no background. Then select a real background with explicit paths and run task recovery with the project's actual Git refs. Record actual host discovery separately: a subprocess proves fresh-process behavior, not that a GUI/agent session discovered the skill. Never label the latter passed without observing it.
+
+For upgrade, install the new pinned version in a separate sibling directory. Preserve the previous program directory unchanged, compare versions, run the checks, then explicitly select/activate the new root using the host's normal mechanism. Do not recursively copy over an old version: that can leave removed scripts behind. If the host requires a stable directory name, close sessions using it, move the old program directory to an explicit backup name and select the complete new directory. Do not move a project-management root or credentials directory.
+
+For rollback, select the preserved old program root and restart the session; verify its version and run recovery against the same external project. Old versions may correctly reject new record formats; inspect that compatibility failure rather than rewriting the records to make rollback appear successful. Exit by deselecting the Skill in the host or stopping explicit invocation. Deleting program files is optional and requires an exact, validated program-only target. Upgrade, exit and rollback must not delete user records, backups or credentials.
+
+Installation tests live in `scripts/test_installation.py` and use only disposable directories. They check real directory copies, fresh-process execution and unchanged external files. Host activation and full F03/F04 recovery/review acceptance need their own observed evidence; these tests do not substitute for it.

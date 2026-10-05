@@ -231,7 +231,7 @@ def atomic_write(path: Path, text: str) -> None:
         raise
 
 
-def create(feature_directory: Path, args: argparse.Namespace) -> str:
+def create(feature_directory: Path, args: argparse.Namespace, *, before_write=None) -> str:
     root = feature_directory.resolve()
     tasks_path = root / "TASKS.md"
     original = task_context.read_utf8(tasks_path)
@@ -269,6 +269,11 @@ def create(feature_directory: Path, args: argparse.Namespace) -> str:
     detail_path = root / "tasks" / f"{task_id}.md"
     if detail_path.exists():
         raise task_context.ContextError(f"task detail already exists: tasks/{task_id}.md")
+    # Host-backed callers must re-read current operation authority after all
+    # source validation/preparation. A denied guard must precede even the first
+    # write and sit outside rollback, which itself writes management records.
+    if before_write is not None:
+        before_write()
     try:
         atomic_write(detail_path, detail)
         atomic_write(tasks_path, candidate)

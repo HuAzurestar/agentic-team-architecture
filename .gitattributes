@@ -1,0 +1,5 @@
+# These distributable files have byte-sensitive manifests/selection fixtures.
+# Preserve canonical bytes even in a Windows clone with core.autocrlf=true.
+examples/long-feature/contracts/** text eol=lf
+skills/long-feature-development/** text eol=lf
+skills_cn/long-feature-development/** text eol=lf
