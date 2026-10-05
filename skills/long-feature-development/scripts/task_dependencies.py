@@ -234,8 +234,15 @@ def guard_sources(root, gist, source, before, after, gist_bytes):
             raise Error("SOURCE_CHANGED", path=relative)
     git = recovery.GitProbe()
     recovery.verify_observations(source, git)
+    registry = tc.repository_registry(recovery.decode(read_source(root, "STATUS.md")))
     for repo in source["repositories"]:
         path = Path(repo["resolved_path"])
+        # A grant readback can hide a concurrent edit from ordinary status.
+        # Use the strict recovery predicate; never clear flags or roll back.
+        try:
+            tc.validate_index_visibility(root, dict(path=path, role=registry[repo["name"]]["role"]))
+        except tc.ContextError as exc:
+            raise Error(str(exc), repository=repo["name"]) from None
         prefix = root.relative_to(path).as_posix() + "/" if root.is_relative_to(path) else None
         for entry in git.run(path, "status", "--porcelain=v1", "-z", "--untracked-files=all").split("\0"):
             if not entry:

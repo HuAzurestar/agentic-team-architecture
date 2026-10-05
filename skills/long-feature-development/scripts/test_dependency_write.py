@@ -43,6 +43,70 @@ class DependencyWriteTests(unittest.TestCase):
         self.commit_records()
         tc.build_context(self.root, repo_overrides={"pm": self.pm, "app": self.app})
 
+    def test_hidden_index_after_authority_preserves_edits_and_partial_facts(self):
+        # Real Git/files/writer; this callback models only an in-process host
+        # operation grant, not production identity or a formal blank review.
+        for flag in ('assume-unchanged', 'skip-worktree'):
+            for window, injection_read in (('intent', 1), ('first-file', 2),
+                                           ('second-file', 3), ('final-journal', 4)):
+                with self.subTest(flag=flag, window=window):
+                    case = DependencyWriteTests()
+                    case.setUp()
+                    self.addCleanup(case.doCleanups)
+                    paths = ('TASKS.md', 'tasks/GATE-ACCEPT.md', case.plan_ref)
+                    original = {p: (case.root / p).read_bytes() for p in paths}
+                    product = case.app / 'owned.py'
+                    edited = product.read_bytes() + b'\nexternal = 2\n'
+                    calls, at_guard = 0, {}
+
+                    def authority():
+                        nonlocal calls
+                        calls += 1
+                        if calls == injection_read:
+                            git(case.app, 'update-index', '--' + flag, 'owned.py')
+                            product.write_bytes(edited)
+                            at_guard['index'] = (case.app / '.git/index').read_bytes()
+                            at_guard['files'] = {p: (case.root / p).read_bytes() for p in paths}
+                        return 'synthetic:current-operation-grant'
+
+                    result = case.replace(before_write=authority)
+                    self.assertEqual(calls, injection_read, result)
+                    self.assertEqual(result['conflicts'][0]['code'], 'HIDDEN_INDEX_STATE', result)
+                    expected_files = ([] if injection_read <= 2 else ['TASKS.md']
+                                      if injection_read == 3 else ['TASKS.md', 'tasks/GATE-ACCEPT.md'])
+                    self.assertEqual(result['effect'], 'NOT_APPLIED' if injection_read == 1 else 'PARTIAL', result)
+                    self.assertEqual(result['changed_paths'], expected_files, result)
+                    self.assertEqual({p: (case.root / p).read_bytes() for p in paths}, at_guard['files'])
+                    self.assertEqual(product.read_bytes(), edited)
+                    self.assertEqual((case.app / '.git/index').read_bytes(), at_guard['index'])
+                    self.assertEqual(git(case.app, 'rev-parse', 'HEAD'), case.app_head)
+                    self.assertFalse((case.root / '.operation.lock').exists())
+                    if injection_read == 1:
+                        self.assertIsNone(result['operation_id'])
+                        self.assertEqual(result['recorded_fields'], [])
+                        self.assertEqual(at_guard['files'], original)
+                    else:
+                        self.assertEqual(result['recorded_fields'],
+                                         [case.plan_ref + '#intent', *expected_files])
+                        record = op.read_gist(case.root, case.plan_ref)[3][result['operation_id']]
+                        self.assertEqual(record['observed_result']['status'], 'not-observed')
+                        self.assertEqual(record['recorded_fields'], [])
+                        self.assertEqual(result['observed_result']['saved_files'], expected_files)
+                        for p in ('TASKS.md', 'tasks/GATE-ACCEPT.md'):
+                            self.assertEqual((case.root / p).read_bytes() == original[p], p not in expected_files)
+                    # Saving management facts must not clear the product index.
+                    # A one-file partial gate also has a contract mismatch:
+                    # strict recovery can reject that before inspecting Git.
+                    if injection_read != 1:
+                        case.commit_records()
+                    with self.assertRaisesRegex(tc.ContextError, '^HIDDEN_INDEX_STATE$'):
+                        tc.validate_index_visibility(case.root, dict(path=case.app, role='implementation'))
+                    expected = 'Required tasks must match' if injection_read == 3 else '^HIDDEN_INDEX_STATE$'
+                    with self.assertRaisesRegex(tc.ContextError, expected):
+                        tc.build_context(case.root, repo_overrides={'pm': case.pm, 'app': case.app})
+                    self.assertEqual(product.read_bytes(), edited)
+                    self.assertEqual((case.app / '.git/index').read_bytes(), at_guard['index'])
+
     def test_partial_write_readback_and_authorized_resume(self):
         def fail(name):
             if name == "after-TASKS.md":
