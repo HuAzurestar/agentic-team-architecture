@@ -1,0 +1,12 @@
+{
+  "name": "agentmemory-search-local",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node server.mjs",
+    "check": "node --check server.mjs && node --check public/app.js && node --check public/core.js",
+    "test": "node --test test/*.test.mjs",
+    "test:browser": "node test/browser-smoke.mjs"
+  },
+  "engines": { "node": ">=22" }
+}
