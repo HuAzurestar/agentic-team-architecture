@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Agent Memory · 本地搜索</title>
+  <link rel="stylesheet" href="/styles.css">
+  <script type="module" src="/app.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="Agent Memory 搜索首页"><span class="brand-icon">m<span>·</span></span><span>Agent Memory <small>本地搜索</small></span></a>
+    <span class="local-label"><span class="dot"></span> LOCAL WORKSPACE</span>
+  </header>
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="section-label">连接配置</div>
+      <label>API 地址<input id="baseUrl" type="url" spellcheck="false" placeholder="http://127.0.0.1:3111"></label>
+      <label>访问 Token<span class="password-field"><input id="token" type="password" autocomplete="off" spellcheck="false" placeholder="粘贴你的 Bearer Token"><button id="toggle-token" type="button" aria-label="显示 Token">显示</button></span></label>
+      <label class="check-label"><input id="rememberToken" type="checkbox"> 在此浏览器记住 Token</label>
+      <p class="field-note">保存在本机浏览器 localStorage 中，未加密。不要在共享电脑上勾选。</p>
+      <div class="connection-actions"><button id="test-connection" class="button secondary" type="button">测试连接</button><button id="clear-token" class="text-button" type="button">清除 Token</button></div>
+      <p id="connection-status" class="connection-status" role="status">尚未测试连接</p>
+      <label>API 兼容模式<select id="compatibility"><option value="local">本机已安装版本</option><option value="latest">GitHub 最新代码</option></select></label>
+      <p id="saved-status" class="saved-status" role="status">配置自动保存</p>
+      <div class="sidebar-divider"></div>
+      <div class="history-heading"><span class="section-label">最近搜索</span><button id="clear-history" class="text-button" type="button">清空</button></div>
+      <div id="history" class="history"></div>
+      <p class="sidebar-footer">查询与筛选会自动保存。<br>搜索结果和参考图片不会持久化。</p>
+    </aside>
+    <main>
+      <div class="intro"><span class="eyebrow">YOUR CONTEXT, WITHIN REACH</span><h1>找回之前的思路<span>。</span></h1><p>从会话、记忆和经验中，找到需要的那一条。</p></div>
+      <nav id="mode-tabs" class="mode-tabs" aria-label="搜索类型"></nav>
+      <section class="search-panel" aria-label="搜索表单">
+        <form id="search-form">
+          <div class="endpoint-line"><code id="endpoint"></code><span id="mode-hint"></span></div>
+          <label class="sr-only" for="query">搜索内容</label><textarea id="query" rows="3" placeholder="输入搜索内容"></textarea>
+          <div id="image-fields" hidden>
+            <div class="image-upload"><label for="image-file" class="text-button">选择参考图片</label><input id="image-file" type="file" accept="image/*"><span id="image-name">未选择图片</span><button id="clear-image" class="text-button" type="button" hidden>移除</button></div>
+            <label>或使用服务端图片引用<input id="imageRef" type="text" placeholder="服务端受管图片路径"></label>
+          </div>
+          <div class="filter-grid">
+            <label id="project-field">项目标识 <span class="optional">可选</span><input id="project" placeholder="精确项目标识" spellcheck="false"></label>
+            <label id="session-field" hidden>会话 ID <span class="optional">可选</span><input id="sessionId" placeholder="只搜索该会话的图片" spellcheck="false"></label>
+            <label class="limit-field">返回条数<input id="limit" type="number" min="1" max="100" step="1"></label>
+            <label id="confidence-field" hidden>最低置信度<input id="minConfidence" type="number" min="0" max="1" step="0.05"></label>
+            <label id="format-field">返回内容<select id="format"><option value="narrative">标题与摘要</option><option value="compact">仅标题与 ID</option><option value="full">完整观察记录</option></select></label>
+          </div>
+          <details class="advanced"><summary>更多选项与请求 JSON</summary><div class="advanced-fields">
+            <label id="agent-field">Agent ID <span class="optional">可选，* 表示全部</span><input id="agentId" placeholder="不填则使用服务端默认值"></label>
+            <label id="budget-field">结果预算<input id="tokenBudget" type="number" min="1" step="1"></label>
+            <label id="layer-field">搜索范围<select id="targetLayer"><option value="all">所有内容</option><option value="observation">会话观察记录</option><option value="memory">长期记忆</option></select></label>
+            <label id="lessons-field" class="check-label"><input id="includeLessons" type="checkbox"> 附带相关经验教训</label>
+          </div><p id="compatibility-note" class="field-note"></p><pre id="request-preview" class="request-preview"></pre></details>
+          <div class="submit-row"><span>Ctrl / ⌘ + Enter 搜索</span><div><button id="cancel-search" class="button secondary" type="button" hidden>取消</button><button id="submit-search" class="button primary" type="submit"><span>开始搜索</span><span aria-hidden="true">↗</span></button></div></div>
+        </form>
+      </section>
+      <div id="feedback" class="feedback" role="status" hidden></div>
+      <section class="results-section" aria-label="搜索结果" aria-busy="false">
+        <div class="results-heading"><div><h2 id="results-title">搜索结果</h2><span id="result-meta">等待你的第一条查询</span></div><div class="result-actions"><button id="back-results" class="text-button" type="button" hidden>返回搜索结果</button><button id="toggle-json" class="text-button" type="button" hidden>查看 JSON</button><button id="copy-json" class="text-button" type="button" hidden>复制结果</button></div></div>
+        <div id="empty-state" class="empty-state"><span class="empty-symbol" aria-hidden="true">⌕</span><h3>记忆已经在那里</h3><p>配置连接，输入一个主题、文件名或问题。</p><div class="suggestions"><button type="button" data-query="PIRC-17">PIRC-17</button><button type="button" data-query="用户偏好">用户偏好</button><button type="button" data-query="代码审查">代码审查</button></div></div>
+        <div id="results"></div><pre id="raw-json" class="raw-json" hidden></pre>
+      </section>
+    </main>
+  </div>
+</body>
+</html>
