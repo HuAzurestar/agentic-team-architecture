@@ -78,6 +78,8 @@ Use permitted environments and data. Record expected versus observed results; ne
 
 ## Freeze, reconcile, and report
 
+Long-feature `Review refs` includes literal task branch/HEAD under `task_source`, independently of observed checkout refs. Snapshots missing this binding require a new blind attempt. An existing root ledger in a registered management repository must be tracked and not ignored; legacy features may have no ledger yet.
+
 Use the attempt-report template to save the blind result separately before reading history. Bind it to the reviewed target and record:
 
 ```text

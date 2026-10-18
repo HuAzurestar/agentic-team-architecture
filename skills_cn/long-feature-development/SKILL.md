@@ -85,6 +85,8 @@ description: 从项目管理目录恢复并推进跨会话的软件 feature，�
 
 ## 审查范围与盲审恢复
 
+`Review refs` 在 `task_source` 中单独保留 task 的字面分支/HEAD，与实际 checkout 投影分开。旧快照缺少该来源绑定时需要新盲审，不能事后补写旧报告。已注册项目管理仓库中存在根 `REVIEW.md` 时，它必须与其他共享记录一样受版本控制且未被忽略；旧 Feature 尚无账本仍可恢复。
+
 设计阶段在 SOLUTION.md 保存唯一短行 `- Review scope: review/v1 mode=strong exclude=ui`。可选 topics 指定子集，focus 增加重点；缺少配置时默认全部适用主题，显式空声明则报错。Task 可保存相同短快照、来源/版本及账本路径，不复制内容点。未知/重复配置报错，任务快照不一致表示陈旧，不自动变更范围。无元数据的旧记录仍可恢复。
 
 可选 `code-review` skill 提供强审主题、弱审 detail 和共用问题/计分协议；恢复视图本身不依赖该 skill、SM-MD 或服务。[review_context.py](scripts/review_context.py) 实现配置和视图。

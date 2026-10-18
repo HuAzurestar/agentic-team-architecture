@@ -111,7 +111,14 @@ def candidate_references(
     Without a registry, task refs remain explicitly recorded-only evidence.
     """
     task_keys = ("branch", "head_sha", "baseline_history", "start_refs", "completion_sha")
-    refs = {item["repository"]: {key: item[key] for key in task_keys} for item in repository_refs}
+    refs = {
+        item["repository"]: {
+            **{key: item[key] for key in task_keys},
+            # Retain literal source refs alongside the observed checkout.
+            "task_source": {key: item[key] for key in ("branch", "head_sha")},
+        }
+        for item in repository_refs
+    }
     for name, item in repositories.items():
         if item["role"] == "implementation":
             refs.setdefault(name, {}).update(

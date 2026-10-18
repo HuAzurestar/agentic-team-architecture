@@ -620,6 +620,9 @@ def validate_shared_records(feature_root: Path, resolved: dict[str, dict[str, An
         raise ContextError("resolved repositories require exactly one project-management repository")
     repository_root = Path(management[0]["path"])
     required = [feature_root / name for name in ("REQUIREMENT.md", "SOLUTION.md", "STATUS.md", "TASKS.md")]
+    ledger = feature_root / "REVIEW.md"
+    if ledger.exists() or ledger.is_symlink():
+        required.append(ledger)
     for directory_name in ("tasks", "gists"):
         directory = feature_root / directory_name
         if not directory.is_dir():

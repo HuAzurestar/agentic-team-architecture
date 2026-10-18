@@ -265,6 +265,35 @@ class ReviewContextTests(unittest.TestCase):
             context["repository_refs"][1]["head_sha"] = "ccccccc"
             self.assertNotEqual(after, review_context.candidate_references(repositories, context["repository_refs"], context["feature"]))
 
+    def test_snapshot_rejects_changed_task_source_even_when_checkout_is_unchanged(self):
+        with tempfile.TemporaryDirectory() as temp:
+            parent = Path(temp)
+            commits = fixtures.make_git_repo(parent / "app", "https://example.invalid/app.git", 2)
+            root = self.make_review(parent)
+            context = task_context.build_context(root)
+            sources = copy.deepcopy(context["repository_refs"])
+            sources[0].update(branch="main", head_sha=commits[-1])
+            repositories = {"app": {"role": "implementation", "actual_branch": "main", "actual_head": commits[-1]}}
+            refs = review_context.candidate_references(repositories, sources, context["feature"])
+            report = root / "gists/blind-01.md"
+            report.write_text(
+                "- Review phase: blind\n- Review task: REVIEW-01\n"
+                f"- Target SHA: {commits[-1]}\n- Review scope: review/v1\n- Review refs: {json.dumps(refs)}\n",
+                encoding="utf-8",
+            )
+            for field, value in (("branch", "another-task"), ("head_sha", commits[0])):
+                changed = copy.deepcopy(sources)
+                changed[0][field] = value
+                current = review_context.candidate_references(repositories, changed, context["feature"])
+                with self.subTest(field=field):
+                    self.assertNotEqual(refs, current)
+                    with self.assertRaisesRegex(ValueError, "per-repository"):
+                        review_context.verify_blind_snapshot(
+                            "gists/blind-01.md", {"gists/blind-01.md": report}, "REVIEW-01", commits[-1],
+                            review_context.parse_review_scope(), current,
+                        )
+
+
     def test_snapshot_rejects_missing_duplicate_or_invalid_refs(self):
         with tempfile.TemporaryDirectory() as temp:
             root = self.make_review(Path(temp))

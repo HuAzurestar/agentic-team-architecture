@@ -78,6 +78,8 @@ python <long-feature-skill>/scripts/task_context.py <feature-directory> --review
 
 ## 固定结果后核对历史
 
+长程 `Review refs` 在 `task_source` 中单独保留 task 的字面分支/HEAD，不被实际 checkout refs 覆盖。旧快照缺少该绑定时需要新盲审。已注册项目管理仓库中现有根账本必须受版本控制且未被忽略；旧 Feature 尚无账本仍可使用。
+
 用逐轮报告模板，在读历史前先保存独立的本轮盲审报告，绑定目标并记录：
 
 ```text

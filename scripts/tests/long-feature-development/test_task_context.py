@@ -528,6 +528,27 @@ class TaskContextTests(unittest.TestCase):
             with self.assertRaisesRegex(task_context.ContextError, "is ignored"):
                 task_context.validate_shared_records(feature, resolved)
 
+    def test_optional_review_ledger_requires_shared_version_control(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            repo = Path(temp) / "pm"
+            commits = make_git_repo(repo, "https://example.invalid/pm.git", 1)
+            feature = self.make_feature(repo / "project")
+            git(repo, "add", ".")
+            git(repo, "commit", "-m", "track feature without legacy ledger")
+            resolved = {"pm": {"role": "project-management", "path": str(repo), "actual_head": commits[-1]}}
+            task_context.validate_shared_records(feature, resolved)
+            ledger = feature / "REVIEW.md"
+            ledger.write_text("OPEN finding; must survive another checkout\n", encoding="utf-8")
+            with self.assertRaisesRegex(task_context.ContextError, "not tracked.*REVIEW.md"):
+                task_context.validate_shared_records(feature, resolved)
+            (repo / ".git/info/exclude").write_text("project/PIRC-23/REVIEW.md\n", encoding="utf-8")
+            with self.assertRaisesRegex(task_context.ContextError, "ignored.*REVIEW.md"):
+                task_context.validate_shared_records(feature, resolved)
+            (repo / ".git/info/exclude").write_text("", encoding="utf-8")
+            git(repo, "add", "project/PIRC-23/REVIEW.md")
+            git(repo, "commit", "-m", "track review ledger")
+            task_context.validate_shared_records(feature, resolved)
+
     def test_done_reopen_reason_must_be_persisted_and_match_cli(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             root = self.make_feature(Path(temp))

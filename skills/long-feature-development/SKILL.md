@@ -93,6 +93,8 @@ For an acceptance task, create and validate the plain-language brief described i
 
 ## Review scope and blind recovery
 
+`Review refs` retains each task's literal branch/HEAD in `task_source`, separately from the observed checkout projection. Snapshots without this source binding need a new blind attempt; do not retrofit the old report. When a root `REVIEW.md` exists in a registered management repository, it must be tracked and not ignored, just like other shared records. A missing ledger remains valid for legacy features.
+
 During design, record one short `- Review scope: review/v1 mode=strong exclude=ui` line in `SOLUTION.md`. Optional `topics` selects a subset, and `focus` adds specific promises; absence defaults to all applicable topics, but an explicitly empty declaration is an error. The task may record the identical short snapshot plus source/version and ledger path. Do not copy topic checklists into feature records. Unknown/duplicate configuration is an error; a differing task snapshot is stale, not a new scope decision. Existing records without this metadata remain recoverable.
 
 The optional `code-review` skill provides topic-based strong review, weak-mode details and the shared finding/score protocol. This skill's recovery views work without that skill, SM-MD or a service. See [review_context.py](scripts/review_context.py) for configuration and view mechanics.
