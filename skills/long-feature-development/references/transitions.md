@@ -1,34 +1,49 @@
-# State transitions
+# Task state changes
 
-Read this file only when a task changes state or the feature's next transition changes. It is not a second global state machine.
+Read when assigning, blocking, completing or reopening a task. These are shared state meanings and record requirements; scheduling, transition permission and persistence are supplied externally.
 
-## Task transitions
+## Task state machine
 
-`PENDING` is the sole unassigned state. The context helper derives `READY` when all direct dependencies are `DONE`, otherwise `WAITING`; these labels are never persisted in the State column. `BLOCKED` is reserved for an already assigned task with a concrete obstacle, impact, and release condition. An unfinished dependency does not make an unassigned task blocked.
+```mermaid
+stateDiagram-v2
+    [*] --> PENDING
+    PENDING --> WIP: assigned; start recorded
+    WIP --> BLOCKED: obstacle and release condition recorded
+    BLOCKED --> WIP: obstacle resolved
+    WIP --> RECORDING: result ready for recording
+    RECORDING --> DONE: completion and durable records verified
+    RECORDING --> WIP: candidate or recording incomplete
+    DONE --> WIP: explicitly reopen; retain prior result
+```
 
-| From | To | Required update |
+This shared task state machine retains blocking, return and reopening paths; it is not a fixed design/develop/review/release workflow. The event table below defines the records for each transition; external authority determines who may perform it.
+
+## Readiness is not another stored state
+
+PENDING is unassigned. READY/WAITING may describe whether direct dependencies are DONE, but neither is a stored lifecycle state. BLOCKED identifies an assigned task with a concrete obstacle, impact and release condition; an unassigned task waiting for dependencies remains PENDING.
+
+A DONE dependency is not necessarily a successful result. Check any required outcome or authorization before proceeding.
+
+## Record the actual event
+
+| Event | State record | Relevant updates |
 | --- | --- | --- |
-| `PENDING` | `WIP` | Verify all dependencies are `DONE`; record owner, start time, baseline history, start refs, and current HEAD. |
-| `WIP` | `BLOCKED` | Record the blocker, its effect, and the release condition. |
-| `BLOCKED` | `WIP` | Record why the blocker is released; append start refs if a new attempt or baseline is used. |
-| `WIP` | `RECORDING` | Completion conditions are met; freeze candidate outputs while final commits and refs are recorded. |
-| `RECORDING` | `DONE` | Record completion time and exactly one completion SHA per affected repository; make the index and topology consistent. |
-| `RECORDING` | `WIP` | The candidate is incomplete; record the failed check and resume action without inventing completion refs. |
-| `DONE` | `WIP` | Persist a non-empty `Reopen reason`, pass the same text through `--reason`, clear completion time, and append new start refs. |
+| Assignment starts | PENDING → WIP | Record owner, started at, actual scope and input/baseline versions; record repository points when code is involved. |
+| Assigned work meets an obstacle | WIP → BLOCKED | Record blocker, impact, release condition, follow-up owner and resume action. |
+| Obstacle is resolved | BLOCKED → WIP | Record resolution evidence and append a changed baseline or a new attempt rather than overwriting the old one. |
+| Work is ready for final recording | WIP → RECORDING | Identify the candidate, actual outcome, executed checks and remaining issues; reconcile required reports and references. |
+| Recording is complete | RECORDING → DONE | Verify the task's completion conditions, record completed at and durable results, and refresh its preview. Code outputs identify their Project-qualified commit points; non-code work does not invent a commit. |
+| Candidate or recording is incomplete | RECORDING → WIP | Record the failed check or missing material and the next action; do not manufacture completion. |
+| Completed work is explicitly reopened | DONE → WIP | Record reopen reason and authority where required, retain the previous completed result/version, clear the current completed at and record the new attempt. |
 
-Do not infer `DONE` from a summary statement. The task owner changes the `TASKS.md` row only after the matching detail file's completion condition is satisfied. `FAILURE` and `REOPEN` are events, not persistent states: record the failed attempt, then return to `WIP` or explicitly reopen a completed task.
+An interruption alone does not mean BLOCKED: retain WIP with a precise resume action. FAILURE and REOPEN are events, not extra lifecycle states. DONE means the assigned work and its recording are complete; a completed test can fail and a completed decision can reject.
 
-Use `scripts/task_state.py` for normal transitions. It rejects invalid transitions and non-ready assignments, validates the task contracts, and replaces the task row and derived Mermaid block atomically. Direct edits plus `task_context.py --sync-topology` are limited to explicit repair or legacy import; normal recovery is read-only and fails on stale topology.
+For a reopened attempt, do not present the prior result/evidence as checks of the new candidate. Keep old reports in retained revisions or durable task sections and identify current results separately.
 
-Normal cross-file order is: prepare the task detail and any changed `STATUS.md` current-task/condition fields; run `task_state.py`; run read-only `task_context.py`; commit all project-management changes together. The writer is atomic only within `TASKS.md`. An intermediate working tree may be inconsistent, but a commit may not be.
+## Consistency and Feature overview
 
-For requirement and solution point decisions, read [confirmation.md](confirmation.md). Point state and task state are separate; the Mermaid diagrams there are authoritative for their relationship.
+Use the supplied write interface to coordinate the detail and affected STATUS overview, then use the [generator](generated-indexes.md) for the TASKS preview and dependency topology rather than editing generated blocks. Do not claim cross-file atomicity from a helper that only reads or prints tables. Report interrupted writes, reconcile from authoritative details and do not overwrite another writer's changes.
 
-## Feature transition note
+Refresh STATUS only for affected overall repository/Feature/development state. Do not mirror every task row. A task becoming DONE does not, by itself, change a Feature phase or authorize release; apply the externally supplied [GATE](gates.md) policy.
 
-`STATUS.md` stores feature phase, condition, current task, current gate, and the next intended transition. A `GATE-*` task is an ordinary task node whose completion authorizes one feature transition. When the transition happens:
-
-1. verify the gate dependencies in `TASKS.md` and the Git/PR/MR refs;
-2. update the current phase;
-3. replace the next-transition note;
-4. commit the project-management change separately.
+A design-point decision is distinct from its processing task's lifecycle; see [confirmation.md](confirmation.md).

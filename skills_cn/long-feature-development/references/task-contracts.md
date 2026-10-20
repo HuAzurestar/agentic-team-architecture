@@ -1,29 +1,27 @@
-# 质量 Task 合同
+# 测试、评审与返工记录
 
-只在质量、验收或 gate task 中读取。所有 task 仍使用 `transitions.md` 的统一生命周期；下列字段写在 `tasks/<task-id>.md` 的 `## Type contract` 表中。
+分派或报告 TEST、REVIEW、REWORK 工作时读取。这些是 tasks/ 中的专用字段与正文，不是新增目录或独立状态机。通用生命周期参见 [transitions.md](transitions.md)。
+
+按实际委托补充字段，共享 YAML 允许专用元数据。结构校验器不强制这些报告语义，也不证明检查实际执行过。
 
 ## TEST
 
-必需字段：`Target SHA`、`Environment`、`Planned checks`、`Executed`、`Passed`、`Failed`、`Skipped`、`Unknown`、`Result gist`。
+明确范围、准确候选（代码用 Project 限定 SHA，非代码用版本化产物）、环境及限制、计划检查与实际检查。分别记录执行、通过、失败、跳过和未知结果；数量不能单独证明覆盖，应保留有意义的检查名称和实质验证摘要。
 
-- 报告绑定一个字面 tested SHA；实现 SHA 改变后必须建立新 attempt 或 task。
-- 合同只放数量和短检查名；命令、日志、截图、失败原因和覆盖详情放入 `gists/TEST-*.md`。
-- 执行、通过、失败、跳过、未知分别记录，不得把部分执行写成“全部通过”。
-- 项目已有受支持 Docker 环境时优先使用，不为满足规则而引入 Docker。
-- 确定性 mock 仅在项目已有约定位置且无敏感信息时提交，否则放在 gist 或临时测试环境。
+命令或操作步骤、失败原因和足够的复现信息保存到任务的持久报告，不包含秘密。原始日志可作临时 gists 登记，但不能成为唯一证据。跳过、不可用和未执行的检查不算通过。
+
+候选变化后建立带独立目标的新 attempt 或任务，旧报告继续对应旧点。使用项目已有的受支持测试环境；增加基础设施或提交 mock 数据须有范围内需要和安全的约定位置，不套用通用 Docker 规定。
 
 ## REVIEW
 
-必需字段：`Target SHA`、`Blocking findings`、`Deferred findings`、`Result gist`。具体评论和长推理写入 `gists/REVIEW-*.md`。阻断发现建立依赖的 `REWORK-*`，不得改写已完成开发 task。
+明确对象点/版本、评审范围、发现及影响、阻断项与暂缓项、结论。暂缓项写明处置和后续责任人；评论需提供定位和理解问题所需上下文，正式发现保存在任务中，不只放在原始附件。
 
-## REWORK
+不能改写已完成开发结果来抹除发现。由外部流程选择关联 REWORK 任务或显式重开的 attempt 跟踪处理；对某个 SHA 的评审不代表已评审后续 SHA。
 
-必需字段：`Source findings`、`Target SHA`、`Output SHA`、`Result gist`。它依赖发现问题的 review；复测使用新的依赖 `TEST-*`，保持 tested SHA 明确。
+## REWORK 与验证
 
-## ACCEPT
+保留原始发现及其目标、请求修改、新产出点和剩余问题，关联来源 review/feedback 与依赖工作。修订候选需要适用的复测或复审，并独立记录实际范围与证据，可以使用新任务或明确保留的独立 attempt。
 
-新建 task 的必需字段：`Target SHA`、`Acceptance scope`、`Decision`、`Decided by`、`Acceptance brief`。brief 是从 `templates/ACCEPTANCE.md` 创建并在 `Gists` 声明的 `gists/` 路径；缺少该字段的历史完成 task 仍可读取。Agent 提出范围、准备并主动展示自然语言 brief，但最终决定只能由 developer 提供。WIP 期间保持 `WAITING`；进入 RECORDING 后持久化 developer 的 `CONFIRMED`、`REJECTED` 或 `REWORK`，再完成 refs。
+返工完成本身不证明复测通过、验收获准或 GATE 满足。
 
-## GATE
-
-必需字段：`From phase`、`To phase`、`Required tasks`、`Decision ref`。必需 task 必须与 gate 直接依赖一致；`Decision ref` 是记录流转的项目管理 commit，记录前为 `-`。
+面向用户验收参见 [acceptance.md](acceptance.md)，策略检查与后续权限参见 [gates.md](gates.md)。

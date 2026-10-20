@@ -1,73 +1,49 @@
-# Pointwise confirmation
+# Point decisions, revisions and reopening
 
-Read this reference only when adding, deciding, revising, or reopening a `REQ-*` or `SOL-*` point.
+Read when deciding, partially accepting, revising or reopening approval-bearing points such as REQ/SOL. For INT provenance and creating/relating design points, read [decisions.md](decisions.md).
 
-## Decision authority
+## Design-point state machine
 
-- A decision is actionable only when a human names the exact point ID and result. Store active points under stable level-two `## REQ-*` or `## SOL-*` headings; lower headings belong to that point.
-- "Approve all", "looks good", and similar broad replies do not decide any point.
-- A human may decide several points in one response only by enumerating every ID and result separately.
-- When authorized to infer likely decisions, the LLM lists each candidate ID and exact statement, then asks for a second confirmation. It does not update state before that response.
-- If only part of a point is accepted, split it into stable child points before requesting decisions. Do not mark the parent confirmed.
-
-## Point-state flow
+This diagram applies to approval-bearing points such as REQ/SOL. An expressed intent is already RECORDED with its source identity; INT does not wait for this approval flow. Correcting INT preserves its originator and original wording rather than clearing provenance.
 
 ```mermaid
 stateDiagram-v2
     state "OUT-OF-SCOPE" as OUT_OF_SCOPE
     [*] --> PROPOSED
-    PROPOSED --> CONFIRMED: human confirms exact ID and content
-    PROPOSED --> REJECTED: human rejects
-    PROPOSED --> OUT_OF_SCOPE: human marks out of scope
-    PROPOSED --> INFEASIBLE: human records infeasibility
-
-    REJECTED --> REOPENED: proposal is revised
-    CONFIRMED --> REOPENED: human withdraws confirmation
-    OUT_OF_SCOPE --> REOPENED: human reopens scope
-    INFEASIBLE --> REOPENED: human reopens after constraints change
-
-    REOPENED --> CONFIRMED: human confirms revised point
-    REOPENED --> REJECTED: human rejects revised point
-    REOPENED --> OUT_OF_SCOPE: human removes revised point from scope
-    REOPENED --> INFEASIBLE: human confirms revised point is infeasible
+    PROPOSED --> CONFIRMED: authorized confirmation
+    PROPOSED --> REJECTED: authorized rejection
+    PROPOSED --> OUT_OF_SCOPE: authorized exclusion
+    PROPOSED --> INFEASIBLE: authorized infeasibility decision
+    CONFIRMED --> REOPENED: authorized reopening
+    REJECTED --> REOPENED: proposal revised
+    OUT_OF_SCOPE --> REOPENED: authorized scope reopening
+    INFEASIBLE --> REOPENED: constraints changed; authorized reopening
+    REOPENED --> CONFIRMED: revised content confirmed
+    REOPENED --> REJECTED: revised content rejected
+    REOPENED --> OUT_OF_SCOPE: revised content excluded
+    REOPENED --> INFEASIBLE: revised content infeasible
 ```
 
-`CONFIRMED`, `REJECTED`, `OUT-OF-SCOPE`, and `INFEASIBLE` are decided results. `REJECTED` may be revised and moved to `REOPENED` without a separate human withdrawal; the rejected version and reason remain in history. Reopening the other decided results requires the human action shown above.
+Point state is distinct from the processing task's state; see [transitions.md](transitions.md). Transitions require neither one commit per point nor a human-only confirmer.
 
-Keep active `PROPOSED`, `REOPENED`, and `CONFIRMED` points in the document's point section. Move `REJECTED`, `OUT-OF-SCOPE`, and `INFEASIBLE` points to its disposition section without deleting their statement or history. A reopened disposition returns to the active section.
+## Resolve the decision scope
 
-## Task-state flow
+Identify the exact point set, content revisions, proposed result, actual decider and applicable mandate. A clear batch decision may identify a fixed set of points; an ambiguous “looks good” does not silently approve unrelated points or future revisions. Map natural-language decisions to their actual scope without requiring the user to operate internal IDs.
 
-```mermaid
-stateDiagram-v2
-    [*] --> PENDING
-    PENDING --> WIP: dependencies done; record start refs
-    WIP --> BLOCKED: record blocker and release condition
-    BLOCKED --> WIP: release condition is satisfied
-    WIP --> RECORDING: point is decided
-    RECORDING --> DONE: record the point-decision commit SHA
-    RECORDING --> WIP: decision record is incomplete
-    DONE --> WIP: point enters REOPENED
-```
+A recommendation is not an authorized decision. An authorized agent may decide within a supplied mandate without a mandatory second human confirmation. Capability, confidence or learned preferences never expand that mandate.
 
-A decided point remains `RECORDING` until its decision commit SHA is recorded in its task detail and `TASKS.md` is consistent. One project-management commit may register several separately committed point decisions.
+If only part of a point is accepted, record the accepted scope separately, splitting stable points when needed. Do not mark unresolved content as confirmed.
 
-## Decision commits
+## Record the conclusion and its basis
 
-Use exactly one point per decision commit:
+Record the subject revision, conclusion, authority and comment in a DECISION task or the supplied durable decision record. Keep the design point's decided by, decided at and decided with consistent with that conclusion. Use the record's actual confirmer and decision time, not the worker who copied it.
 
-```text
-NO-FEAT-a31f2c/REQ-001: CONFIRMED define login scope
-NO-FEAT-a31f2c/REQ-002: REJECTED require unsupported provider
-NO-FEAT-a31f2c/SOL-001: INFEASIBLE use local cache
-NO-FEAT-a31f2c/REQ-001: REOPENED reconsider login scope
-```
+CONFIRMED, REJECTED, OUT-OF-SCOPE and INFEASIBLE are decided results; rejected and excluded proposals remain discoverable rather than being deleted. RECORDED intent preserves the external instruction and does not mean the derived solution is approved. Processing a rejection can complete a decision task without making the requirement confirmed.
 
-The decision commit updates the point, its immutable decision history, and the document's derived status. A following status commit records that exact SHA and completes or reopens the matching task. Do not amend or rewrite a decision commit after its SHA has been recorded.
+## Revise without rewriting approval history
 
-## Derived document states
+A draft can be refined within its assignment. Changing a decided point creates a new revision or an explicit retained change record; preserve its previous metadata, body, decision and reason. Reopening a confirmation, exclusion or infeasibility needs the authority required by the external policy, not necessarily a human. A rejected proposal can be revised without pretending the rejected version was accepted.
 
-- `REQUIREMENT.md` is `CONFIRMED` if and only if it has at least one active requirement point, every active point is `CONFIRMED`, and none is `PROPOSED` or `REOPENED`.
-- `SOLUTION.md` is `BASELINED` if and only if it has at least one active solution point, every active point is `CONFIRMED`, none is `PROPOSED` or `REOPENED`, and its referenced requirements are confirmed.
-- A point entering `REOPENED` immediately returns its document to `DRAFT`.
-- Disposition records do not count as active points but remain permanent history.
+For a reopened current proposal, use REOPENED and clear the current decision fields together after preserving the prior decision. Record why it changed, who may decide again and the input versions. Reconfirmation applies only to the revised content.
+
+Review affected downstream solutions, tasks, tests, acceptance and GATE evidence for staleness. Do not move their recorded target to the new revision or SHA without doing the corresponding work. DESIGN previews these point records; STATUS may summarize the effect, not invent a document-wide approval.

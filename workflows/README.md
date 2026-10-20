@@ -1,6 +1,6 @@
 # 工作流库
 
-> 可复用的**流程**（workflow）整理，由 **CKO** 维护（见 [docs/02-boundaries.md](../docs/02-boundaries.md) §1.6）。流程与 skill 的分界：**流程 = 步骤与责任**，写在这里；**skill = 可执行的具体能力**，不落本仓库（本仓库只定义架构，见 [README](../README.md)）。
+> 可复用的**流程**（workflow）整理，由 **CKO** 维护（见 [docs/02-boundaries.md](../docs/02-boundaries.md) §1.6）。流程与 skill 的分界：**流程 = 步骤、责任与组织安排**，写在这里；**skill = 通用能力与产物协议**，见 [skills](../skills/)。工作流使用 skill，通用 skill 不依赖公司的组织配置。
 
 ## 工作流清单
 
@@ -15,6 +15,17 @@
 | 07 | [skill 需求→导入评测→挂载 协同](07-skill-collab.md) | 新 skill 从需求到挂载的四步流程（检索导入 / 评测 / HR 挂载） | 需求方 / CKO / HR |
 | 08 | [研究交付物审核与升级](08-research-review-escalation.md) | RC 交付物审核口 + 1 次不通过升级 Senior（2026-08-13 CEO 指令） | 作者 / 审核专员 / CRO / Senior |
 | 09 | [长任务执行协议](09-long-task-execution.md) | 小时级长任务：冒烟 → 备份+实验号 → 报路径 → CEO 一键运行 → 回传（CEO `0d4909c2`） | 发起方 / CEO / CRO |
+
+## 公司四角色配置
+
+`company-orche/` 是公司流程与角色配置，文件作为角色指令由宿主显式加载，不依赖自动发现 `AGENTS.md`：
+
+- [orchestrator](company-orche/orchestrator_agent.md)：Task/GATE 编排、状态管理与跨角色/人员交接。
+- [out-socket](company-orche/out_socket_agent.md)：intent 识别、难易判断、授权范围内的 REQ/SOL 代审及能力改进。
+- [dev-processor](company-orche/dev_processor_agent.md)：开发与内部测试。
+- [release-check](company-orche/release_check_agent.md)：必要审核、测试与 REQ/SOL 回归。
+
+公司 SQL、PaaS、运维、管理者审批和开发环境的安排属于此工作流；具体联系人、状态位置与授权由项目提供，不是通用 skill 的默认配置。
 
 ## 约定
 

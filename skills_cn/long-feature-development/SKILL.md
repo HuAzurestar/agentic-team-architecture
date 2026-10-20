@@ -1,115 +1,102 @@
 ---
 name: long-feature-development
-description: 从项目管理目录恢复并推进跨会话的软件 feature，使用精简 Markdown 状态和 Git refs 处理多仓库或 PR/MR。用于跨会话工作，不用于一次会话可完成的普通修改。
+description: 通过 YAML 详情、Markdown 预览和稳定的 Project 仓库映射，跨会话或跨 agent 管理持久 Feature 的设计与任务。组织、编排、授权和管理根目录位置由外部提供。
 ---
 
 # 长程 Feature 开发
 
-本 Skill 使用小型、版本化的 feature 记录续接开发，不依赖旧聊天。项目自行决定 `<Project-Manage>` 的实际路径；不得假定为 MPA 或其他固定仓库。
+使用 Feature 现有记录恢复和推进工作。本 skill 定义内容与引用含义，不负责 intent 识别、公司角色、流程编排、状态维护者、开发机或同步方式。
 
-## 必需结构
+## Feature 与 Project
 
-```text
-<Project-Manage>/<feature-key>/
-├── REQUIREMENT.md
-├── SOLUTION.md
-├── STATUS.md
-├── TASKS.md
-├── tasks/
-│   └── <task-id>.md
-└── gists/
-```
-
-当 `<Project-Manage>` 位于 Git 仓库中时，以上六项都是共享项目管理记录。前三个文件是主要入口，后三项是按需聚焦的短追溯记录；不得用 `.gitignore`、`.git/info/exclude` 或等价规则隐藏。原始日志、大型产物和 secret 保存在目录外，只写入有界摘要和安全引用。
-
-## 初始化
-
-1. 解析 `<Project-Manage>`。尚无正式 ID 时，唯一情况下使用 `NO-FEAT`，可能冲突时使用 `NO-FEAT-<6位随机值>`。
-2. 复制四个模板，并为每个初始 task 复制 `templates/TASK.md` 到 `tasks/<task-id>.md`。
-3. 替换或删除尖括号占位符。每个 task 恰有一个索引行和一个详情文件；真实点 ID 替换前保留 `REQ-001`、`SOL-001`。
-4. 仅在 task 需要时创建 gist；内容必须有界且只用于追溯。
-5. 若项目管理目录受 Git 管理，确认 `TASKS.md`、`tasks/`、`gists/` 未被忽略，并与其他 feature 记录一同纳入版本控制。
-6. 首次项目管理 commit 前运行[恢复脚本](scripts/task_context.py)：`python <skill-root>/scripts/task_context.py <feature-directory>`，修复全部错误。
-7. 需求和方案整体状态由逐点状态派生，不能用全局批准设置。
-
-初始 task 的 ID、类型、依赖和 selector 由 Agent 负责；用户只提供业务意图和决定，不负责内部记账标签。
-
-## Feature 身份
-
-`NO-FEAT` 与 `NO-FEAT-<6位随机值>` 都是有效临时 key。正式 ID 的分配时点只由开发者决定。ID 变化时，在一次项目管理变更中重命名目录、更新标题和 `STATUS.md`，把旧 key 追加到 `Previous IDs`；不得改写历史。
-
-## 开始或恢复
-
-1. 解析准确的 `<Project-Manage>` 映射和 feature ID；存在歧义就停止。
-2. 运行 `python <skill-root>/scripts/task_context.py <feature-directory>`。仅在人类明确选择非当前 task 时使用 `--task`。仓库移动或 path hint 不可用时，用可重复的 `--repo NAME=PATH` 显式覆盖。该命令是唯一恢复读取器，会校验 task 索引、拓扑、仓库身份、实际 Git refs 和必需追溯闭合，再输出聚焦上下文。
-3. 从输出核对需求和方案逐点确认状态，再把它们当作固定边界。
-4. 对每个仓库分别核对工作 branch/HEAD、开发期 integration branch/SHA、最终 PR/MR source/target refs。
-5. 无法取得的远端状态标为未验证，不得猜测。
-6. 比较记录与观察到的 refs；解决陈旧状态后才能改代码。
-
-`task_context.py` 非零退出是硬停止。不得推断缺失的当前 task、索引行、详情、依赖、Git ref 或 gist。项目管理仓库的 working HEAD 使用 `DERIVED:HEAD`，仅当 STATUS 已跟踪、与 HEAD 一致且无本文件改动时才能派生；其余 ref 必须是实际观察到的字面 SHA。
-
-恢复命令是 Skill 内部动作，不要求用户写进 prompt。它也会检查相关 staged、unstaged 和 untracked 变化；实现仓库有残留，或本 feature 项目管理目录有残留时，在新修改前进入恢复流程。此时读取 [references/checkpoints.md](references/checkpoints.md)。
-
-## 确认边界
-
-- 每个决定点使用稳定的二级标题 `## REQ-*` 或 `## SOL-*`；“全部批准”不能改变任何点状态，点内三级标题仍属于该点。
-- 仅在获得授权时，LLM 才能提出可能确认的点；随后必须复述每个准确 ID 和内容并进行二次人工确认。
-- 已确认点在人类明确重开前锁定；保留正文和决定历史。
-- 已拒绝点可修订后重开，无需单独撤回，但重新确认仍需明确人工决定。
-- `CONFIRMED` / `BASELINED` 是派生状态：所有活动点均逐点确认，且无 `PROPOSED` / `REOPENED`。
-
-新增、决定、修订或重开点时读取 [references/confirmation.md](references/confirmation.md)。
-
-## 执行一个 Task
-
-- 内部 task 由 Agent 创建和连接。正常新增使用 `scripts/task_create.py`，不得要求用户提供 task ID、依赖或 selector。只有真实业务歧义、授权边界或无法安全推导的范围才询问用户；规划时读取 [references/task-planning.md](references/task-planning.md)。
-- Task 只使用 `PENDING`、`WIP`、`BLOCKED`、`RECORDING`、`DONE`。
-- `STATUS.md` 是 feature 控制入口，保存 feature 状态、当前 task/gate 摘要和仓库/对象注册表；`TASKS.md` 是完整 task 状态与依赖的唯一来源。
-- 需求、方案、开发、测试、评审、返工、验收和 gate 使用同一张 task 表，不建立分类型状态机。
-- 每个需求/方案点都有同 ID task；只有逐点决定 commit SHA 已记录后才能 `DONE`。
-- `PENDING` 表示未接取。依赖全 `DONE` 时派生 `READY`，否则派生 `WAITING`；两者不是持久状态。
-- 接取时要求 `READY`，先在详情记录 owner、时间、start refs 和 HEAD，再用 `task_state.py ... --to WIP` 更新索引。
-- 从详情读取范围和完成条件；gist 只保存有界追溯材料。每个 task 必须各有一行 `Requirement points` 和 `Solution points`。
-- 实现 commit 标题加 `<feature>/<task>:` 前缀；决定 commit 使用 `<feature>/<point>: <RESULT> <summary>`。
-- Task 可产生多个 commit；不得自动 merge 实现分支。
-- 每个连贯工作单元后、长耗时或高风险操作前、交接前，主动创建有明确文件范围的本地 checkpoint。使用 `scripts/task_checkpoint.py`，不得自动 push，不得吸收无关或敏感文件；记录或恢复 checkpoint 时读取 [references/checkpoints.md](references/checkpoints.md)。
-- 完成工作后从 `WIP` 进入 `RECORDING`，记录最终 commit 和每个仓库唯一 completion SHA，再进入 `DONE`。
-- 中断时保留 `WIP` 并更新 resume action。`BLOCKED` 只用于已接取且被具体障碍停止的 task，必须写 blocker、impact、release condition；普通依赖等待仍是 `PENDING`。
-- 正常跨文件流转依次执行：先准备 task 详情和有变化的 `STATUS.md` 当前 task/condition 字段；再运行 `task_state.py`；最后运行只读 `task_context.py` 并把项目管理文件一同提交。writer 的原子保证只覆盖 `TASKS.md` 行与 Mermaid，不覆盖其他文件；三步之间允许工作树暂时不一致，但不得提交。
-- 正常状态修改只用 `task_state.py`。`DONE -> WIP` 时必须在详情持久化非空 `Reopen reason`，并用 `--reason` 传入完全相同的文本。`task_context.py --sync-topology` 仅用于明确修复/导入；只读恢复遇到陈旧图必须失败。
-
-改变 task 状态或下一流转时读取 [references/transitions.md](references/transitions.md)。创建、接取、记录或完成质量 task 时读取 [references/task-contracts.md](references/task-contracts.md)。创建/执行 gate 或改变 feature phase/condition 时读取 [references/feature-gates.md](references/feature-gates.md)。验收 task 还需按 [references/acceptance.md](references/acceptance.md) 创建并主动展示普通用户可理解的短验收包；不得要求用户理解 `ACCEPT-*`、point ID、合同或内部命令。
-
-## Git 与平台边界
-
-- 每个仓库独立处理；一个 feature 可以跨仓库。
-- 仓库定位顺序为：显式 `--repo NAME=PATH`、相对项目管理仓库根目录的 path hints、按注册 remote 身份进行 sibling/workspace 发现。不得把历史绝对路径当作定位器；缺失或歧义均停止。
-- 对实际 Git 对象验证注册分支、working HEAD、integration opponent、PR/MR 端点、baseline 有序性、start-to-head 祖先关系、completion SHA 和依赖祖先关系；恢复输出包含派生追溯图，缺 commit 或必需路径断开都是错误。
-- 当前 gate 依赖闭包之外的 pending task 必须在详情声明明确 disposition，不得静默遗弃。
-- 每个受影响仓库使用一个 feature integration branch，至多一个最终实现 PR/MR。
-- working HEAD、integration opponent、最终 PR/MR source/target 是三种不同 ref，必须分别记录。
-- 分支前进时先比较旧 SHA，再更新为新观察到的字面 SHA；不得用 `latest` 或移动 token。
-- 代码提交到实现分支，不自动 merge；项目管理变更单独提交，只有获得授权才 merge/upload。
-- 仅在创建分支、commit、同步、PR/MR、评审或 CI 等 Git 策略边界调用可用的 `git-collaboration` Skill。
-
-## 上下文边界
-
-逐点确认的需求是批准意图，逐点确认的方案是保留实施计划，Git 是实现状态，`STATUS.md` 是 feature/仓库入口，`TASKS.md` 是 task/ref 索引，`tasks/` 与 `gists/` 是共享聚焦追溯。冲突时报告，不得改写已决定点掩盖冲突。
-
-不要预载整个仓库文档；从当前 task、显式 gist、实际 diff、symbol、manifest 和仓库说明发现代码上下文。内置 Markdown 聚焦不依赖 PIRC-14；未来适配器不得扩大 selector、绕过校验或成为恢复前提。
-
-## 结束一次运行
-
-保留可恢复状态：当前 task/state、观察到的各仓 branch/SHA、PR/MR refs、本轮 commits、准确下一动作、blocker 与解除条件。结束前先 checkpoint 所有连贯且属于 Agent 的实现修改，再重新运行当前 task 的 `task_context.py`；失败表示状态不可恢复。Skill 只承诺恢复到最近一次成功 checkpoint，不虚假承诺任意断电瞬间零丢失。
-
-## 验证本 Skill
-
-修改 task 编排、恢复或 checkpoint 行为后，运行[上下文回归测试](scripts/test_task_context.py)、[task 创建测试](scripts/test_task_create.py)、[checkpoint 测试](scripts/test_task_checkpoint.py)和确定性审计：
+调用方解析 `<Project-Manage>`。Feature 是针对一组 Project 和需求的持久工作；Project 标识一个 Repository 的稳定本地/remote 映射与基本规则：
 
 ```text
-python scripts/test_task_context.py
-python scripts/test_task_create.py
-python scripts/test_task_checkpoint.py
-python <skill-quality-reviewer>/scripts/skill-audit.py <skill-root> --format json
+<Project-Manage>/
+├── feature/<feature-key>/
+│   ├── STATUS.md
+│   ├── DESIGN.md
+│   ├── TASKS.md
+│   ├── VERBAL.md
+│   ├── design/<point-id>.md
+│   ├── tasks/<task-id>.md
+│   └── gists/<attachment>.*
+└── project/<project-key>/
+    └── project.yaml
 ```
+
+管理目录不要求是 Git 仓库。实际位置、状态/授权入口和委托由外部提供；缺失或冲突时报告，不编造归属。
+
+## 记录与预览
+
+- DESIGN 统一编号的 requirement、solution、intent。INT 保留外部原话，decided by 记录提出者，title 概括具体意图；RECORDED 不代表后续 REQ/SOL 获批。从中加工 REQ/SOL 属于详细设计；详情 YAML 是状态来源，DESIGN.md 固定展示通用列，专用字段压缩到 detail spec。
+- TASKS 管理 development、review、docs、decision、feedback、test、gate 等所有任务。owner 可标识 Human、Agent 或 Platform；仓库、审核、结果等类型专用信息直接添加到 YAML，由 detail spec 自动摘要。
+- VERBAL/gists 保存临时草稿、导出与日志。任务仅可在专用 gists 字段登记参考附件，不能作为输入、决定理由、证据或完成条件；删除后不能影响校验与续接。
+
+STATUS.md 是 Feature 的综合状态管理入口，集中管理 repository、feature、dev 等整体状态、当前焦点、阻塞与下一步；不只是一份续接摘要。通过简要状态和链接关联详情，不重复其他模块。
+
+## 每次操作的固定维护步骤
+
+feature-key 只能由用户、平台或上游调用方提供，任何 agent（包括编排者）都不得自行分配、猜测或生成临时 key。未取得明确 key/目录映射时，只保留可用上下文并向外部取得标识，不创建 Feature 目录；模板 example-feature 不是可直接使用的 key。Feature key 与 agent 可分配的内部设计点/任务 ID 不同。
+
+- 操作前：重新读取最新来源版本和写入归属；对已初始化 Feature 运行只读记录校验。纯查询/续接不写文件。首次初始化没有可校验记录时，先取得外部 key，由 agent 基于模板准备记录，再执行下述收尾。
+- 内容操作：INT/REQ/SOL、任务正文、判断和状态由被委托的 agent 基于模板产出，通过指定状态接口维护；脚本不创作 SOL、不补需求、不猜 owner/决定，也不选择下一状态。模板复用不要求新增一个固定角色。
+- 每次新增、修改、状态转换、反馈/决定记录或交接更新后，必须执行以下两个命令，再声称该次维护完成：
+
+```text
+python scripts/feature_indexes.py path/to/feature --write
+python scripts/contract_check.py path/to/feature --format json
+```
+
+- 仅修改稳定 Project 配置时，对 project.yaml 运行记录校验；操作涉及仓库映射时，给 Feature 校验传 --project-root。同步/校验失败、脚本不可用或发现并发改动时，保留现场并报告，停止依赖该结果的修改/交接/放行动作，不能静默跳过；不阻止无关只读检查。只有派生索引过期且来源明确时，才通过生成器修复索引，不借机重写业务事实。
+
+脚本执行是记录维护纪律，不是公司业务流水线。脚本只做派生同步、结构校验、定位等机械工作，不隐含 Git/远端同步或发布授权，也不替代外部维护者的写入协调。
+
+普通澄清、主动交流、渠道及提问方法属于外部编排者；通用 skill 不绑定沟通工具。仅对[要求用户决定的 GATE](references/gates.md)，规定请求、实际答复和未决时不放行的协议。
+
+## 按当前动作读取参考
+
+只读当前动作所需的参考，不一次加载整个 references。创建/修改记录或遇到 schema 问题时读取记录规范；普通作业不预载全部 schema、报告类型或仓库文档。参考定义记录要求，不意味着必须经历某阶段，也不产生新授权。
+
+| 做什么时 | 读取什么 |
+| --- | --- |
+| 初始化记录，修改 YAML、预览、STATUS 或 Project 配置 | [记录规范](references/protocol.md) |
+| 保存外部 intent，提炼和关联 INT/REQ/SOL | [详细设计](references/decisions.md) |
+| 决定、部分接受、修订或重开设计点 | [逐点决定与版本](references/confirmation.md) |
+| 新增/拆分任务或调整依赖 | [任务规划](references/task-planning.md) |
+| 生成或更新 DESIGN/TASKS/VERBAL 索引与依赖图 | [生成区位置与局部更新](references/generated-indexes.md) |
+| 接取、阻塞、完成或重开任务 | [任务状态机与记录](references/transitions.md) |
+| 接收、委派工作，返回结果或回执 | [交接记录](references/handoffs.md) |
+| 规划或报告测试、评审、返工 | [质量任务记录](references/task-contracts.md) |
+| 准备/展示验收或记录答复 | [面向用户验收](references/acceptance.md) |
+| 检查 GATE 或记录外部策略决定的 Feature 流转 | [GATE 检查与权限](references/gates.md) |
+| 定位检出、对比代码点或准备集成/PR 交接 | [仓库上下文](references/repository-context.md) |
+| 开始/续接/结束工作，处理反馈 | [续接](references/continuity.md) |
+| 保存恢复上下文，检查中断残留或准备风险操作/交接 | [检查点与恢复](references/checkpoints.md) |
+
+沿用模板中的空格键名与预览 marker。其他专用字段直接写入 YAML 并自动摘要，不需要增设表格列。保留原 intent、版本与历史决定。
+
+有效代理决定不固定追加人工二次确认；任务完成、实际结果与后续权限分别表达。组织负责归属、顺序、策略、状态写入及运行环境。
+
+## Project 限定的引用
+
+提交点为 `<project-key>@<head-sha>`，会移动的分支区域为 `<project-key>@<branch>`。支持全写 `<project-key>@<branch>@<head-sha>`，但规范化后的点身份仍是 project+SHA。不能拿分支区域替代提交点。优先完整、实际观察的 SHA；缩写须在对应 Repository 中核实唯一性。
+
+Project YAML 在日常作业中保持稳定；当前 HEAD、工作/汇入分支、评审目标与 PR 两端属于任务，不写回 Project 定义。
+
+## 机械维护命令
+
+使用工具需要 Python 与 PyYAML。[记录校验器](scripts/contract_check.py)只读检查详情、预览/拓扑与本地引用；[索引生成器](scripts/feature_indexes.py)按固定章节生成并局部更新表格、依赖图和附件清单，不手工维护 marker 内内容。更新前读取[生成区规范](references/generated-indexes.md)，保留标题、介绍和 complementary 补充。[Project 定位器](scripts/project_refs.py)只返回仓库映射，不 fetch、不验证 commit。
+
+```text
+python scripts/contract_check.py path/to/feature --project-root path/to/project --format json
+python scripts/contract_check.py path/to/feature --render design
+python scripts/contract_check.py path/to/feature --render tasks
+python scripts/feature_indexes.py path/to/feature --check
+python scripts/feature_indexes.py path/to/feature --write
+python scripts/contract_check.py path/to/project/project-key/project.yaml
+python scripts/project_refs.py path/to/project project-key@0123456789abcdef0123456789abcdef01234567
+python scripts/project_refs.py path/to/project project-key@main --kind area
+```
+
+--write 只允许把已有事实同步到索引生成区，不是创建或改写 SOL/任务正文；默认 --check 只检查。--format json/text 只控制校验报告的机器可读/文本格式，不控制内容创作；--render 只打印派生内容。未核对注册目录仍报告 unverified，工具不认证授权、不判断业务合理性。修改脚本后运行[记录测试](scripts/test_contract_check.py)、[生成测试](scripts/test_feature_indexes.py)与[引用测试](scripts/test_project_refs.py)。

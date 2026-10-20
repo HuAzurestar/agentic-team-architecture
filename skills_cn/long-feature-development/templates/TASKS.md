@@ -1,29 +1,30 @@
-# <feature-key> Tasks
+# example-feature — TASKS
 
-本文件是共享的唯一 task 状态与依赖索引，详情保存在 `tasks/<task-id>.md`。正常状态变化使用 `task_state.py`，它同时更新表格与 Mermaid；`task_context.py --sync-topology` 仅用于修复或导入。
+tasks/ 中的 YAML 是状态来源。通用字段展示任务归属、依赖、时间与提交点；类型专用信息归入 detail spec。示例任务不规定执行顺序或公司流程。
 
-## Task index
+## preview-table
 
-| ID | 类型 | 名称 | 状态 | 负责人 | 依赖 | 开始时间 | 完成时间 | HEAD SHA |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| REQ-001 | Requirement | 决定一个需求点 | `PENDING` | - | - | - | - | - |
-| SOL-001 | Solution | 决定一个方案点 | `PENDING` | - | REQ-001 | - | - | - |
-| GATE-START | Gate | 进入实现 | `PENDING` | - | SOL-001 | - | - | - |
+<!-- tasks-preview-table:start -->
+| id | type | title | state | owner | depends on | started at | completed at | head sha | detail spec |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| [DECISION-001](tasks/DECISION-001.md) | decision | Decide the specified requirement revision | PENDING | - | - | - | - | - | revision: v1<br>inputs: REQ-001@v1<br>result: {execution: not_started}<br>resume action: Obtain the assignment, applicable inputs and authorized return location.<br>decision: {subject: REQ-001@v1}<br>completion criteria: Record an authorized decision and update the target point's decision metadata. |
+| [DEV-001](tasks/DEV-001.md) | development | Implement the assigned solution | PENDING | - | - | - | - | - | revision: v1<br>inputs: REQ-001@v1, SOL-001@v1<br>result: {execution: not_started}<br>resume action: Obtain the assignment, applicable inputs and authorized return location.<br>completion criteria: Implement the assigned scope and record the executed checks and remaining issues.<br>project repository: example-project |
+| [FEEDBACK-001](tasks/FEEDBACK-001.md) | feedback | Process feedback on the specified requirement | PENDING | - | - | - | - | - | revision: v1<br>inputs: REQ-001@v1<br>result: {execution: not_started}<br>resume action: Obtain the assignment, applicable inputs and authorized return location.<br>feedback: {subject: REQ-001@v1}<br>completion criteria: Record the observation, handling decision and any required resolution evidence. |
+| [GATE-001](tasks/GATE-001.md) | gate | Evaluate an externally defined gate | PENDING | - | - | - | - | - | revision: v1<br>result: {execution: not_started}<br>resume action: Obtain the assignment, applicable inputs and authorized return location.<br>gate: {evaluation: unknown; authorization: pending}<br>completion criteria: Evaluate the assigned conditions and record the applicable authorization or unresolved items. |
+<!-- tasks-preview-table:end -->
 
-## Dependency topology
+## dependency-topology
 
-<!-- task-topology:start -->
+<!-- tasks-dependency-topology-mermaid:start -->
 ```mermaid
-flowchart LR
-    T0["REQ-001 · 决定一个需求点"]:::pending
-    T1["SOL-001 · 决定一个方案点"]:::pending
-    T2["GATE-START · 进入实现"]:::pending
-    T0 --> T1
-    T1 --> T2
-    classDef pending fill:#e5e7eb,stroke:#6b7280,color:#111827
-    classDef wip fill:#dbeafe,stroke:#2563eb,color:#111827
-    classDef blocked fill:#fee2e2,stroke:#dc2626,color:#111827
-    classDef recording fill:#fef3c7,stroke:#d97706,color:#111827
-    classDef done fill:#dcfce7,stroke:#16a34a,color:#111827
+flowchart TD
+    n0["DECISION-001: Decide the specified requirement revision (PENDING)"]
+    n1["DEV-001: Implement the assigned solution (PENDING)"]
+    n2["FEEDBACK-001: Process feedback on the specified requirement (PENDING)"]
+    n3["GATE-001: Evaluate an externally defined gate (PENDING)"]
 ```
-<!-- task-topology:end -->
+<!-- tasks-dependency-topology-mermaid:end -->
+
+## complementary
+
+按日期追加补充说明（YYYY-MM-DD — 内容）。只维护本节和介绍文字，不手改生成区。
