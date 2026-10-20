@@ -1,0 +1,24 @@
+# Work on one task
+
+Read when executing a task, especially when no specific orchestration is supplied. This is the default local task loop, not a company delivery pipeline or an assignment of company roles.
+
+## Choose the workflow
+
+Read any caller-supplied orchestration requirements first: the instructions or referenced location should identify selection/assignment, required checks, handoff/return and applicable approval boundaries. Follow them where supplied; use the default below for an unspecified local task loop, not to replace or silently bypass a configured prerequisite. Unclear or conflicting requirements stay unresolved for the affected action. State/record meanings, per-operation maintenance and existing authorization still apply; neither workflow grants new permissions or chooses a state maintainer.
+
+## Default loop
+
+1. **Establish scope and readiness.** Apply [start/resume](continuity.md#start-or-resume) and the pre-operation checker. Use the assigned task or recorded current focus within the authorized request; if decomposition is needed, use [task planning](task-planning.md) rather than asking for internal IDs. Read its detail, completion conditions, versioned inputs and applicable design decisions. Before starting a PENDING task, require its dependencies DONE and inspect any required successful outcomes/approval. Dependency waiting remains PENDING; do not skip to unrelated work or claim permission from a dependency's DONE alone. For code, verify actual checkout/refs and residue using [repository context](repository-context.md).
+2. **Record the start.** Through the supplied write interface, record the actual owner, started at, scope/input versions and relevant Project-qualified baseline points, then PENDING → WIP. An already WIP task continues from its retained attempt; a DONE task needs explicit reopening under [transitions](transitions.md), not overwritten completion history. Generate indexes and check the records after the update.
+3. **Work and verify.** Perform only the assigned scope, using the relevant [test/review/rework contract](task-contracts.md) when applicable. Keep meaningful reasoning, actual checks/results and candidate versions in durable design/task records. Save coherent recovery points before long/risky work and handoff using [checkpoints](checkpoints.md), without assuming commit/push permission. Apply per-operation maintenance whenever records change.
+4. **Record the outcome.** When the assigned work is ready, move WIP → RECORDING and retain actual results, executed checks, evidence, limitations and remaining work in the task. Use the [result/evidence format](protocol.md#task-metadata-and-preview): evidence entries are versioned references, while the substantive verification report belongs in the task body. Use [acceptance](acceptance.md) or [GATE](gates.md) only when required by the assignment/policy. A passing test is not approval; a completed test or decision assignment may record failure or rejection.
+5. **Close and return.** Verify completion conditions and durable persistence. For code outputs, record the actual saved project@SHA point for each affected Project; without one, keep recording incomplete instead of inventing a SHA. Non-code work needs no commit. Record completed at and DONE only after those conditions are met, then refresh affected STATUS context, generate indexes and check again. Report completion only after the final state is persisted and checks pass; a failed write/check is incomplete maintenance, not a successful close. Return outcome, output points, checks/limits and next action through the supplied interface; [handoffs](handoffs.md) governs requests and receipts. Do not automatically merge, publish, deploy or start another task outside the assignment.
+
+## Interruptions and return paths
+
+- An assigned task with a concrete obstacle follows WIP → BLOCKED, recording blocker, impact, release condition, follow-up owner and resume action; resume WIP after resolution is verified.
+- An interruption without a concrete obstacle retains WIP and an exact resume action. Missing prerequisite work before assignment stays PENDING.
+- Incomplete candidate work discovered during RECORDING returns to WIP with the failed check and next action. A persistence/check failure stops dependent completion/handoff claims until reconciled.
+- DONE → WIP records the reopen reason, preserves the prior result and starts a new attempt under the applicable authority. Never present old checks as evidence for a changed candidate.
+
+The [state machine](transitions.md) owns transition meanings and required records. The [maintenance contract](../SKILL.md#required-maintenance-for-each-operation) applies after every record mutation on every path. The default loop does not require a separate review, test, acceptance or gate task unless the actual scope/policy calls for it.

@@ -13,6 +13,8 @@ A Project is a Repository's local/remote synchronization and basic management ru
 
 Preserve partial context while reporting missing or conflicting facts. The state maintainer owns persistence, synchronization and write coordination. The checker is read-only; index updates use the [generator](generated-indexes.md), which writes derived regions only, not detail state.
 
+If no records exist yet, use [initialization](initialization.md) instead of treating an empty directory as resumable. After recovery, execute the selected task under supplied orchestration or the [default task loop](task-workflow.md); resumption alone does not assign new scope or change task state.
+
 ## Feedback and correction
 
 Record feedback in a FEEDBACK task or another task's feedback section. Preserve the observation, affected revision, requested change, handling decision and resolution. Feedback may lead to clarification, revised INT/REQ/SOL or development rework; routing is external.

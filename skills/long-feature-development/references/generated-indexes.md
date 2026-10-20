@@ -22,13 +22,13 @@ Do not wrap tables or sections in standalone horizontal rules. Only YAML frontma
 As required by [SKILL.md](../SKILL.md), synchronize through the [index generator](../scripts/feature_indexes.py) after every content/state operation, then run record checking; this is not optional cleanup. The agent authors content using templates; scripts do not create new SOL content, task judgments or decisions:
 
 ```text
-python scripts/feature_indexes.py path/to/feature --check
-python scripts/feature_indexes.py path/to/feature --write
-python scripts/feature_indexes.py path/to/feature --only tasks --write
-python scripts/feature_indexes.py path/to/feature --only verbal --write
+python "<skill-root>/scripts/feature_indexes.py" "<feature-directory>" --check
+python "<skill-root>/scripts/feature_indexes.py" "<feature-directory>" --write
+python "<skill-root>/scripts/feature_indexes.py" "<feature-directory>" --only tasks --write
+python "<skill-root>/scripts/feature_indexes.py" "<feature-directory>" --only verbal --write
 ```
 
-The default is read-only check mode. A stale index returns nonzero; --write explicitly replaces only the generated region bodies. --only tasks updates both the task table and topology. Edit the source detail or attachment tree, then run the generator; do not paste a hand-maintained table or diagram into a generated block.
+Resolve the absolute script and Feature paths as defined in [SKILL.md](../SKILL.md#required-maintenance-for-each-operation); the current directory need not be the skill root. The default is read-only check mode. A stale index returns nonzero; --write explicitly replaces only the generated region bodies. --only tasks updates both the task table and topology. Edit the source detail or attachment tree, then run the generator; do not paste a hand-maintained table or diagram into a generated block.
 
 --write belongs to the index generator and permits derived-region writes only, not business bodies. --format json/text belongs to the record checker and selects its report representation. The generator always reports JSON and has no --format option; none of these flags is a content-authoring mode. Synchronization here means derived indexes within files, not automatic Git pull/push or remote synchronization.
 

@@ -1,6 +1,6 @@
 # Feature 记录、预览与 Project 引用
 
-调用方提供管理根位置、流程、授权和状态接口；模板定义共享记录，不定义公司策略。
+调用方提供管理根位置、授权、状态接口及特定编排要求；未指定编排时使用[默认单任务闭环](task-workflow.md)。模板定义共享记录，不定义公司策略。
 
 ## Feature 与 Project
 
@@ -67,6 +67,20 @@ head sha 可为 null、空列表、一个 Project 限定提交点，或跨 Proje
 
 完成、结果和权限分别表达；测试完成可以失败，决定完成可以拒绝。持久报告、验收内容、决定评论、证据与交接回执保存在任务 YAML/正文，不新建顶层目录。
 
+提供 result 时，记录 execution、outcome、summary、evidence、remaining。execution 非空；DONE 时有实际 outcome 和 summary。检查名称、命令、观察和限制写在持久任务正文中，不作为 evidence 的字符串条目。result.evidence 是含 id、revision、location 的版本化引用映射列表；outcome=pass 时必须有非空持久证据。本地引用必须对应实际保留的版本。同一任务内的报告可用该任务的 ID/版本及正文锚点引用，例如：
+
+```yaml
+result:
+  execution: completed
+  outcome: pass
+  summary: 已写请求摘要，并与保留的 INT 核对。
+  evidence:
+    - {id: DOCS-001, revision: v1, location: "tasks/DOCS-001.md#verification"}
+  remaining: []
+```
+
+只有 DOCS-001@v1 的对应标题下确实保留了实质报告时，才能使用该引用。空引用壳或任务状态本身不证明验证已执行。
+
 ## 点与区域
 
 提交点为 `<project-key>@<head-sha>`，会移动的分支区域为 `<project-key>@<branch-name>`。全写 `<project-key>@<branch-name>@<head-sha>` 保留额外分支背景，但规范化后的点身份仍是 project+SHA。
@@ -101,7 +115,7 @@ VERBAL/gists 保存可丢弃的日志、导出和草稿。VERBAL 的 ## preview-
 
 ## 模板
 
-这些是结构一致的示例，不是强制流程。替换示例 ID、key、位置、关系和正文，删除未使用任务后重新生成预览。
+这些是结构一致的示例，不是强制流程。首次建立记录按[初始化清单](initialization.md)处理。替换示例 ID、key、位置、关系和正文，删除未使用任务后重新生成预览。
 
 - [设计预览](../templates/DESIGN.md)、[任务预览](../templates/TASKS.md)、[状态](../templates/STATUS.md)、[参考附件](../templates/VERBAL.md)。
 - [INT](../templates/design/INT-001.md)、[REQ](../templates/design/REQ-001.md)、[SOL](../templates/design/SOL-001.md)。

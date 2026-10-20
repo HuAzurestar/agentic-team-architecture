@@ -1,6 +1,6 @@
 # Feature records, previews and Project references
 
-The caller supplies the management root, workflow, authorization and state interface. Templates define shared records, not company policy.
+The caller supplies the management root, authorization and state interface, plus any specific orchestration requirements. Without specific orchestration, use the [default task loop](task-workflow.md). Templates define shared records, not company policy.
 
 ## Feature and Project
 
@@ -67,6 +67,20 @@ The preview columns follow the same order, ending with detail spec, generated be
 
 Work completion, result and permission are distinct. A completed test can fail; a completed decision can reject. Durable reports, acceptance material, decision comments, evidence and handoff receipts belong to task YAML/body. Do not create separate top-level folders for them.
 
+When present, result records execution, outcome, summary, evidence and remaining. execution is non-empty; DONE requires an actual outcome and summary. Put check names, commands, observations and limitations in the durable task body, not as string entries in evidence. result.evidence is a list of versioned reference mappings with id, revision and location; outcome=pass requires non-empty durable evidence. Local references must resolve to the actual retained revision. A report in the same task may be referenced by that task's ID/revision and body anchor, for example:
+
+```yaml
+result:
+  execution: completed
+  outcome: pass
+  summary: Request summary written and checked against the retained INT.
+  evidence:
+    - {id: DOCS-001, revision: v1, location: "tasks/DOCS-001.md#verification"}
+  remaining: []
+```
+
+Use that reference only when DOCS-001@v1 actually retains the substantive report under the named heading. An empty reference shell or a task state alone is not evidence that verification happened.
+
 ## Points and areas
 
 A recorded commit point is `<project-key>@<head-sha>`. A moving branch area is `<project-key>@<branch-name>`. The full point spelling `<project-key>@<branch-name>@<head-sha>` carries extra branch context but normalizes to project+SHA.
@@ -101,7 +115,7 @@ Do not place those paths in inputs, relations, evidence, decision reasons or com
 
 ## Templates
 
-These are coherent examples, not a mandatory workflow. Replace example IDs, keys, locators, relations and content; remove unused sample tasks and regenerate their preview.
+These are coherent examples, not a mandatory workflow. For first setup, follow the [initialization checklist](initialization.md). Replace example IDs, keys, locators, relations and content; remove unused sample tasks and regenerate their preview.
 
 - [Design preview](../templates/DESIGN.md), [task preview](../templates/TASKS.md), [status](../templates/STATUS.md), [reference attachments](../templates/VERBAL.md).
 - [INT](../templates/design/INT-001.md), [REQ](../templates/design/REQ-001.md), [SOL](../templates/design/SOL-001.md).

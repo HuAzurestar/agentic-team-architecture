@@ -22,13 +22,13 @@
 按 [SKILL.md](../SKILL.md) 的固定步骤，每次内容/状态操作后使用[索引生成器](../scripts/feature_indexes.py)同步，再运行记录校验；不是可省略的收尾。内容由 agent 基于模板编写，脚本不创建新的 SOL、任务判断或决定：
 
 ```text
-python scripts/feature_indexes.py path/to/feature --check
-python scripts/feature_indexes.py path/to/feature --write
-python scripts/feature_indexes.py path/to/feature --only tasks --write
-python scripts/feature_indexes.py path/to/feature --only verbal --write
+python "<skill-root>/scripts/feature_indexes.py" "<feature-directory>" --check
+python "<skill-root>/scripts/feature_indexes.py" "<feature-directory>" --write
+python "<skill-root>/scripts/feature_indexes.py" "<feature-directory>" --only tasks --write
+python "<skill-root>/scripts/feature_indexes.py" "<feature-directory>" --only verbal --write
 ```
 
-默认只读检查，索引过期返回非零；显式 --write 只替换生成区正文。--only tasks 同时更新任务表和依赖图。修改详情或附件目录后运行脚本，不手动粘贴维护表格或图。
+按 [SKILL.md](../SKILL.md#每次操作的固定维护步骤)解析脚本和 Feature 绝对路径，当前目录不必是 skill 根目录。默认只读检查，索引过期返回非零；显式 --write 只替换生成区正文。--only tasks 同时更新任务表和依赖图。修改详情或附件目录后运行脚本，不手动粘贴维护表格或图。
 
 --write 属于索引生成器，只授权写派生区，不写业务正文；--format json/text 属于记录校验器，只选择报告格式。生成器本身始终输出 JSON 报告，不接受 --format，也不把这些参数解释为内容创作模式。这里的“同步”是文件内派生索引同步，不是默认 Git pull/push 或远端同步。
 
