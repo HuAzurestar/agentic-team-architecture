@@ -137,14 +137,14 @@ class FeatureRecordTests(unittest.TestCase):
         item["state"] = "CONFIRMED"
         for key in ("decided by", "decided at", "decided with"):
             incomplete = copy.deepcopy(item)
-            update_fields(incomplete, 
+            update_fields(incomplete,
                 decided_by="authorized-delegate", decided_at="2026-10-20T10:00:00Z",
                 decided_with="The scope is covered under the supplied mandate.",
             )
             incomplete[key] = None
             with self.subTest(key=key), self.assertRaises(checker.ContractError):
                 checker.validate(incomplete)
-        update_fields(item, 
+        update_fields(item,
             decided_by="authorized-delegate", decided_at="2026-10-20T10:00:00Z",
             decided_with="Scope checked; recorded in DECISION-001.",
         )
@@ -160,7 +160,7 @@ class FeatureRecordTests(unittest.TestCase):
         item = checker.load(TEMPLATES / "tasks/DECISION-001.md")
         update_fields(item, state="DONE", owner="recording-worker")
         update_fields(item["result"], execution="finished", outcome="rejected", summary="The requested scope was rejected.")
-        update_fields(item["decision"], 
+        update_fields(item["decision"],
             conclusion="rejected", decider="authorized-delegate", mode="delegated",
             on_behalf_of="project-owner", authority_ref=ref("mandate", "external"),
             comment="The requested scope exceeds the agreed constraints.",
@@ -186,7 +186,7 @@ class FeatureRecordTests(unittest.TestCase):
 
     def test_gate_checks_and_authorization_are_separate(self):
         item = checker.load(TEMPLATES / "tasks/GATE-001.md")
-        update_fields(item["gate"], 
+        update_fields(item["gate"],
             subject=ref("candidate", "external"), policy_ref=ref("policy", "external"),
             criteria=["The assigned checks meet the external policy."], evaluation="satisfied",
         )
