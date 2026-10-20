@@ -5,6 +5,8 @@ description: Establish, assess, or apply repository Git collaboration convention
 
 # Git Collaboration
 
+Paths such as `scripts/...` refer to the assembled skill root. For a repository checkout, first combine this locale's content with the same-named shared runtime directory; installed packages already include it. Development tests remain outside the skill.
+
 Create a collaboration policy that is small enough to follow and strict enough to verify. Inspect the repository before proposing tools: read contributor instructions, manifests, lockfiles, CI workflows, protected-branch expectations, release process, and Git history when available. Preserve compatible local conventions and explain migrations.
 
 ## Select one mode
@@ -33,7 +35,7 @@ When the user asks to review and fix, assess first and carry the same evidence i
 7. Design CI and, only when publishing or deployment is in scope and known, CD using [ci-cd.md](references/ci-cd.md). For GitHub read [github.md](references/github.md); for Gitee read [gitee.md](references/gitee.md). For another forge, keep commands vendor-neutral, use only verified platform capabilities, and list required external settings without fabricating provider-specific files. When SonarQube is available or under consideration, read [sonarqube.md](references/sonarqube.md). Recheck time-varying claims through [platform-capabilities.md](references/platform-capabilities.md).
 8. In Implement mode, materialize the policy in established repository locations. Prefer one canonical command per gate and make local and CI commands identical.
 9. Run available checks. Distinguish verified results from checks skipped because a tool, dependency, secret, external service, plan, or permission is unavailable.
-10. After changing this skill package, run `python scripts/validate_policy.py .` and `python scripts/test_validate_policy.py`; when both locale packages are present, also pass `--counterpart <other-skill-root>` to the validator.
+10. To check an assembled package's taxonomy and locale projection, run the [policy validator](scripts/validate_policy.py) as `python scripts/validate_policy.py .`; when both locale packages are present, pass `--counterpart <other-skill-root>`.
 
 ## Required outcomes
 

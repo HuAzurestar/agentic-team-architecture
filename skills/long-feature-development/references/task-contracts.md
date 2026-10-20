@@ -16,6 +16,10 @@ Required fields: `Target SHA`, `Environment`, `Planned checks`, `Executed`, `Pas
 
 Required fields: `Target SHA`, `Blocking findings`, `Deferred findings`, and `Result gist`. Put individual comments and long reasoning in `gists/REVIEW-*.md`. A blocking finding creates a dependent `REWORK-*` task; do not mutate the completed development task.
 
+For review/v1, reference the design's short `Review scope` source/version; an optional identical `- Review scope:` snapshot and ledger path belong in the task detail. Keep legacy fields, and distinguish mandatory blockers from optional scored findings. P0 requires closure; retained P1/P2/P3 can deduct score without automatically creating REWORK. This does not waive required checks or human acceptance.
+
+Use blind recovery before loading existing findings. Declare original input gists and the per-attempt result/snapshot in `Gists`; original packets carry `- Evidence type: original`. After saving the blind report with `Review phase`, `Review task`, `Target SHA`, `Review scope`, and the blind view's exact `Review refs` JSON lines, use reconcile with its declared path. Each repository's current candidate/source refs must match; unbound or stale reports need a new blind attempt, not retroactive editing. For blocked/waiting actions, original packets separate `Action boundary` and `Release condition` from historical conclusions; a missing clean boundary is explicitly incomplete, not permission to resume. The root `REVIEW.md` ledger is a shared state index; it does not replace `Result gist` or immutable attempt reports. A report can complete with findings; score and acceptance remain separate. Full contract/ref validations are unchanged.
+
 ## REWORK
 
 Required fields: `Source findings`, `Target SHA`, `Output SHA`, and `Result gist`. The task depends on the review that found the issue. Retesting is a separate dependent `TEST-*` task so the tested SHA remains explicit.

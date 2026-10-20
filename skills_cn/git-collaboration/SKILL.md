@@ -5,6 +5,8 @@ description: 建立、评估或应用仓库的 Git 协作规范，包括提交�
 
 # Git 协作
 
+`scripts/...` 指合并后的 skill 根目录。使用仓库源码时，先将本语言内容与同名的共享运行目录合并；已安装的包本身包含这些脚本。开发测试不属于 skill 本体。
+
 建立一套足够精简、团队愿意遵守，同时足够严格、能够验证的协作规范。提出工具方案前先检查仓库：阅读贡献说明、项目清单、锁文件、CI 工作流、受保护分支要求、发布流程，并在可用时检查 Git 历史。保留兼容的本地约定，并解释迁移。
 
 ## 选择一个模式
@@ -33,7 +35,7 @@ description: 建立、评估或应用仓库的 Git 协作规范，包括提交�
 7. 使用 [ci-cd.md](references/ci-cd.md) 设计 CI；只有发布或部署属于任务范围且方式已知时才设计 CD。GitHub 阅读 [github.md](references/github.md)，Gitee 阅读 [gitee.md](references/gitee.md)。其他托管平台保持命令与厂商无关，只使用已经验证的平台能力，并列出所需外部设置，不得虚构平台特定文件。SonarQube 已可用或正在评估时阅读 [sonarqube.md](references/sonarqube.md)。通过 [platform-capabilities.md](references/platform-capabilities.md) 重新核实时变声明。
 8. 在 Implement 模式中，将规范写入仓库既有的约定位置。每项门禁优先提供一个权威命令，并确保本地与 CI 使用相同命令。
 9. 运行可用检查。明确区分已经验证的结果，以及因工具、依赖、密钥、外部服务、套餐或权限不可用而跳过的检查。
-10. 修改此 skill 包后，运行 `python scripts/validate_policy.py .` 和 `python scripts/test_validate_policy.py`；同时存在两个 locale 包时，还要向 validator 传入 `--counterpart <other-skill-root>`。
+10. 检查合并后安装包的 taxonomy 和 locale 投影时，运行[规范校验器](scripts/validate_policy.py)：`python scripts/validate_policy.py .`；同时存在两个 locale 包时，传入 `--counterpart <other-skill-root>`。
 
 ## 必须达到的结果
 
