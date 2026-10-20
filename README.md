@@ -68,6 +68,10 @@ BG（组织单元；BG 成员 = AS、HR、CPO、CTO、COO、CKO、CRO、Assistan
 - [skills_cn/git-collaboration](skills_cn/git-collaboration/SKILL.md)：中文版 Git 协作 skill。
 - [skills_cn/long-feature-development](skills_cn/long-feature-development/SKILL.md)：长程 feature 续接 skill 的中文快照，与英文版保持相同结构和执行行为。
 
+## 本地小工具
+
+- [notify](scripts/notify/README.md)：通过显式函数 `notify("消息")` 或命令行发送 Windows 系统通知，点击打开完整消息网页。消息服务运行于 Docker，Windows 本地桥接进程在后台显示通知。
+
 ## 云端 ↔ 本地同步与迭代规则
 
 **架构文档以云端 GitHub 仓库为主源（source of truth），本地工作目录作为它的工作副本；任何一次迭代都要同时落在两边。**
