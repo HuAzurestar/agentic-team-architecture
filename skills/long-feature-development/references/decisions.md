@@ -8,6 +8,6 @@ All three types are indexed in DESIGN and read in design/<id>.md, not separate R
 
 A comment, recommendation and authorized decision are different facts. A DECISION task records its target revision, actual decider, conclusion, authority, mode and explanatory comment. Delegated mode also records on behalf of. For approval-bearing points such as REQ/SOL, mirror the relevant result into decided by, decided at and decided with, and then the index row. Do not replace an INT originator with a later reviewer or decider.
 
-An authorized agent may decide within its external mandate without mandatory human reconfirmation. The host determines scope and effective authority. Confidence, difficulty assessment or learning does not create authority. Learning and approval-policy changes remain external capabilities.
+An authorized agent may decide within its external mandate without mandatory human reconfirmation. An applicable AGENTS.md role mandate may provide conditional REQ/SOL confirmation authority; use the mandate and mandatory-reason rules in [confirmation.md](confirmation.md). The host determines scope and effective authority. Confidence, difficulty assessment or learning does not create authority. Learning and approval-policy changes remain external capabilities.
 
 For partial decisions, decided-point changes and reopening, read [confirmation.md](confirmation.md); it owns revision and prior-decision handling. For a user-facing acceptance brief and response, read [acceptance.md](acceptance.md). Neither operation relies on disposable attachments.

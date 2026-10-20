@@ -46,6 +46,8 @@ completion criteria:
 
 在 decision 中记录实际决定者、范围、授权、结论和说明。获授权 agent 可在委托内决定。同步设计点时，decided with 概括判定说明并可标明本任务；它不替代 authority ref。
 
+依据 AGENTS.md 的角色授权决定时，authority ref 标明实际规则位置和版本，comment 必须说明具体理由及列明条件如何满足。delegated 模式下 decider 写实际 agent，on behalf of 写授权方。skill 不提供角色、简单程度阈值或业务审批规则；确认和重开各自需要对应的有效权限。
+
 ## 处理结果
 
 提案被拒绝时，决定任务仍可 DONE。保留实际结论，不把所有已完成任务都当作通过。

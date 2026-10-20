@@ -24,10 +24,12 @@ Project YAML remains stable repository configuration; current repository-level s
 
 `DESIGN.md` previews `design/<id>.md`. Each detail is Markdown with YAML frontmatter. Stable IDs such as REQ-001, SOL-001 and INT-001 are independent of the descriptive type values requirement, solution and intent.
 
-Common fields are `id`, `title`, `type`, `state`, `decided by`, `decided at` and `decided with`. The title summarizes the actual point; an INT title is a concrete intent summary, not a generic label such as “original intent record”. Interpret the attribution fields by type:
+Common fields are `id`, `title`, `type`, `state`, `decided by`, `decided at` and `decided with`. The title summarizes the actual point; an INT title is a concrete intent summary, not a generic label such as “original intent record”. A record's title and matching rendered H1 are descriptive text: naming a disposable path as the work's subject does not make it an evidence dependency. Formal references and the remaining body retain their evidence restrictions. Interpret the attribution fields by type:
 
 - INT: once expressed and retained it is RECORDED. decided by is required and identifies the original proposer, not the recorder or an approver. Preserve the supplied identity as free text: a person, colleague, client, agent, platform or combination; no email/account format is imposed. decided at may retain a known expression time and decided with a known reason; either may remain null independently. Do not apply the approval-tuple rule or introduce an approval wait for provenance.
-- REQ/SOL and other approval-bearing points: the three fields are null before a decision; an actual decision fills the confirmer, time and reason together. Their decision constraints are unchanged.
+- REQ/SOL and other approval-bearing points: the three fields are null before a decision; an actual decision fills the confirmer, time and mandatory reason together. A designated agent may confirm under an applicable AGENTS.md mandate, following [role mandates and reopening](confirmation.md); the mandate does not waive the reason.
+
+Keep verbatim INT wording in the template's `## Original external wording` section (`## 外部原始说明` in the Chinese template). The checker treats that section, including retained historical versions, as literal source text until the next heading of the same or higher level, including empty ATX headings and Setext headings underlined with = or -. Headings inside fenced examples do not end it. Mentioning a disposable path there does not make the attachment an input or evidence. Formal reference metadata and the remaining body still cannot depend on disposable material; other record types receive no original-wording exemption.
 
 For example, decided by may be myname@mycompany.com, mycollabo@collabo.company.com, codex sol 6.1 high or codex luna 6 xhigh & multica. These are examples, not an identity enum; do not invent an unknown proposer. source retains the source location or delivery context without requiring a duplicated author field.
 
@@ -55,7 +57,7 @@ The preview uses exactly these columns:
 <!-- design-preview-table:end -->
 ```
 
-IDs link to details. YAML is the state source; the table is a reviewable preview. Specialized fields are summarized automatically rather than requiring table-schema changes. Null/empty fields are omitted from detail spec, history lists only revision labels, and long values are shortened; the full detail remains authoritative.
+IDs link to details. YAML is the state source; the table is a reviewable preview. Specialized fields are summarized automatically rather than requiring table-schema changes. Null/empty fields are omitted from detail spec and history lists only revision labels. Each complete detail spec cell has a shared limit of 50 text characters, including labels and any trailing ..., and at most 3 generated lines. Newlines and HTML br breaks count as line boundaries; Markdown/HTML escaping does not consume the text budget. When either limit is exceeded, truncate the preview and append ... within both limits. The full detail remains authoritative and is never shortened by preview generation.
 
 ## Task metadata and preview
 

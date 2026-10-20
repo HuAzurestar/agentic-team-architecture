@@ -1,4 +1,5 @@
 # Copy to <Project-Manage>/project/<project-key>/project.yaml.
+# 此为独立 Project 模板，不复制到 feature/<feature-key>/ 内。
 # Replace all sample locators; keep this configuration stable after setup.
 project key: example-project
 remote repository: https://example.invalid/example-project.git

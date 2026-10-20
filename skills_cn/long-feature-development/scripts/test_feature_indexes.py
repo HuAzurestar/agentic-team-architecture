@@ -38,7 +38,7 @@ def unmanaged(content, filename):
 class GeneratedIndexTests(unittest.TestCase):
     def feature(self, parent):
         root = Path(parent) / "feature"
-        shutil.copytree(TEMPLATES, root)
+        shutil.copytree(TEMPLATES, root, ignore=shutil.ignore_patterns("PROJECT.yaml"))
         return root
 
     def stale_task(self, root):

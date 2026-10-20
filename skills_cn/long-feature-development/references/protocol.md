@@ -24,10 +24,12 @@ Project YAML 仍只保存稳定仓库配置；当前仓库综合状态放在 Fea
 
 `DESIGN.md` 预览 `design/<id>.md`；详情为带 YAML frontmatter 的 Markdown。REQ-001、SOL-001、INT-001 等稳定 ID 与 requirement、solution、intent 等 type 描述分开。
 
-通用字段为 id、title、type、state、decided by、decided at、decided with。title 概括当前点的具体内容；INT 的 title 是具体意图缩略，不是“原始意图记录”之类的通用标签。决定字段按类型解释：
+通用字段为 id、title、type、state、decided by、decided at、decided with。title 概括当前点的具体内容；INT 的 title 是具体意图缩略，不是“原始意图记录”之类的通用标签。记录的 title 及与之匹配的 H1 展示标题属于描述文字，提及作为工作对象的临时路径不等于把它作为证据依赖；正式引用与其余正文仍遵守证据限制。决定字段按类型解释：
 
 - INT：意图提出并留存时为 RECORDED，decided by 必填，标识原始提出者，不是代录者或审批人。身份可以是人、同事、客户、agent、平台或组合，保留提供的身份原文，不规定邮件或账号格式。decided at 可记录已知提出时间，decided with 可记录已知提出原因；未知时可分别为 null，不套用审批三字段同时填写规则，也不新增等待审批步骤。
-- REQ/SOL 及其他需判定点：未决定时三个字段为 null；作出决定时同时填写实际确认者、时间和判定原因，原有决定约束不变。
+- REQ/SOL 及其他需判定点：未决定时三个字段为 null；作出决定时同时填写实际确认者、时间和强制判定理由。指定 agent 可按适用 AGENTS.md 的授权确认，遵守[角色授权与重开规则](confirmation.md)，授权不豁免理由。
+
+INT 原话保留在模板的 `## 外部原始说明` 章节（英文模板为 `## Original external wording`）。校验器将该章节及保留历史版本中的对应章节视为来源原文，范围到下一个同级或更高级标题为止，包括空 ATX 标题、以 = 或 - 作下划线的 Setext 标题；代码围栏中的示例标题不会结束该范围。原话提及临时附件路径不代表把附件作为输入或证据。正式引用元数据和其余正文仍不能依赖临时材料，其他记录类型不适用原话章节例外。
 
 例如 decided by 可以是 myname@mycompany.com、mycollabo@collabo.company.com、codex sol 6.1 high 或 codex luna 6 xhigh & multica。这些是身份示例，不是固定枚举；不能编造未知提出者。source 用来保存来源位置或传递上下文，无需再复制一份 author。
 
@@ -55,7 +57,7 @@ INT 保留 review-intent、test-intent、refactor-intent、requirement-intent �
 <!-- design-preview-table:end -->
 ```
 
-ID 链接到详情。YAML 是状态来源，表格是审核预览；专用字段自动摘要，不用增加表格列。detail spec 省略 null/空值，history 仅显示版本标签，长值缩短显示；完整详情仍是依据。
+ID 链接到详情。YAML 是状态来源，表格是审核预览；专用字段自动摘要，不用增加表格列。detail spec 省略 null/空值，history 仅显示版本标签。每个完整 detail spec 单元格共用最多 50 个文本字符（包含字段标签和末尾 ...）、最多 3 个生成行的限制；换行和 HTML br 计作行边界，Markdown/HTML 转义不占文本预算。超过任一限制时截断预览并追加 ...，省略号也必须在两个上限内。完整详情仍是依据，生成预览不会截短来源正文或 YAML。
 
 ## TASKS 元数据与预览
 

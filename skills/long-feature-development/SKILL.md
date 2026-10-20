@@ -97,7 +97,7 @@ Use the matching reference, not the entire references directory. Read the record
 
 Keep the spaced YAML keys and preview markers from the templates. Unknown specialized metadata belongs directly in YAML and is summarized automatically; it does not need a new table column. Preserve original intent, revisions and decision history.
 
-A valid delegated decision does not require a fixed second human confirmation. Work completion, outcome and later permission remain separate. The organization supplies ownership, sequencing, policy, state-write methods and environment.
+A role mandate in applicable AGENTS.md may permit agent confirmation of REQ/SOL under explicit conditions, with mandatory recorded reasoning; follow [point decisions](references/confirmation.md). A valid delegated decision does not require a fixed second human confirmation. Work completion, outcome and later permission remain separate. The organization supplies ownership, sequencing, policy, state-write methods and environment.
 
 ## Project-qualified references
 

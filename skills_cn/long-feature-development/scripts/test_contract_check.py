@@ -43,7 +43,7 @@ def sync_tables(root):
 class FeatureRecordTests(unittest.TestCase):
     def feature(self, parent):
         root = Path(parent) / "feature" / "feature-example"
-        shutil.copytree(TEMPLATES, root)
+        shutil.copytree(TEMPLATES, root, ignore=shutil.ignore_patterns("PROJECT.yaml"))
         return root
 
     def test_template_feature_is_consistent_without_git(self):
@@ -90,7 +90,8 @@ class FeatureRecordTests(unittest.TestCase):
         item["initial opinion"] = {"by": "Agent:intake", "comment": "Clarify the input format."}
         checker.validate(item, "design")
         self.assertEqual(item["decided by"], proposer)
-        self.assertIn("initial opinion", checker.detail_spec(item, "design"))
+        self.assertIn("initial opinion",
+                      checker.detail_spec({"initial opinion": item["initial opinion"]}, "design"))
 
     def test_intent_requires_an_actual_originator_identity(self):
         original = checker.load(TEMPLATES / "design/INT-001.md")
@@ -110,6 +111,239 @@ class FeatureRecordTests(unittest.TestCase):
         checker.validate(item)
         self.assertEqual(checker.retained_versions(item)["v1"]["decided by"],
                          previous["decided by"])
+
+    def test_intent_original_wording_survives_feature_maintenance(self):
+        for heading in ("## Original external wording",
+                        "## \u5916\u90e8\u539f\u59cb\u8bf4\u660e",
+                        "Original external wording\n-------------------------",
+                        "\u5916\u90e8\u539f\u59cb\u8bf4\u660e\n-------------------------"):
+            with self.subTest(heading=heading), tempfile.TemporaryDirectory() as temporary:
+                root = self.feature(temporary)
+                path = root / "design/INT-001.md"
+                item = checker.load(path)
+                body = (f"# INT-001\n\n{heading}\n\n"
+                        "> Please delete gists/debug.log after retaining the verification summary.\n"
+                        "> Do not use VERBAL.md as evidence.\n\n"
+                        "Keep this literal example unchanged:\n\n"
+                        "```text\n## Evidence\nExample\n-------\ngists/example.log\n```\n\n"
+                        "## Context\n\nThe verification summary must remain durable.\n")
+                write_detail(path, item, body)
+                before = path.read_bytes()
+                for script, options in (("feature_indexes.py", ["--write"]),
+                                        ("contract_check.py", ["--format", "json"])):
+                    process = subprocess.run(
+                        [sys.executable, "-B", str(Path(checker.__file__).parent / script),
+                         str(root), *options],
+                        text=True, encoding="utf-8", capture_output=True, check=False,
+                    )
+                    self.assertEqual(process.returncode, 0, process.stdout + process.stderr)
+                    self.assertTrue(json.loads(process.stdout)["valid"])
+                self.assertEqual(path.read_bytes(), before)
+
+    def test_retained_intent_original_wording_can_mention_transient_paths(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = self.feature(temporary)
+            path = root / "design/INT-001.md"
+            item = checker.load(path)
+            previous = copy.deepcopy(item)
+            previous.pop("history", None)
+            item["revision"] = "v2"
+            item["history"] = [{
+                "metadata": previous,
+                "body": "## Original external wording\n\n> Please delete gists/debug.log.\n",
+            }]
+            write_detail(path, item, "## Original external wording\n\n> Clarify cleanup.\n")
+            sync_tables(root)
+            checker.validate_feature(root)
+            self.assertIn("v1", checker.retained_versions(checker.load(path)))
+
+    def test_original_wording_section_does_not_exempt_other_record_types(self):
+        for template in ("tasks/DEV-001.md", "design/REQ-001.md"):
+            with self.subTest(template=template), tempfile.TemporaryDirectory() as temporary:
+                path = Path(temporary) / Path(template).name
+                item = checker.load(TEMPLATES / template)
+                write_detail(path, item,
+                             "## Original external wording\n\nEvidence: gists/raw.log\n")
+                with self.assertRaises(checker.ContractError):
+                    checker.load(path)
+
+    def test_intent_original_wording_does_not_exempt_formal_metadata(self):
+        original = checker.load(TEMPLATES / "design/INT-001.md")
+        for field, value in (
+            ("inputs", [ref("log", "gists")]),
+            ("result", {"evidence": [ref("log", "gists")]}),
+            ("decided with", "Use gists/raw.log as the decision basis."),
+            ("completion criteria", ["Read gists/raw.log"]),
+        ):
+            item = copy.deepcopy(original)
+            item[field] = value
+            with self.subTest(field=field), self.assertRaises(checker.ContractError):
+                checker.validate(item, "design")
+
+    def test_intent_original_wording_exemption_ends_at_next_section(self):
+        original = checker.load(TEMPLATES / "design/INT-001.md")
+        bodies = (
+            "## Original external wording\n\n> Please clean up logs.\n"
+            "## Evidence\n\nSee gists/raw.log\n",
+            "## Original external wording\n\n> Please clean up logs.\n"
+            "# Result\n\nSee gists/raw.log\n",
+            "## Original external wording\n\n> Please clean up logs.\n\n"
+            "Evidence\n--------\n\nSee gists/raw.log\n",
+            "## Original external wording\n\n> Please clean up logs.\n\n"
+            "Evidence\n========\n\nSee gists/raw.log\n",
+            "## Original external wording\n\n> Please clean up logs.\n\n"
+            "See gists/raw.log\nEvidence\n--------\n",
+            "Other context\nOriginal external wording\n-------------------------\n\n"
+            "See gists/raw.log\n",
+            "## Original external wording\n\n> Please clean up logs.\n\n"
+            "##\n\nSee gists/raw.log\n",
+            "## Original external wording\n\n> Please clean up logs.\n\n"
+            "#\n\nSee gists/raw.log\n",
+            "```markdown\n## Original external wording\n```\n\nSee gists/raw.log\n",
+        )
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "INT-001.md"
+            for body in bodies:
+                write_detail(path, original, body)
+                with self.subTest(body=body), self.assertRaises(checker.ContractError):
+                    checker.load(path)
+            previous = copy.deepcopy(original)
+            previous.pop("history", None)
+            item = copy.deepcopy(original)
+            item["revision"] = "v2"
+            for body in bodies:
+                item["history"] = [{"metadata": previous, "body": body}]
+                with self.subTest(history=body), self.assertRaises(checker.ContractError):
+                    checker.validate(item, "design")
+
+    def test_cli_rejects_transient_evidence_after_setext_or_empty_heading(self):
+        for heading in ("Evidence\n--------", "##"):
+            with self.subTest(heading=heading), tempfile.TemporaryDirectory() as temporary:
+                root = self.feature(temporary)
+                path = root / "design/INT-001.md"
+                item = checker.load(path)
+                body = ("## Original external wording\n\n> Please clean up.\n\n"
+                        f"{heading}\n\nSee gists/raw.log\n")
+                write_detail(path, item, body)
+                for script, options in (("feature_indexes.py", ["--write"]),
+                                        ("contract_check.py", ["--format", "json"])):
+                    process = subprocess.run(
+                        [sys.executable, "-B", str(Path(checker.__file__).parent / script),
+                         str(root), *options], capture_output=True, text=True,
+                        encoding="utf-8", check=False,
+                    )
+                    self.assertEqual(process.returncode, 1, process.stdout + process.stderr)
+                    self.assertFalse(json.loads(process.stdout)["valid"])
+
+    def test_descriptive_titles_can_name_transient_paths_without_becoming_evidence(self):
+        for template in ("design/INT-001.md", "design/REQ-001.md",
+                         "design/SOL-001.md", "tasks/DEV-001.md"):
+            with self.subTest(template=template), tempfile.TemporaryDirectory() as temporary:
+                root = self.feature(temporary)
+                path = root / template
+                item = checker.load(path)
+                item["title"] = "Delete gists/debug.log after retaining the summary"
+                body = f"# {item['id']} — {item['title']}\n\nThe summary remains durable.\n"
+                write_detail(path, item, body)
+                before = path.read_bytes()
+                for script, options in (("feature_indexes.py", ["--write"]),
+                                        ("contract_check.py", ["--format", "json"])):
+                    process = subprocess.run(
+                        [sys.executable, "-B", str(Path(checker.__file__).parent / script),
+                         str(root), *options], capture_output=True, text=True,
+                        encoding="utf-8", check=False,
+                    )
+                    self.assertEqual(process.returncode, 0, process.stdout + process.stderr)
+                    self.assertTrue(json.loads(process.stdout)["valid"])
+                self.assertEqual(before, path.read_bytes())
+
+    def test_descriptive_title_does_not_exempt_body_or_nested_metadata(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "INT-001.md"
+            item = checker.load(TEMPLATES / "design/INT-001.md")
+            item["title"] = "Delete gists/debug.log"
+            title = f"# {item['id']} — {item['title']}\n\n"
+            for body in ("Evidence: gists/debug.log\n", "## Evidence: gists/debug.log\n"):
+                write_detail(path, item, title + body)
+                with self.subTest(body=body), self.assertRaises(checker.ContractError):
+                    checker.load(path)
+            item["custom metadata"] = {"title": "Evidence: gists/debug.log"}
+            with self.assertRaises(checker.ContractError):
+                checker.validate(item, "design")
+
+    def test_retained_descriptive_title_and_setext_original_wording(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = self.feature(temporary)
+            path = root / "design/INT-001.md"
+            item = checker.load(path)
+            previous = copy.deepcopy(item)
+            previous.pop("history", None)
+            previous["title"] = "Clean up VERBAL.md"
+            item["revision"] = "v2"
+            item["history"] = [{
+                "metadata": previous,
+                "body": f"# {previous['id']} — {previous['title']}\n\n"
+                        "Original external wording\n-------------------------\n\n"
+                        "> Clean up VERBAL.md after saving the summary.\n",
+            }]
+            write_detail(path, item, "# INT-001\n\nUpdated cleanup request.\n")
+            sync_tables(root)
+            checker.validate_feature(root)
+
+    def test_agents_mandate_can_confirm_req_and_sol_with_mandatory_reason(self):
+        for template in ("design/REQ-001.md", "design/SOL-001.md"):
+            point = checker.load(TEMPLATES / template)
+            update_fields(point, state="CONFIRMED", decided_by="Agent:authorized-reviewer",
+                          decided_at="2026-10-20T16:00:00+08:00",
+                          decided_with="AGENTS.md rule simple-explicit: each supplied condition "
+                                       "was checked against this revision; see DECISION-001.")
+            with self.subTest(template=template):
+                checker.validate(point, "design")
+                for reason in (None, "", " "):
+                    invalid = copy.deepcopy(point)
+                    invalid["decided with"] = reason
+                    with self.subTest(reason=reason), self.assertRaises(checker.ContractError):
+                        checker.validate(invalid, "design")
+                decision = checker.load(TEMPLATES / "tasks/DECISION-001.md")
+                decision["decision"].update({
+                    "subject": ref(point["id"]),
+                    "conclusion": "confirmed", "decider": point["decided by"],
+                    "mode": "delegated", "on behalf of": "Human:project-owner",
+                    "authority ref": {"id": "simple-explicit", "revision": "policy-v3",
+                                      "location": "external:AGENTS.md#simple-explicit"},
+                    "comment": point["decided with"],
+                })
+                checker.validate(decision, "tasks")
+                for key, missing in (("comment", " "), ("authority ref", None)):
+                    invalid = copy.deepcopy(decision)
+                    invalid["decision"][key] = missing
+                    with self.subTest(key=key), self.assertRaises(checker.ContractError):
+                        checker.validate(invalid, "tasks")
+
+    def test_reopening_retains_agent_confirmation_and_its_reason(self):
+        for template in ("design/REQ-001.md", "design/SOL-001.md"):
+            with self.subTest(template=template), tempfile.TemporaryDirectory() as temporary:
+                root = self.feature(temporary)
+                path = root / template
+                item = checker.load(path)
+                update_fields(item, state="CONFIRMED", decided_by="Agent:authorized-reviewer",
+                              decided_at="2026-10-20T16:00:00+08:00",
+                              decided_with="The explicit conditions under the AGENTS.md mandate "
+                                           "were checked for this revision.")
+                previous = copy.deepcopy(item)
+                previous.pop("history", None)
+                item["history"] = [{"metadata": previous, "body": "The confirmed point and rationale."}]
+                update_fields(item, revision="v2", state="REOPENED",
+                              decided_by=None, decided_at=None, decided_with=None,
+                              reopen_reason="The input constraint changed.",
+                              reopen_authority_ref={"id": "reopen-rule", "revision": "policy-v3",
+                                                    "location": "external:AGENTS.md#reopen-rule"})
+                write_detail(path, item)
+                sync_tables(root)
+                checker.validate_feature(root)
+                retained = checker.retained_versions(checker.load(path))["v1"]
+                self.assertEqual(retained["state"], "CONFIRMED")
+                self.assertEqual(retained["decided with"], previous["decided with"])
 
     def test_task_lifecycle_preserves_the_five_states(self):
         original = checker.load(TEMPLATES / "tasks/DEV-001.md")
@@ -322,8 +556,47 @@ class FeatureRecordTests(unittest.TestCase):
         item["domain note"] = {"custom rule": "Preserve this extension"}
         rendered = checker.render_index({item["id"]: item}, "design")
         self.assertIn("relate to requirement: REQ-001@v1", rendered)
-        self.assertIn("domain note: {custom rule: Preserve this extension}", rendered)
+        self.assertEqual(item["domain note"], {"custom rule": "Preserve this extension"})
+        self.assertIn("domain note: {custom rule: keep}",
+                      checker.detail_spec({"domain note": {"custom rule": "keep"}}, "design"))
         self.assertIn("| id | title | type | state | decided by | decided at | decided with | detail spec |", rendered)
+
+    def test_detail_spec_character_boundary_includes_labels_and_ellipsis(self):
+        for domain in ("design", "tasks"):
+            exact = checker.detail_spec({"note": "x" * 44}, domain)
+            longer = checker.detail_spec({"note": "x" * 45}, domain)
+            with self.subTest(domain=domain):
+                self.assertEqual(exact, "note: " + "x" * 44)
+                self.assertEqual(longer, "note: " + "x" * 41 + "...")
+                self.assertEqual(len(longer), 50)
+                self.assertEqual(checker.detail_spec({"note": None}, domain), "-")
+
+    def test_detail_spec_line_boundary_and_multiline_values(self):
+        exact = checker.detail_spec({"a": 1, "b": 2, "c": 3}, "design")
+        overflow = checker.detail_spec({"a": 1, "b": 2, "c": 3, "d": 4}, "design")
+        self.assertEqual(exact, "a: 1<br>b: 2<br>c: 3")
+        self.assertEqual(overflow, "a: 1<br>b: 2<br>c: 3...")
+        for value in ("one\r\ntwo\nthree\nfour",
+                      "one<BR />two<br>three<Br/>four"):
+            rendered = checker.detail_spec({"note": value}, "tasks")
+            with self.subTest(value=value):
+                self.assertEqual(rendered, "note: one<br>two<br>three...")
+                self.assertNotIn("four", rendered)
+
+    def test_detail_spec_budget_is_shared_by_fields_and_counts_unicode(self):
+        for record in ({"note": "\u5b57" * 100},
+                       {"a": "x" * 30, "b": "y" * 30, "c": "z" * 30}):
+            original = copy.deepcopy(record)
+            rendered = checker.detail_spec(record, "design")
+            lines = rendered.split("<br>")
+            with self.subTest(record=record):
+                self.assertLessEqual(sum(map(len, lines)), 50)
+                self.assertLessEqual(len(lines), 3)
+                self.assertTrue(rendered.endswith("..."))
+                self.assertEqual(record, original)
+        escaped = checker.detail_spec({"note": "|" * 44}, "design")
+        self.assertEqual(escaped.count("\\|"), 44)
+        self.assertEqual(len(escaped.replace("\\|", "|")), 50)
 
     def test_local_references_must_exist_with_matching_identity_and_revision(self):
         for target in (ref("MISSING", "tasks"), ref("REQ-001", revision="v999"),
@@ -404,7 +677,7 @@ class FeatureRecordTests(unittest.TestCase):
             sync_tables(root)
             checker.validate_feature(root)
             self.assertIn("gists (reference only): gists/session.log",
-                          (root / "TASKS.md").read_text(encoding="utf-8"))
+                          checker.detail_spec({"gists": item["gists"]}, "tasks"))
             (root / "gists").mkdir()
             (root / "gists/session.log").write_text("temporary output", encoding="utf-8")
             (root / "gists/session.log").unlink()
@@ -422,12 +695,17 @@ class FeatureRecordTests(unittest.TestCase):
             config.parent.mkdir(parents=True)
             shutil.copy2(TEMPLATES / "PROJECT.yaml", config)
             path = root / "tasks/DEV-001.md"
+            self.assertFalse((root / "PROJECT.yaml").exists())
+            self.assertFalse((root / "project.yaml").exists())
+            self.assertEqual(config, Path(temporary) / "project/example-project/project.yaml")
             item = checker.load(path)
             item["head sha"] = ["example-project@" + "a" * 40]
             item["working branch"] = ["example-project@feature/work"]
             write_detail(path, item)
             before = config.read_bytes()
             checker.collect(root, registry)
+            sync_tables(root)
+            checker.validate_feature(root)
             self.assertEqual(config.read_bytes(), before)
             item["head sha"] = ["MISSING@" + "b" * 40]
             write_detail(path, item)
@@ -456,7 +734,8 @@ class FeatureRecordTests(unittest.TestCase):
             path = directory / "DEV-001.md"
             write_detail(path, item)
             self.assertEqual(checker.load(path)["type"], item["type"])
-        self.assertIn("decided by: Human:reviewer", checker.detail_spec(item, "tasks"))
+        self.assertIn("decided by: Human:reviewer",
+                      checker.detail_spec({"decided by": item["decided by"]}, "tasks"))
 
     def test_custom_design_type_uses_explicit_module_and_common_metadata(self):
         item = checker.load(TEMPLATES / "design/SOL-001.md")

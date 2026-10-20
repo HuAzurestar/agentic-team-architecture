@@ -7,10 +7,10 @@ YAML in tasks/ is the state source. Common columns show ownership, dependencies,
 <!-- tasks-preview-table:start -->
 | id | type | title | state | owner | depends on | started at | completed at | head sha | detail spec |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| [DECISION-001](tasks/DECISION-001.md) | decision | Decide the specified requirement revision | PENDING | - | - | - | - | - | revision: v1<br>inputs: REQ-001@v1<br>result: {execution: not_started}<br>resume action: Obtain the assignment, applicable inputs and authorized return location.<br>decision: {subject: REQ-001@v1}<br>completion criteria: Record an authorized decision and update the target point's decision metadata. |
-| [DEV-001](tasks/DEV-001.md) | development | Implement the assigned solution | PENDING | - | - | - | - | - | revision: v1<br>inputs: REQ-001@v1, SOL-001@v1<br>result: {execution: not_started}<br>resume action: Obtain the assignment, applicable inputs and authorized return location.<br>completion criteria: Implement the assigned scope and record the executed checks and remaining issues.<br>project repository: example-project |
-| [FEEDBACK-001](tasks/FEEDBACK-001.md) | feedback | Process feedback on the specified requirement | PENDING | - | - | - | - | - | revision: v1<br>inputs: REQ-001@v1<br>result: {execution: not_started}<br>resume action: Obtain the assignment, applicable inputs and authorized return location.<br>feedback: {subject: REQ-001@v1}<br>completion criteria: Record the observation, handling decision and any required resolution evidence. |
-| [GATE-001](tasks/GATE-001.md) | gate | Evaluate an externally defined gate | PENDING | - | - | - | - | - | revision: v1<br>result: {execution: not_started}<br>resume action: Obtain the assignment, applicable inputs and authorized return location.<br>gate: {evaluation: unknown; authorization: pending}<br>completion criteria: Evaluate the assigned conditions and record the applicable authorization or unresolved items. |
+| [DECISION-001](tasks/DECISION-001.md) | decision | Decide the specified requirement revision | PENDING | - | - | - | - | - | revision: v1<br>inputs: REQ-001@v1<br>result: {executio... |
+| [DEV-001](tasks/DEV-001.md) | development | Implement the assigned solution | PENDING | - | - | - | - | - | revision: v1<br>inputs: REQ-001@v1, SOL-001@v1<br>resul... |
+| [FEEDBACK-001](tasks/FEEDBACK-001.md) | feedback | Process feedback on the specified requirement | PENDING | - | - | - | - | - | revision: v1<br>inputs: REQ-001@v1<br>result: {executio... |
+| [GATE-001](tasks/GATE-001.md) | gate | Evaluate an externally defined gate | PENDING | - | - | - | - | - | revision: v1<br>result: {execution: not_started}<br>res... |
 <!-- tasks-preview-table:end -->
 
 ## dependency-topology

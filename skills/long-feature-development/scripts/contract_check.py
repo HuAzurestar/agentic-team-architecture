@@ -18,7 +18,7 @@ from urllib.parse import unquote
 sys.dont_write_bytecode = True
 
 import project_refs
-from index_blocks import region_bounds
+from index_blocks import fenced_at, region_bounds
 
 try:
     import yaml
@@ -60,6 +60,8 @@ if yaml is not None:
 DESIGN_TYPES = {"requirement", "solution", "intent"}
 DESIGN_COLUMNS = ["id", "title", "type", "state", "decided by", "decided at", "decided with"]
 TASK_COLUMNS = ["id", "type", "title", "state", "owner", "depends on", "started at", "completed at", "head sha"]
+DETAIL_SPEC_MAX_CHARS = 50
+DETAIL_SPEC_MAX_LINES = 3
 RELATIONS = {"requirement related to": "requirement", "solution related to": "solution", "intent related to": "intent"}
 DESIGN_STATES = {"RECORDED", "PROPOSED", "REOPENED", "CONFIRMED",
                  "REJECTED", "OUT-OF-SCOPE", "INFEASIBLE"}
@@ -116,6 +118,61 @@ def reject_transient_refs(value, label="record"):
                 raise ContractError(f"{label} cites disposable VERBAL/gists material")
 
 
+def body_headings(body):
+    """Return real ATX/Setext heading spans, levels and titles outside fences."""
+    headings = []
+    for match in re.finditer(r"^ {0,3}(#{1,6})(?:[ \t]+([^\r\n]*))?\r?$",
+                             body, re.MULTILINE):
+        if not fenced_at(body, match.start()):
+            title = re.sub(r"(?:^|[ \t]+)#+[ \t]*$", "", match[2] or "").strip()
+            headings.append((match.start(), match.end(), len(match[1]), title))
+    for match in re.finditer(r"^ {0,3}(\S[^\r\n]*)\r?\n {0,3}(=+|-+)[ \t]*\r?$",
+                             body, re.MULTILINE):
+        title = match[1].strip()
+        if (fenced_at(body, match.start()) or fenced_at(body, match.start(2))
+                or re.match(r"(?:#{1,6}(?:[ \t]|$)|>|[-+*][ \t]|\d+[.)][ \t]|[`~]{3})",
+                            title)):
+            continue
+        # A Setext heading owns its whole paragraph, not just the last text line.
+        start = match.start()
+        while start:
+            previous_end = start - 1
+            previous_start = body.rfind("\n", 0, previous_end) + 1
+            previous = body[previous_start:previous_end].rstrip("\r")
+            if (not previous.strip()
+                    or re.match(r"^(?: {4}|\t| {0,3}(?:#{1,6}(?:[ \t]|$)|>|<|"
+                                r"[-+*][ \t]|\d+[.)][ \t]|[`~]{3}|[=-]+[ \t]*$))",
+                                previous)):
+                break
+            start = previous_start
+        title = " ".join(line.strip() for line in body[start:match.start(2)].splitlines()).strip()
+        headings.append((start, match.end(), 1 if match[2][0] == "=" else 2, title))
+    return sorted(headings)
+
+
+def reject_transient_body_refs(body, record, label, domain=None):
+    """Separate descriptive titles and original INT wording from formal citations."""
+    headings = body_headings(body)
+    displayed_titles = {record["title"], f"{record['id']} — {record['title']}"}
+    literal_spans = [(left, right) for left, right, level, title in headings
+                     if level == 1 and title in displayed_titles]
+    if record_domain(record, domain) == "design" and record["type"].casefold() == "intent":
+        for index, (_, right, level, title) in enumerate(headings):
+            if title.casefold() not in ("original external wording", "\u5916\u90e8\u539f\u59cb\u8bf4\u660e"):
+                continue
+            end = next((following[0] for following in headings[index + 1:]
+                        if following[2] <= level), len(body))
+            literal_spans.append((right, end))
+    checked = []
+    position = 0
+    for left, right in sorted(literal_spans):
+        if left >= position:
+            checked.extend((body[position:left], "\n"))
+        position = max(position, right)
+    checked.append(body[position:])
+    reject_transient_refs("".join(checked), label)
+
+
 def relation_items(value, label):
     items = value if isinstance(value, list) else [value]
     if value is None:
@@ -164,9 +221,11 @@ def validate(record, domain=None):
     is_design = domain == "design"
     if domain == "tasks" and record_type in DESIGN_TYPES:
         raise ContractError("design points belong in design/")
-    # Task gists are optional reference-only annotations, never evidence.
+    # Titles describe the work; task gists are optional reference-only annotations.
+    # Neither supplies evidence. Nested fields and all formal references stay checked.
     reject_transient_refs({k: v for k, v in record.items()
-                           if k != "history" and not (not is_design and k == "gists")})
+                           if k not in ("history", "title")
+                           and not (not is_design and k == "gists")})
     references(record.get("inputs", []), "inputs")
     for label in RELATIONS:
         if label in record:
@@ -286,7 +345,8 @@ def retained_versions(record, domain=None):
             raise ContractError("historical metadata must not nest history")
         validate(metadata, record_domain(record, domain))
         text(metadata.get("revision"), "history.metadata.revision")
-        reject_transient_refs(entry["body"], "history.body")
+        reject_transient_body_refs(entry["body"], metadata, "history.body",
+                                   record_domain(record, domain))
         if metadata["id"] != record["id"] or metadata["type"].casefold() != record["type"].casefold():
             raise ContractError("historical snapshot identity/type mismatch")
         if metadata["revision"] in versions:
@@ -310,7 +370,7 @@ def load(path, domain=None):
     if domain is None and Path(path).parent.name in ("design", "tasks"):
         domain = Path(path).parent.name
     validate(record, domain)
-    reject_transient_refs(content[match.end():], f"{path} body")
+    reject_transient_body_refs(content[match.end():], record, f"{path} body", domain)
     return record
 
 
@@ -449,10 +509,21 @@ def detail_spec(record, domain):
         label = "relate to " + RELATIONS[key] if key in RELATIONS else key
         if key == "gists":
             label = "gists (reference only)"
-        if len(summary) > 240:
-            summary = summary[:237] + "..."
         parts.append(f"{label}: {summary}")
-    return "<br>".join(cell(part) for part in parts) or "-"
+    lines = [line for part in parts
+             for line in re.split(r"\r\n?|\n|<br\s*/?>", part, flags=re.IGNORECASE)]
+    if (len(lines) > DETAIL_SPEC_MAX_LINES
+            or sum(map(len, lines)) > DETAIL_SPEC_MAX_CHARS):
+        remaining = DETAIL_SPEC_MAX_CHARS - len("...")
+        shortened = []
+        for line in lines[:DETAIL_SPEC_MAX_LINES]:
+            shortened.append(line[:remaining])
+            remaining -= len(shortened[-1])
+            if remaining == 0:
+                break
+        shortened[-1] += "..."
+        lines = shortened
+    return "<br>".join(cell(line) for line in lines) or "-"
 
 
 def render_index(records, domain):

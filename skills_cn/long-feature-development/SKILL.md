@@ -97,7 +97,7 @@ python "<skill-root>/scripts/contract_check.py" "<feature-directory>" --format j
 
 沿用模板中的空格键名与预览 marker。其他专用字段直接写入 YAML 并自动摘要，不需要增设表格列。保留原 intent、版本与历史决定。
 
-有效代理决定不固定追加人工二次确认；任务完成、实际结果与后续权限分别表达。组织负责归属、顺序、策略、状态写入及运行环境。
+适用 AGENTS.md 中的角色授权可允许 agent 在明确条件下确认 REQ/SOL，但必须记录理由，按[逐点决定规则](references/confirmation.md)执行。有效代理决定不固定追加人工二次确认；任务完成、实际结果与后续权限分别表达。组织负责归属、顺序、策略、状态写入及运行环境。
 
 ## Project 限定的引用
 

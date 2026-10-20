@@ -8,6 +8,6 @@
 
 评论、建议和有权决定是不同事实。DECISION 任务记录目标版本、实际决定者、结论、授权、mode、说明；delegated 模式另记 on behalf of。对于 REQ/SOL 等需判定设计点，将相应结果同步到 decided by、decided at、decided with，再同步表格；不能用后续评审者或确认者覆盖 INT 提出者。
 
-获授权 agent 可以在委托内决定，不固定要求人工二次确认。宿主判断实际范围与授权有效性；自信、难易评估和学习不产生权限，审核能力进化与策略变化由外部负责。
+获授权 agent 可以在委托内决定，不固定要求人工二次确认。适用 AGENTS.md 的角色设定可提供有条件的 REQ/SOL 确认权限，按 [confirmation.md](confirmation.md) 中的授权和强制理由规则执行。宿主判断实际范围与授权有效性；自信、难易评估和学习不产生权限，审核能力进化与策略变化由外部负责。
 
 部分决定、修改已决定点或重开时，读取 [confirmation.md](confirmation.md)，其中维护版本与原决定处理要求。面向用户的验收 brief 和答复读取 [acceptance.md](acceptance.md)。这些操作均不依赖临时附件。

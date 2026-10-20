@@ -34,6 +34,14 @@ A recommendation is not an authorized decision. An authorized agent may decide w
 
 If only part of a point is accepted, record the accepted scope separately, splitting stable points when needed. Do not mark unresolved content as confirmed.
 
+## AGENTS.md role mandates
+
+REQ and SOL may reach CONFIRMED through an agent acting under an effective role mandate in the applicable AGENTS.md. For example, that external mandate may allow a designated role to confirm simple work when explicitly stated conditions are met. Use that existing authority without imposing a second human confirmation. The role identities, meaning of simple, eligible conditions, permitted reasons and limits belong to the agent configuration, not this skill; do not invent a default exemption for all agents.
+
+For each such confirmation, identify the exact point/revision, applicable role and mandate, the conditions actually met and the concrete reason for confirming. Record the actual agent in decided by, the decision time in decided at and a nonempty substantive reason in decided with. In the DECISION task or supplied durable decision record, retain the AGENTS.md rule location and revision as the authority reference and explain the matched conditions in the decision comment. A role name, confidence or the word simple alone is not a reason. The exception changes who may confirm; it does not waive reasoning, scope or history requirements.
+
+Missing authority or unmet conditions leave the confirmation unresolved. The structural checker validates record shapes and required reasons, not whether the mandate applies or its business conditions are true; the assigned agent must establish that basis from the actual configuration.
+
 ## Record the conclusion and its basis
 
 Record the subject revision, conclusion, authority and comment in a DECISION task or the supplied durable decision record. Keep the design point's decided by, decided at and decided with consistent with that conclusion. Use the record's actual confirmer and decision time, not the worker who copied it.
@@ -43,6 +51,8 @@ CONFIRMED, REJECTED, OUT-OF-SCOPE and INFEASIBLE are decided results; rejected a
 ## Revise without rewriting approval history
 
 A draft can be refined within its assignment. Changing a decided point creates a new revision or an explicit retained change record; preserve its previous metadata, body, decision and reason. Reopening a confirmation, exclusion or infeasibility needs the authority required by the external policy, not necessarily a human. A rejected proposal can be revised without pretending the rejected version was accepted.
+
+Permission to confirm does not itself authorize CONFIRMED → REOPENED. Before reopening, establish that the effective mandate also covers reopening and that its stated conditions are met; retain the previous confirmed state, decider, reason and revision, and record the new reason and authority in a durable change/decision record. Otherwise keep the point CONFIRMED while the proposed change awaits the appropriate decision. The applicable AGENTS.md or external policy defines the actual reopening criteria; this skill supplies no automatic reopening exception.
 
 For a reopened current proposal, use REOPENED and clear the current decision fields together after preserving the prior decision. Record why it changed, who may decide again and the input versions. Reconfirmation applies only to the revised content.
 
