@@ -5,7 +5,7 @@ description: Maintain persistent Feature design points and tasks across sessions
 
 # Long Feature Development
 
-Use the Feature's records to continue work. This skill defines records and a default single-task loop, not intent recognition, company roles or company orchestration. The caller supplies assignment, authority, state maintenance and environment; a supplied workflow takes precedence over the fallback loop.
+Use the Feature's records to continue work. This skill defines records, standard capability IO and a default single-task loop; company organization and decision authority remain external. The caller supplies assignment, authority, state maintenance and environment; a supplied workflow takes precedence over the fallback loop.
 
 ## Feature and Project
 
@@ -27,7 +27,7 @@ The caller resolves `<Project-Manage>`. A Feature is persistent work across Proj
 
 The management directory need not be a Git repository. Resolve its actual location, state/authority access and the assignment externally. Report missing or conflicting facts without inventing ownership.
 
-On first installation, configure the exact `<Project-Manage>` location and its write/commit policy in the host instructions or runtime binding, together with Project mappings, environment access and the communication/decision entrypoint. Follow the [first-use configuration checklist](references/initialization.md#first-use-configuration). These settings are supplied by the host; this skill does not discover a root, install a notification route or grant authority.
+Design proposal: initialize two runtime-owned persistent profiles for project-management access and notification access, following [runtime persistence](references/runtime-persistence.md). Agent instructions express organization and authority without machine paths or network endpoints. This draft defines contracts; it does not implement or activate a loader or adapter.
 
 ## Records and previews
 
@@ -73,7 +73,7 @@ python "<skill-root>/scripts/contract_check.py" "<feature-directory>" --format j
 
 These commands are record-maintenance discipline, not a company workflow. Scripts perform mechanical derived synchronization, structural checks and location resolution, not Git/remote synchronization or release authorization, and do not replace external write coordination.
 
-Ordinary clarification, proactive conversation, channels and questioning methods belong to the external orchestrator; this skill binds no communication tool. Only a [GATE that requires the user's decision](references/gates.md) defines a mandatory request/response and no-response/no-release contract.
+The organization supplies decision policy and workflow responsibilities; the skill supplies notification IO and hook contracts, while runtime profiles bind actual tools/routes and the user's receiver controls presentation. Only a [GATE that requires the user's decision](references/gates.md) defines a mandatory request/response and no-response/no-release contract.
 
 ## Read references for the current action
 
@@ -81,6 +81,9 @@ Use the matching reference, not the entire references directory. Read the record
 
 | When doing this | Read this |
 | --- | --- |
+| Configure/migrate runtime PM and notification access | [Runtime persistence](references/runtime-persistence.md) |
+| Emit workflow events or correlate notification replies | [Notification hooks](references/notification-hooks.md) |
+| Select a standard capability's inputs/outputs | [Capability IO](references/capability-io.md) |
 | Initialize a new Feature | [Initialization checklist](references/initialization.md) |
 | Execute one task; resolve supplied versus fallback orchestration | [Task workflow](references/task-workflow.md) |
 | Edit YAML, previews, STATUS or Project configuration | [Record specification](references/protocol.md) |

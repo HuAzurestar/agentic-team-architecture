@@ -1,5 +1,7 @@
 # Feature 续接与反馈
 
+读取 PM 或投递通知前先解析目标 runtime 的持久配置，不沿用 Agent instruction 中的机器绑定，参见[runtime 持久化](runtime-persistence.md)。
+
 解析 Feature key 与外部管理根目录。STATUS 是 repository、feature、dev 等综合状态的统一管理入口，提供仓库关联与同步/集成概况、Feature/开发进展、当前焦点、状态/授权入口、阻塞和下一步，不只服务于续接。DESIGN、TASKS、VERBAL 分别保留自己的索引和内容；STATUS 仅概括状态并链接必要详情，不复制这些模块。续接时读取当前所需的 YAML 详情和版本化输入。
 
 Project 是一个 Repository 的本地/remote 同步和基本规则记录，一个 Feature 可跨多个 Project。通过外部配置解析本机位置，不要求管理目录是 Git 仓库。

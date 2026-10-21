@@ -1,5 +1,7 @@
 # Feature continuity and feedback
 
+Resolve the target runtime's persistent profiles before reading PM or dispatching notifications; do not reuse machine bindings embedded in an agent instruction. See [runtime persistence](runtime-persistence.md).
+
 Resolve the Feature key and externally supplied management root. STATUS is the integrated management entry for repository, Feature and development state, including repository bindings and synchronization/integration status, progress, current focus, state/authority access, blockers and next actions, not just resumption. DESIGN, TASKS and VERBAL retain their own indexes and content; STATUS summarizes state and links needed details without copying those modules. On resumption, read the selected YAML-frontmatter details and necessary versioned inputs.
 
 A Project is a Repository's local/remote synchronization and basic management rule record; a Feature can span several Projects. Resolve local machine locations through supplied configuration. Resuming a Feature does not require its management folder to be a Git repository.

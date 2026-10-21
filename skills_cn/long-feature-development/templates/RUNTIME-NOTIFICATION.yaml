@@ -1,0 +1,12 @@
+# Proposed runtime-owned persistent data; nulls are not active defaults.
+# Store outside the replaceable skill package, at an explicit runtime-supplied locator.
+profile: null
+revision: draft-1
+runtime identity: null
+adapter tool reference: null
+routes: {}
+credential references: []
+workflow event bindings: {}
+delivery state reference: null
+reply correlation contract: null
+failure handling reference: null

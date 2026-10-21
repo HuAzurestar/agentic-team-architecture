@@ -5,7 +5,7 @@ description: 通过 YAML 详情、Markdown 预览和稳定的 Project 仓库映�
 
 # 长程 Feature 开发
 
-使用 Feature 现有记录恢复和推进工作。本 skill 定义记录与默认单任务闭环，不负责 intent 识别、公司角色或公司编排。委托、授权、状态维护和环境由调用方提供；已有编排要求优先于默认闭环。
+使用 Feature 现有记录恢复和推进工作。本 skill 定义记录、标准能力 I/O 与默认单任务闭环；公司组织方式及决定权限由外部提供。委托、授权、状态维护和环境由调用方提供；已有编排要求优先于默认闭环。
 
 ## Feature 与 Project
 
@@ -26,7 +26,7 @@ description: 通过 YAML 详情、Markdown 预览和稳定的 Project 仓库映�
 ```
 
 管理目录不要求是 Git 仓库。实际位置、状态/授权入口和委托由外部提供；缺失或冲突时报告，不编造归属。
-首次安装时，在宿主 instruction 或运行绑定中配置确切的 `<Project-Manage>` 位置及写入/提交策略，并明确 Project 映射、环境访问和交流/决定入口，参见[首次使用配置清单](references/initialization.md#首次使用配置)。这些配置由宿主提供；本 skill 不自行发现管理根目录、安装通知路由或授予权限。
+设计提案：按[runtime 持久化](references/runtime-persistence.md)初始化项目管理接入、通知接入两类持久配置，由开发机/runtime 维护。Agent instruction 表达组织理念和权限，不携带机器路径或网络端点。本稿定义契约，尚未实现或启用加载器及 adapter。
 
 ## 记录与预览
 
@@ -72,7 +72,7 @@ python "<skill-root>/scripts/contract_check.py" "<feature-directory>" --format j
 
 脚本执行是记录维护纪律，不是公司业务流水线。脚本只做派生同步、结构校验、定位等机械工作，不隐含 Git/远端同步或发布授权，也不替代外部维护者的写入协调。
 
-普通澄清、主动交流、渠道及提问方法属于外部编排者；通用 skill 不绑定沟通工具。仅对[要求用户决定的 GATE](references/gates.md)，规定请求、实际答复和未决时不放行的协议。
+组织提供决定策略及流程职责；Skill 提供通知 I/O 和 hook 契约，runtime 配置绑定实际工具/路由，用户接收器决定呈现方式。仅对[要求用户决定的 GATE](references/gates.md)，规定请求、实际答复和未决时不放行的协议。
 
 ## 按当前动作读取参考
 
@@ -80,6 +80,9 @@ python "<skill-root>/scripts/contract_check.py" "<feature-directory>" --format j
 
 | 做什么时 | 读取什么 |
 | --- | --- |
+| 配置/迁移 runtime 的 PM 与通知接入 | [Runtime 持久化](references/runtime-persistence.md) |
+| 形成流程通知或关联回复 | [通知 hook](references/notification-hooks.md) |
+| 查找标准能力输入输出 | [能力 I/O](references/capability-io.md) |
 | 初始化新 Feature | [初始化清单](references/initialization.md) |
 | 执行一个任务，区分指定编排与默认闭环 | [任务作业流程](references/task-workflow.md) |
 | 修改 YAML、预览、STATUS 或 Project 配置 | [记录规范](references/protocol.md) |
