@@ -4,6 +4,19 @@ Read when creating a Feature's first records. For an existing or partially writt
 
 ## Inputs and identity
 
+### First-use configuration
+
+Before creating the first live Feature, have the host supply and retain:
+
+- The exact management-root location and access method, distinct from any repository search root. Inject this binding into later runs; reuse an existing unambiguous configuration.
+- The authorized state writer and, when the root uses Git, its branch and commit policy. Git and non-Git roots are both supported; do not initialize or migrate one implicitly.
+- Stable Repository mappings in `project/<project-key>/project.yaml`. Reusable, non-secret environment descriptions may be host-defined Project fields or durable references; each task retains its adopted configuration version and actual verification results.
+- The communication/decision entrypoint and effective role mandates. Notice senders, channels, deduplication, priority and reply routing belong to host instructions. A company may use a persistent issue without making its comments authoritative Feature records.
+
+A supplied Feature key may be an opaque label without a reachable issue URL. Preserve actual received content and available provenance; do not fabricate links. Report missing proposer/business-owner/decision-maker/executor information to the host as explicit decision points, never infer it from a key or recorder. Host policy determines which dependent actions wait.
+
+Concrete onboarding and communication templates belong to the host workflow, which is configured separately from this portable skill.
+
 Obtain the external feature-key, management-root mapping, authorized scope, state maintainer/write interface and authority source. Apply the Feature identity rule in [SKILL.md](../SKILL.md#feature-identity). A missing key is not permission to invent NO-FEAT or use example-feature. Missing access/authority remains unresolved; do not claim initialized state is ready for execution.
 
 ## Prepare the records

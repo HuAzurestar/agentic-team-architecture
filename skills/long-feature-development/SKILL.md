@@ -27,6 +27,8 @@ The caller resolves `<Project-Manage>`. A Feature is persistent work across Proj
 
 The management directory need not be a Git repository. Resolve its actual location, state/authority access and the assignment externally. Report missing or conflicting facts without inventing ownership.
 
+On first installation, configure the exact `<Project-Manage>` location and its write/commit policy in the host instructions or runtime binding, together with Project mappings, environment access and the communication/decision entrypoint. Follow the [first-use configuration checklist](references/initialization.md#first-use-configuration). These settings are supplied by the host; this skill does not discover a root, install a notification route or grant authority.
+
 ## Records and previews
 
 - DESIGN unifies numbered requirement, solution and intent points. INT preserves the external wording, uses decided by for the proposer and title for the concrete intent summary; RECORDED does not approve derived REQ/SOL. Deriving REQ/SOL is detailed design. Detail YAML is the state source; DESIGN.md previews common columns and compresses specialized fields into detail spec.

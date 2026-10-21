@@ -26,6 +26,7 @@ description: 通过 YAML 详情、Markdown 预览和稳定的 Project 仓库映�
 ```
 
 管理目录不要求是 Git 仓库。实际位置、状态/授权入口和委托由外部提供；缺失或冲突时报告，不编造归属。
+首次安装时，在宿主 instruction 或运行绑定中配置确切的 `<Project-Manage>` 位置及写入/提交策略，并明确 Project 映射、环境访问和交流/决定入口，参见[首次使用配置清单](references/initialization.md#首次使用配置)。这些配置由宿主提供；本 skill 不自行发现管理根目录、安装通知路由或授予权限。
 
 ## 记录与预览
 
