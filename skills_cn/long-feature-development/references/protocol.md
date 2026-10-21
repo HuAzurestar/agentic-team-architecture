@@ -83,6 +83,10 @@ result:
 
 只有 DOCS-001@v1 的对应标题下确实保留了实质报告时，才能使用该引用。空引用壳或任务状态本身不证明验证已执行。
 
+Feature 校验以 Feature 根目录解析相对路径，先规范化本机绝对路径与 `file:` URI，再检查本地记录 ID/版本。跨平台记录优先使用 Feature 相对路径。Windows 盘符按路径处理，不当作 URI scheme；`file://localhost/...` 表示本机，Windows 文件 authority 按 UNC 路径处理。含糊的盘符相对路径、POSIX 宿主上的异机 Windows 路径及不支持的文件 authority 明确报错；异机位置应先按外部映射解析。非 file 的外部 URI 仍标为未核实。
+
+本地引用含 fragment 时，锚点必须存在于被引用版本的正文中；旧版本使用对应 `history.body`，不能借用当前正文。校验器支持 ATX/Setext 标题锚点（小写、空格转连字符、去掉格式和标点、重复项追加 `-1`、`-2` 等）与显式 HTML `id`/`a name` 锚点。基本命名规则参见 [section links 与 custom anchors](https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax#section-links)。围栏示例、行内代码中的 HTML 与注释不能提供锚点。锚点存在只证明结构可定位，不证明报告内容正确。
+
 ## 点与区域
 
 提交点为 `<project-key>@<head-sha>`，会移动的分支区域为 `<project-key>@<branch-name>`。全写 `<project-key>@<branch-name>@<head-sha>` 保留额外分支背景，但规范化后的点身份仍是 project+SHA。

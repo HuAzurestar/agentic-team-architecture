@@ -8,17 +8,20 @@ contact services, write state, or require Git.
 from __future__ import annotations
 
 import argparse
-from html import escape
+from html import escape, unescape
+from html.parser import HTMLParser
 import json
+import os
 import re
 import sys
-from pathlib import Path
-from urllib.parse import unquote
+import unicodedata
+from pathlib import Path, PurePosixPath, PureWindowsPath
+from urllib.parse import unquote, urlsplit
 
 sys.dont_write_bytecode = True
 
 import project_refs
-from index_blocks import fenced_at, region_bounds
+from index_blocks import fenced_at, mask_fenced_code, region_bounds
 
 try:
     import yaml
@@ -68,6 +71,7 @@ DESIGN_STATES = {"RECORDED", "PROPOSED", "REOPENED", "CONFIRMED",
 DECIDED_STATES = {"CONFIRMED", "REJECTED", "OUT-OF-SCOPE", "INFEASIBLE"}
 TASK_STATES = {"PENDING", "WIP", "BLOCKED", "RECORDING", "DONE"}
 ID_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*\Z")
+INLINE_CODE = re.compile(r"(?<!`)(`+)(?!`)(.*?)\1(?!`)", re.DOTALL)
 
 
 def text(value, label):
@@ -355,7 +359,7 @@ def retained_versions(record, domain=None):
     return versions
 
 
-def load(path, domain=None):
+def load_detail(path, domain=None):
     if yaml is None:
         raise ContractError("PyYAML is required for YAML frontmatter checks")
     content = Path(path).read_text(encoding="utf-8-sig")
@@ -370,25 +374,35 @@ def load(path, domain=None):
     if domain is None and Path(path).parent.name in ("design", "tasks"):
         domain = Path(path).parent.name
     validate(record, domain)
-    reject_transient_body_refs(content[match.end():], record, f"{path} body", domain)
-    return record
+    body = content[match.end():]
+    reject_transient_body_refs(body, record, f"{path} body", domain)
+    return record, body
+
+
+def load(path, domain=None):
+    return load_detail(path, domain)[0]
 
 
 def collect(root, project_root=None):
     groups = {"design": {}, "tasks": {}}
+    bodies = {}
     all_ids = set()
     for domain, records in groups.items():
         directory = root / domain
         if not directory.is_dir():
             raise ContractError(f"missing {domain}/ directory")
         for path in sorted(directory.rglob("*.md")):
-            record = load(path, domain)
+            record, body = load_detail(path, domain)
             if path.parent != directory or path.stem != record["id"]:
                 raise ContractError(f"{path}: expected {domain}/{record['id']}.md")
             if record["id"] in all_ids:
                 raise ContractError(f"duplicate record ID: {record['id']}")
             all_ids.add(record["id"])
             records[record["id"]] = record
+            bodies[record["id"]] = {record.get("revision"): body}
+            bodies[record["id"]].update(
+                (entry["metadata"]["revision"], entry["body"])
+                for entry in record.get("history", []))
     tasks = groups["tasks"]
     visited = set()
     active = set()
@@ -408,18 +422,124 @@ def collect(root, project_root=None):
 
     for task_id in tasks:
         visit(task_id)
-    validate_local_refs(root, groups)
+    validate_local_refs(root, groups, bodies)
     if project_root is not None:
         validate_projects(groups, project_root)
     return groups
 
 
-def validate_local_refs(root, groups):
+def local_location(location, *, windows=None):
+    """Decode a local locator without mistaking drive letters for URI schemes.
+
+    Pure paths keep parsing testable on every host. Foreign absolute paths need
+    a caller-provided mapping; they cannot be silently accepted as remote URIs.
+    """
+    windows = os.name == "nt" if windows is None else windows
+
+    def normalize_namespace(path):
+        if path.startswith("//?/"):
+            if not windows:
+                raise ContractError("Windows namespace reference requires a Windows host or path mapping")
+            if path[4:8].casefold() == "unc/":
+                return "//" + path[8:]
+            if re.match(r"^[A-Za-z]:/", path[4:]):
+                return path[4:]
+            raise ContractError("unsupported Windows file namespace")
+        if windows and path.startswith("//./"):
+            raise ContractError("device namespaces are not file references")
+        return path
+
+    if location.startswith("\\\\") and not windows:
+        raise ContractError("UNC reference requires a Windows host or path mapping")
+    raw_path, _, fragment = location.partition("#")
+    # The '?' in a native extended-length prefix is not a URI query delimiter.
+    raw_path = normalize_namespace(raw_path.replace("\\", "/")).split("?", 1)[0]
+    decoded = unquote(raw_path, errors="strict")
+    fragment = unquote(fragment, errors="strict")
+    file_uri = False
+    if not re.match(r"^[A-Za-z]:", decoded):
+        parsed = urlsplit(raw_path)
+        if parsed.scheme:
+            if parsed.scheme.casefold() != "file":
+                return None, fragment
+            file_uri = True
+            decoded = unquote(parsed.path, errors="strict")
+            authority = unquote(parsed.netloc, errors="strict")
+            if authority and authority.casefold() != "localhost":
+                if not windows or re.search(r"[:@\\/]", authority):
+                    raise ContractError(f"unsupported file URI authority: {authority}")
+                decoded = "//" + authority + decoded
+            elif re.match(r"^/[A-Za-z]:/", decoded):
+                decoded = decoded[1:]
+    decoded = normalize_namespace(decoded)
+    if re.match(r"^[A-Za-z]:", decoded):
+        if not PureWindowsPath(decoded).is_absolute():
+            raise ContractError("drive-relative local references are ambiguous")
+        if not windows:
+            raise ContractError("Windows absolute reference requires a Windows host or path mapping")
+    path = (PureWindowsPath if windows else PurePosixPath)(decoded)
+    if not decoded or (file_uri and not path.is_absolute()):
+        raise ContractError("file URI must identify an absolute local path")
+    return path, fragment
+
+
+def markdown_anchors(body):
+    """Heading slugs and explicit HTML anchors outside fenced/inline code."""
+    visible = mask_fenced_code(body)
+    visible = re.sub(r"<!--.*?(?:-->|\Z)",
+                     lambda match: re.sub(r"[^\r\n]", " ", match[0]),
+                     visible, flags=re.DOTALL)
+    headings = body_headings(visible)
+    visible = INLINE_CODE.sub("", visible)
+    visible = re.sub(r"^(?: {4}|\t)[^\r\n]*", "", visible, flags=re.MULTILINE)
+    anchors = set()
+
+    class Anchors(HTMLParser):
+        def handle_starttag(self, tag, attrs):
+            for key, value in attrs:
+                if value and (key == "id" or (tag == "a" and key == "name")):
+                    anchors.add(value)
+
+    Anchors(convert_charrefs=True).feed(visible)
+    used = set()
+    for _, _, _, title in headings:
+        literals = []
+
+        def protect(value):
+            literals.append(value)
+            return f"\x00{len(literals) - 1}\x00"
+
+        # Literal code, escapes and entities are content, not emphasis or HTML.
+        title = INLINE_CODE.sub(lambda match: protect(match[2]), title)
+        title = re.sub(r"\\([\\`*_{}\[\]()#+.!>~\-])", lambda match: protect(match[1]), title)
+        title = re.sub(r"&(?:#(?:[xX][0-9a-fA-F]+|[0-9]+)|[A-Za-z][A-Za-z0-9]+);",
+                       lambda match: protect(unescape(match[0])), title)
+        title = re.sub(r"<!--.*?-->", "", title, flags=re.DOTALL)
+        title = re.sub(r"!?\[([^\]]*)\]\([^)]*\)|\[([^\]]*)\]\[[^\]]*\]",
+                       lambda match: match[1] if match[1] is not None else match[2], title)
+        title = unescape(re.sub(r"<[^>]*>", "", title))
+        title = re.sub(r"(?<!\w)[*_~]+|[*_~]+(?!\w)", "", title).replace("`", "")
+        title = re.sub(r"\x00(\d+)\x00", lambda match: literals[int(match[1])], title)
+        slug = "".join(c for c in title.lower().strip()
+                       if c in "-_ " or (not c.isspace()
+                                          and unicodedata.category(c)[0] not in "PCS"))
+        slug = slug.replace(" ", "-")
+        candidate, suffix = slug, 0
+        while candidate in used:
+            suffix += 1
+            candidate = f"{slug}-{suffix}"
+        used.add(candidate)
+        anchors.add(candidate)
+    return anchors
+
+
+def validate_local_refs(root, groups, bodies):
     """Check references into this Feature; external locators remain unresolved."""
     versions = {
         record["id"]: retained_versions(record, domain)
         for domain, records in groups.items() for record in records.values()
     }
+    anchors = {}
     def visit(value):
         if isinstance(value, list):
             for item in value:
@@ -427,12 +547,9 @@ def validate_local_refs(root, groups):
         elif isinstance(value, dict):
             if all(key in value for key in ("id", "revision", "location")):
                 reference(value, "versioned reference")
-                location = unquote(value["location"]).replace("\\", "/")
-                location = location.split("#", 1)[0].split("?", 1)[0]
-                if re.match(r"^[A-Za-z][A-Za-z0-9+.-]*:", location) and not location.startswith("file:"):
+                location, fragment = local_location(value["location"])
+                if location is None:
                     return
-                if location.startswith("file:"):
-                    location = location[5:]
                 candidate = (root / location).resolve()
                 try:
                     relative = candidate.relative_to(root.resolve())
@@ -447,6 +564,12 @@ def validate_local_refs(root, groups):
                     if (value["id"] != target["id"]
                             or value["revision"] not in versions[target["id"]]):
                         raise ContractError(f"local reference ID/revision mismatch: {value['location']}")
+                    if fragment:
+                        key = (target["id"], value["revision"])
+                        if key not in anchors:
+                            anchors[key] = markdown_anchors(bodies[key[0]][key[1]])
+                        if fragment not in anchors[key]:
+                            raise ContractError(f"missing local reference anchor in {key[0]}@{key[1]}: {value['location']}")
             for label, expected_type in RELATIONS.items():
                 if label in value:
                     for item in relation_items(value[label], label):

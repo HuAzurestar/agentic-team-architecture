@@ -17,19 +17,41 @@ class BlockError(ValueError):
     pass
 
 
+def fence_spans(content):
+    """Spans include opening/closing lines; an unclosed fence ends at EOF."""
+    fence = None
+    offset = 0
+    start = 0
+    for line in content.splitlines(keepends=True):
+        match = re.match(r"^ {0,3}(`{3,}|~{3,})(.*)$",
+                         line.lstrip("\ufeff") if offset == 0 else line)
+        if match:
+            token, rest = match.groups()
+            if fence is None:
+                if token[0] != "`" or "`" not in rest:
+                    fence, start = token, offset
+            elif token[0] == fence[0] and len(token) >= len(fence) and not rest.strip():
+                yield start, offset + len(line)
+                fence = None
+        offset += len(line)
+    if fence is not None:
+        yield start, len(content)
+
+
 def fenced_at(content, position):
     """Ignore apparent headings/markers inside Markdown fenced examples."""
-    fence = None
-    for line in content[:position].splitlines():
-        match = re.match(r"^ {0,3}(`{3,}|~{3,})(.*)$", line)
-        if not match:
-            continue
-        token, rest = match.groups()
-        if fence is None:
-            fence = token
-        elif token[0] == fence[0] and len(token) >= len(fence) and not rest.strip():
-            fence = None
-    return fence is not None
+    return any(left <= position < right for left, right in fence_spans(content))
+
+
+def mask_fenced_code(content):
+    """Remove code from syntax scans, preserving line breaks and offsets."""
+    parts = []
+    position = 0
+    for left, right in fence_spans(content):
+        parts.extend((content[position:left],
+                      re.sub(r"[^\r\n]", " ", content[left:right])))
+        position = right
+    return "".join([*parts, content[position:]])
 
 
 def region_bounds(content, name):
@@ -38,17 +60,23 @@ def region_bounds(content, name):
     markers = [f"<!-- {name}:{edge} -->" for edge in ("start", "end")]
     matches = []
     for marker in markers:
-        if content.count(marker) != 1:
+        occurrences = [match for match in re.finditer(re.escape(marker), content)
+                       if not fenced_at(content, match.start())]
+        if len(occurrences) != 1:
             raise BlockError(f"{name}: expected exactly one marker pair")
-        match = re.search(r"^" + re.escape(marker) + r"[ \t]*\r?$", content, re.MULTILINE)
+        # The first textual occurrence may belong to an earlier fenced example.
+        match = next((candidate for candidate in re.finditer(
+            r"^" + re.escape(marker) + r"[ \t]*\r?$", content, re.MULTILINE)
+            if candidate.start() == occurrences[0].start()), None)
         if match is None:
             raise BlockError(f"{name}: markers must be on standalone lines")
         matches.append(match)
     start, end = matches
     if start.start() >= end.start():
         raise BlockError(f"{name}: markers are reversed")
-    section = list(re.finditer(r"^## " + re.escape(heading) + r"[ \t]*\r?$",
-                               content, re.MULTILINE))
+    section = [match for match in re.finditer(
+        r"^## " + re.escape(heading) + r"[ \t]*\r?$", content, re.MULTILINE)
+        if not fenced_at(content, match.start())]
     if len(section) != 1:
         raise BlockError(f"{name}: expected one ## {heading} section")
     section = section[0]

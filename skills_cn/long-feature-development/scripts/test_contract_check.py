@@ -10,7 +10,8 @@ import subprocess
 import sys
 import tempfile
 import unittest
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
+from urllib.parse import quote
 
 sys.dont_write_bytecode = True
 
@@ -624,6 +625,175 @@ class FeatureRecordTests(unittest.TestCase):
             checker.validate_feature(root)
             # Existing SOL and task records continue to point truthfully at REQ v1.
             self.assertEqual(checker.load(root / "design/SOL-001.md")["requirement related to"][0]["revision"], "v1")
+
+    def test_local_locator_parsing_is_platform_aware(self):
+        cases = [
+            (True, r"C:\work space\项目\design\REQ-001.md#verify", "C:/work space/项目/design/REQ-001.md", "verify"),
+            (True, "file:///C:/work%20space/%E9%A1%B9%E7%9B%AE/design/REQ-001.md#%E9%AA%8C%E8%AF%81", "C:/work space/项目/design/REQ-001.md", "验证"),
+            (True, "FILE://localhost/C:/work/design/REQ-001.md", "C:/work/design/REQ-001.md", ""),
+            (True, "file://server/share/design/REQ-001.md#verify", "//server/share/design/REQ-001.md", "verify"),
+            (True, r"\\server\share\design\REQ-001.md", "//server/share/design/REQ-001.md", ""),
+            (True, r"\\?\C:\work\design\REQ-001.md", "C:/work/design/REQ-001.md", ""),
+            (True, r"\\?\UNC\server\share\design\REQ-001.md", "//server/share/design/REQ-001.md", ""),
+            (True, PureWindowsPath(r"\\?\C:\work\design\REQ-001.md").as_uri(), "C:/work/design/REQ-001.md", ""),
+            (False, "/work space/项目/design/REQ-001.md#verify", "/work space/项目/design/REQ-001.md", "verify"),
+            (False, "file://localhost/work%20space/design/REQ-001.md", "/work space/design/REQ-001.md", ""),
+            (False, "file:///work/design/REQ-001.md#verify", "/work/design/REQ-001.md", "verify"),
+            (False, "file:///work%23space/%2520/design/REQ-001.md#verify", "/work#space/%20/design/REQ-001.md", "verify"),
+            (False, r"design\REQ-001.md#verify", "design/REQ-001.md", "verify"),
+            (True, "design/REQ-001.md#verify", "design/REQ-001.md", "verify"),
+        ]
+        for windows, location, expected, fragment in cases:
+            with self.subTest(windows=windows, location=location):
+                path, actual_fragment = checker.local_location(location, windows=windows)
+                self.assertIsInstance(path, PureWindowsPath if windows else PurePosixPath)
+                self.assertEqual(path.as_posix(), expected)
+                self.assertEqual(actual_fragment, fragment)
+        for windows in (False, True):
+            for location in ("https://example.invalid/path#unverified", "external:policy/v1"):
+                with self.subTest(windows=windows, external=location):
+                    self.assertIsNone(checker.local_location(location, windows=windows)[0])
+
+    def test_unsupported_local_locators_do_not_silently_become_external(self):
+        cases = [
+            (False, "C:/work/design/REQ-001.md"),
+            (False, "file:///C:/work/design/REQ-001.md"),
+            (False, r"\\server\share\REQ-001.md"),
+            (False, "file://server/share/REQ-001.md"),
+            (True, "C:design/REQ-001.md"),
+            (True, "file://user@server/share/REQ-001.md"),
+            (True, "file://server:80/share/REQ-001.md"),
+            (False, "file:design/REQ-001.md"),
+            (True, "file:design/REQ-001.md"),
+            (True, r"\\.\pipe\report"),
+        ]
+        for windows, location in cases:
+            with self.subTest(windows=windows, location=location), self.assertRaises(checker.ContractError):
+                checker.local_location(location, windows=windows)
+
+    def test_absolute_and_file_uri_refs_check_id_revision_and_existence(self):
+        with tempfile.TemporaryDirectory(prefix="pr8 路径 ") as temporary:
+            root = self.feature(temporary)
+            path = root / "tasks/DEV-001.md"
+            item = checker.load(path)
+            target = root / "design/REQ-001.md"
+            locations = [str(target), target.as_posix(), target.as_uri(),
+                         target.as_uri().replace("file:///", "file://localhost/", 1)]
+            if isinstance(target, PureWindowsPath):
+                locations.append("\\\\?\\" + str(target))
+            for location in locations:
+                evidence = {"id": "REQ-001", "revision": "v1", "location": location}
+                item["inputs"] = [evidence]
+                item["result"].update(outcome="pass", evidence=[evidence])
+                write_detail(path, item)
+                with self.subTest(valid=location):
+                    checker.collect(root)
+                for field, invalid in (("id", "MISSING"), ("revision", "v999"),
+                                       ("location", location.replace("REQ-001.md", "MISSING.md"))):
+                    broken = {**evidence, field: invalid}
+                    item["inputs"] = [broken]
+                    item["result"]["evidence"] = [broken]
+                    write_detail(path, item)
+                    with self.subTest(location=location, field=field), self.assertRaises(checker.ContractError):
+                        checker.collect(root)
+
+    def test_local_anchor_checks_current_body_and_encoded_fragments(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = self.feature(temporary)
+            path = root / "tasks/DEV-001.md"
+            item = checker.load(path)
+            body = ("# Report\n\n## **Verification** `checks`\n\nPassed.\n\n"
+                    "## 验证结果\n\nPassed.\n\n"
+                    "<a id='custom-report'></a>\n<a name='legacy-report'></a>\n\n"
+                    "Verification\n------------\n\nPassed.\n\n"
+                    "## Verification\n\nPassed again.\n")
+            for anchor in ("verification-checks", "验证结果", quote("验证结果"),
+                           "custom-report", "legacy-report", "verification", "verification-1"):
+                item["result"].update(outcome="pass", evidence=[{
+                    "id": "DEV-001", "revision": "v1", "location": f"tasks/DEV-001.md#{anchor}"}])
+                write_detail(path, item, body)
+                with self.subTest(anchor=anchor):
+                    checker.collect(root)
+            for anchor in ("missing", "verification-2", "Verification"):
+                item["result"]["evidence"][0]["location"] = f"tasks/DEV-001.md#{anchor}"
+                write_detail(path, item, body)
+                with self.subTest(anchor=anchor), self.assertRaisesRegex(checker.ContractError, "missing local reference anchor"):
+                    checker.collect(root)
+
+    def test_local_anchor_is_checked_in_the_referenced_historical_body(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = self.feature(temporary)
+            path = root / "tasks/DEV-001.md"
+            item = checker.load(path)
+            previous = copy.deepcopy(item)
+            previous.pop("history", None)
+            previous["result"].update(outcome="pass", evidence=[{
+                "id": "DEV-001", "revision": "v1", "location": "tasks/DEV-001.md#old-report"}])
+            item["revision"] = "v2"
+            item["history"] = [{"metadata": previous, "body": "# Original\n\n## Old report\n\nPassed.\n"}]
+            for revision, anchor, valid in (("v1", "old-report", True), ("v2", "new-report", True),
+                                            ("v1", "new-report", False), ("v2", "old-report", False)):
+                item["result"].update(outcome="pass", evidence=[{
+                    "id": "DEV-001", "revision": revision, "location": f"tasks/DEV-001.md#{anchor}"}])
+                write_detail(path, item, "# Current\n\n## New report\n\nPassed.\n")
+                with self.subTest(revision=revision, anchor=anchor):
+                    if valid:
+                        checker.collect(root)
+                    else:
+                        with self.assertRaisesRegex(checker.ContractError, "missing local reference anchor"):
+                            checker.collect(root)
+            item["result"]["evidence"][0]["location"] = "tasks/DEV-001.md#new-report"
+            previous["result"]["evidence"][0]["location"] = "tasks/DEV-001.md#new-report"
+            write_detail(path, item, "# Current\n\n## New report\n\nPassed.\n")
+            with self.assertRaisesRegex(checker.ContractError, "missing local reference anchor in DEV-001@v1"):
+                checker.collect(root)
+
+    def test_fenced_and_inline_code_cannot_supply_evidence_anchors(self):
+        body = ("# Report\n\n```markdown\n## Fake heading\n<a id='fake-id'></a>\n```\n\n"
+                "`<a name='inline-fake'></a>`\n\n<!-- <a id='comment-fake'></a>\n"
+                "## Comment heading\n-->\n\n    <a id='indented-fake'></a>\n\n"
+                "## Real heading after examples\n")
+        anchors = checker.markdown_anchors(body)
+        self.assertIn("report", anchors)
+        self.assertIn("real-heading-after-examples", anchors)
+        self.assertTrue({"fake-heading", "fake-id", "inline-fake", "comment-fake",
+                         "comment-heading", "indented-fake"}.isdisjoint(anchors))
+
+    def test_heading_anchors_preserve_unicode_and_disambiguate_duplicates(self):
+        body = ("## This'll be a _Helpful_ Section About the Greek Letter Θ!\n\n"
+                "## Verification\n\n## Verification\n\n## Verification-1\n\n"
+                "## A  heading_with_underscores &amp; [a link](https://example.invalid)\n\n"
+                "<a name='verification-2'></a>\n\n## Verification\n")
+        anchors = checker.markdown_anchors(body)
+        self.assertTrue({"thisll-be-a-helpful-section-about-the-greek-letter-θ",
+                         "verification", "verification-1", "verification-1-1", "verification-2",
+                         "a--heading_with_underscores--a-link"}.issubset(anchors))
+        literal_anchors = checker.markdown_anchors(
+            "## `_private_` \\_literal\\_ &#95;entity&#95; <em>format</em>\n")
+        self.assertIn("_private_-_literal_-_entity_-format", literal_anchors)
+
+    def test_local_reference_cli_rejects_invalid_pass_evidence_read_only(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = self.feature(temporary)
+            path = root / "tasks/DEV-001.md"
+            item = checker.load(path)
+            for revision, location, error in (
+                    ("v999", (root / "design/REQ-001.md").as_uri(), "ID/revision mismatch"),
+                    ("v1", "tasks/DEV-001.md#missing-report", "missing local reference anchor")):
+                item["result"].update(outcome="pass", evidence=[{
+                    "id": "REQ-001" if revision == "v999" else "DEV-001",
+                    "revision": revision, "location": location}])
+                write_detail(path, item)
+                before = {p: p.read_bytes() for p in root.rglob("*") if p.is_file()}
+                process = subprocess.run(
+                    [sys.executable, "-B", str(Path(checker.__file__)), str(root), "--format", "json"],
+                    capture_output=True, text=True, encoding="utf-8", check=False)
+                with self.subTest(location=location):
+                    self.assertEqual(process.returncode, 1, process.stderr)
+                    result = json.loads(process.stdout)
+                    self.assertFalse(result["valid"])
+                    self.assertIn(error, result["error"])
+                    self.assertEqual({p: p.read_bytes() for p in before}, before)
 
     def test_bare_historical_reference_is_not_a_retained_content_snapshot(self):
         item = checker.load(TEMPLATES / "design/REQ-001.md")

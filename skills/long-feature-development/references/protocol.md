@@ -83,6 +83,10 @@ result:
 
 Use that reference only when DOCS-001@v1 actually retains the substantive report under the named heading. An empty reference shell or a task state alone is not evidence that verification happened.
 
+Feature checks resolve relative paths from the Feature root and normalize native absolute paths and `file:` URIs before checking local record IDs/revisions. Prefer Feature-relative paths for portability. Windows drive letters are paths, not URI schemes; `file://localhost/...` is local, and Windows file authorities use UNC paths. Ambiguous drive-relative paths, foreign Windows paths on a POSIX host and unsupported file authorities fail explicitly; resolve a foreign machine's locator through the supplied mapping first. External non-file URIs remain unverified.
+
+A local reference with a fragment must resolve to an anchor in the referenced revision's body, including `history.body` for an old revision. The checker supports ATX/Setext heading slugs (lowercase, spaces to hyphens, formatting/punctuation removed, duplicate suffixes `-1`, `-2`, etc.) and explicit HTML `id`/`a name` anchors. See [section links and custom anchors](https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax#section-links) for the basic naming rules. Fenced examples, inline-code HTML and comments cannot supply anchors. Anchor existence is structural evidence only, not proof of the report's correctness.
+
 ## Points and areas
 
 A recorded commit point is `<project-key>@<head-sha>`. A moving branch area is `<project-key>@<branch-name>`. The full point spelling `<project-key>@<branch-name>@<head-sha>` carries extra branch context but normalizes to project+SHA.

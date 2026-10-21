@@ -245,6 +245,64 @@ class GeneratedIndexTests(unittest.TestCase):
                 indexes.sync_indexes(root, write=True)
             self.assertEqual(snapshot(root), before)
 
+    def test_fenced_examples_do_not_count_as_real_sections_or_markers(self):
+        for fence in ("```", "~~~", "````"):
+            for position in ("before", "after"):
+                with self.subTest(fence=fence, position=position), tempfile.TemporaryDirectory() as temporary:
+                    root = self.feature(temporary)
+                    self.stale_task(root)
+                    path = root / "TASKS.md"
+                    content = path.read_text(encoding="utf-8")
+                    example = (f"{fence}markdown\n## preview-table\n"
+                               "<!-- tasks-preview-table:start -->\n"
+                               "| Example |\n| --- |\n"
+                               "<!-- tasks-preview-table:end -->\n"
+                               "## dependency-topology\n"
+                               "<!-- tasks-dependency-topology-mermaid:start -->\n"
+                               "```mermaid\nflowchart TD\n```\n"
+                               "<!-- tasks-dependency-topology-mermaid:end -->\n"
+                               f"{fence}\n")
+                    # A shorter inner fence must not close a longer outer one.
+                    if fence == "```":
+                        example = example.replace("```mermaid\nflowchart TD\n```\n", "flowchart TD\n")
+                    if position == "before":
+                        content = example + "\n" + content
+                    else:
+                        content += "\n" + example
+                    path.write_bytes(("\ufeff" + content.replace("\n", "\r\n")).encode("utf-8"))
+                    before = path.read_bytes()
+                    indexes.sync_indexes(root, write=True)
+                    after = path.read_bytes()
+                    self.assertEqual(unmanaged(before.decode("utf-8"), "TASKS.md"),
+                                     unmanaged(after.decode("utf-8"), "TASKS.md"))
+                    self.assertIn(example.replace("\n", "\r\n").encode("utf-8"), after)
+                    checker.validate_feature(root)
+
+    def test_real_duplicate_sections_and_markers_are_still_rejected(self):
+        for extra in ("## preview-table", "## dependency-topology",
+                      "<!-- tasks-preview-table:start -->", "<!-- tasks-preview-table:end -->",
+                      "<!-- tasks-dependency-topology-mermaid:start -->",
+                      "<!-- tasks-dependency-topology-mermaid:end -->"):
+            with self.subTest(extra=extra), tempfile.TemporaryDirectory() as temporary:
+                root = self.feature(temporary)
+                self.stale_task(root)
+                path = root / "TASKS.md"
+                content = path.read_text(encoding="utf-8")
+                path.write_text(content + "\n" + extra + "\n", encoding="utf-8")
+                before = snapshot(root)
+                with self.assertRaises(BlockError):
+                    indexes.sync_indexes(root, write=True)
+                self.assertEqual(snapshot(root), before)
+
+    def test_invalid_backtick_info_does_not_hide_real_duplicate_section(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = self.feature(temporary)
+            path = root / "TASKS.md"
+            content = path.read_text(encoding="utf-8")
+            path.write_text(content + "\n```invalid`info\n## preview-table\n", encoding="utf-8")
+            with self.assertRaises(BlockError):
+                indexes.sync_indexes(root, write=True)
+
     def test_invalid_authoritative_input_prevents_writes(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = self.feature(temporary)

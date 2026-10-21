@@ -15,6 +15,8 @@ Each document keeps its Feature title and short introduction. Put each marker pa
 
 A region uses `<!-- name:start -->` and `<!-- name:end -->`. Do not edit the contents by hand. Keep manual, dated notes under `## complementary` after the generated sections; titles, introductions and notes are outside script ownership. Design/task facts still belong to their detailed records, not duplicate index ledgers.
 
+Fenced Markdown examples may repeat these headings and markers; they do not count as real sections or generated regions and are preserved verbatim. Real duplicate headings or markers outside fences remain errors. A region found only inside an example is not a usable generation target.
+
 Do not wrap tables or sections in standalone horizontal rules. Only YAML frontmatter keeps its delimiter lines; Markdown table header separators remain necessary table syntax.
 
 ## Generate and update
