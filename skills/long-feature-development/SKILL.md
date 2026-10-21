@@ -27,7 +27,7 @@ The caller resolves `<Project-Manage>`. A Feature is persistent work across Proj
 
 The management directory need not be a Git repository. Resolve its actual location, state/authority access and the assignment externally. Report missing or conflicting facts without inventing ownership.
 
-Design proposal: initialize two runtime-owned persistent profiles for project-management access and notification access, following [runtime persistence](references/runtime-persistence.md). Agent instructions express organization and authority without machine paths or network endpoints. This draft defines contracts; it does not implement or activate a loader or adapter.
+Initialize two runtime-owned persistent profiles for project-management access and notification access, following [runtime persistence](references/runtime-persistence.md). Agent instructions express organization and authority without machine paths or network endpoints. The included helpers persist explicit local profiles and offline workflow events; the runtime supplies their arguments and actual notification adapters. Installing the skill does not install a daemon loader or network receiver.
 
 ## Records and previews
 

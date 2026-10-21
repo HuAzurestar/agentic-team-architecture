@@ -1,14 +1,25 @@
 # 识别工作流程的通知 hook
 
-设计稿 draft-1；尚未实现 dispatcher、网络回调、队列或重试 worker。runtime adapter 状态见[持久化接入](runtime-persistence.md)，实施前需确认事件映射及接收器/adapter 契约。
+workflow_events.py 实现离线持久事件/尝试/回执/回复账本，不发起网络请求或启动 worker；实际投递仍由 runtime 工具承担。runtime adapter 状态见[持久化接入](runtime-persistence.md)，实施前需确认事件映射及接收器/adapter 契约。
+
+## 离线 helper I/O
+
+使用 workflow_events.py --state-root <absolute-state-directory> --runtime-id <runtime-id>，再接 record/attempt/ack/reply --input <json-file>。reply 另需 --current-object-revision <actual-workflow-revision>；inspect [--event-id <id>] 读取持久状态。先配置 notification profile；delivery state 目录保存绑定 runtime 的账本。
+
+- record：event id/type、phase、purpose、priority、feature、task、object revision、occurred at、actor、correlation id 为字符串；decision required 为布尔值，payload 为 JSON 数据。决定请求另需 decider/requested scope/allowed consequences。同事件同内容幂等，冲突内容拒绝。
+- attempt：event id、attempt id、occurred at、adapter tool reference、route；adapter 与 route 必须匹配当前明确配置。宿主调用实际工具前先保存 attempt，helper 不代替该调用。
+- ack：event id、attempt id、occurred at、status（accepted/failed/unknown），可附 receipt；回执不可覆盖，重试另建 attempt 并保留原 event id。
+- reply：event id、reply id、correlation id、object revision、declared decider、original wording、source、occurred at；同时与原请求及显式传入的当前 workflow revision 核对，拒绝旧版本回复。工具不认证身份、不评估业务授权；宿主验证身份，有权角色将实际决定保存 PM。
+
+helper 不按接收器订阅过滤事件，不调用 adapter、不修改正式批准，也不把任意 decision 内容解释为权限。失败/未知回执在重启后仍可读，没有自动重试或后台队列。
 
 ## 事件 I/O
 
-输入：实际流程事件，以及 Feature/任务、准确对象版本、策略/授权引用、实际操作者、发生时间、待决定问题或结果、证据/限制及关联上下文。输出：持久事件及真实投递结果（not_attempted、accepted、failed、unknown），保留可得回执。按实际发生的事实形成事件，接收器由用户决定订阅、重要程度处理、展示和屏蔽，不由 Agent 因猜测用户偏好而丢弃流程事实；缺项如实表达。
+输入：实际流程事件，以及 Feature/任务、准确对象版本、调用方提供的适用策略/授权引用、实际操作者、发生时间、待决定问题或结果、证据/限制及关联上下文。输出：持久事件及真实投递结果（not_attempted、accepted、failed、unknown），保留可得回执。按实际发生的事实形成事件，接收器由用户决定订阅、重要程度处理、展示和屏蔽，不由 Agent 因猜测用户偏好而丢弃流程事实；缺项如实表达。
 
 事件信封包含 event id、event type、phase、purpose、priority、Feature/task/object revision、发生时间/操作者、correlation id、是否需决定/实际决定者、请求范围/允许后果及 payload/证据引用。重试保留事件身份，另记 attempt；身份对应实际事件及版本，不能仅凭标题去重。
 
-建议事件族（adapter 绑定仍是配置数据）：
+建议事件族（adapter 绑定是配置数据）：
 
 | 事件 | 含义 |
 | --- | --- |
@@ -37,3 +48,7 @@ purpose 区分告知、行动预告、请求决定；priority 表示重要程度
 ## 建议验收实验
 
 先用不会真实外发的 fixture adapter：同 instruction 迁移 runtime A/B；同事件重放不重复执行决定；屏蔽展示不产生批准；投递失败仍保留事件；旧对象版本回复被识别为过期。真实网络回调、投递保证和重试调度需另行协商实施与测试。
+
+## 策略与集成边界
+
+helper校验已列出的基础字段和请求/回复关联，保留额外JSON数据，不认证授权或回执真实性。调用流程提供并核对适用策略/授权/证据引用；缺少策略元数据不解释成权限。helper不向索引生成器、平台事件或状态流转自动安装hook，由获授权工作流程在真实流转点显式调用。

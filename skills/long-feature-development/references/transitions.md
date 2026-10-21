@@ -47,3 +47,7 @@ Use the supplied write interface to coordinate the detail and affected STATUS ov
 Refresh STATUS only for affected overall repository/Feature/development state. Do not mirror every task row. A task becoming DONE does not, by itself, change a Feature phase or authorize release; apply the externally supplied [GATE](gates.md) policy.
 
 A design-point decision is distinct from its processing task's lifecycle; see [confirmation.md](confirmation.md).
+
+### Workflow notification IO
+
+Use [notification hooks](notification-hooks.md) for factual task planned/started/blocked/result occurrences. Persist actual state before emitting a result; a plan is an intention, not execution evidence. No automatic platform listener is installed.

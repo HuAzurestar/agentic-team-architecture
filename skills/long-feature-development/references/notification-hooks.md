@@ -1,14 +1,25 @@
 # Workflow-aware notification hooks
 
-Design proposal, draft-1; no dispatcher, network callback, queue or retry worker is implemented. Runtime adapter state is defined in [runtime persistence](runtime-persistence.md). Confirm the event mapping and receiver/adapter contract before implementation.
+workflow_events.py implements an offline persistent event/attempt/acknowledgement/reply ledger. It sends no network traffic and starts no worker; actual runtime tools remain responsible for dispatch. Runtime adapter state is defined in [runtime persistence](runtime-persistence.md). Confirm the event mapping and receiver/adapter contract before implementation.
+
+## Offline helper IO
+
+Use `workflow_events.py --state-root <absolute-state-directory> --runtime-id <runtime-id>` followed by `record`, `attempt`, `ack`, or `reply --input <json-file>`. Replies also require `--current-object-revision <actual-workflow-revision>`. Use `inspect [--event-id <id>]` to resume from persisted state. The notification profile must be configured first; its delivery state directory holds the runtime-bound ledger.
+
+- `record`: event id/type, phase, purpose, priority, feature, task, object revision, occurred at, actor and correlation id are strings; decision required is boolean; payload is JSON data. Decision requests also name decider, requested scope and allowed consequences. Event identity with identical data is idempotent; conflicting data is rejected.
+- `attempt`: event id, attempt id, occurred at, adapter tool reference and route. Adapter and route must match the explicit current profile. Save this before the host calls a real tool. The helper does not perform that call.
+- `ack`: event id, attempt id, occurred at and status (`accepted`, `failed`, `unknown`), plus optional receipt. Preserve immutable acknowledgements; retries use distinct attempts and retain the original event id.
+- `reply`: event id, reply id, correlation id, object revision, declared decider, original wording, source and occurred at. Structural matching against both the original request and the explicit current workflow revision rejects stale replies. Identity authentication is not performed and workflow authorization is not evaluated; the host verifies identity and an authorized role records actual decisions in PM.
+
+The helper does not filter by receiver subscriptions, invoke adapters, modify formal approvals or interpret arbitrary decision payload as permission. A failed/unknown acknowledgement remains durable after restart. No automatic retry or background queue exists.
 
 ## Event IO
 
-Input: a real workflow occurrence plus Feature/task, exact object revision, policy/mandate reference, actual actor, timestamp, question or outcome, evidence/known limits and correlation context. Output: a durable event and an honest dispatch result (`not_attempted`, `accepted`, `failed` or `unknown`) with available acknowledgement. Emit factual occurrences even when presentation is terse; the user's receiver chooses subscriptions, prioritization, display and muting. Acknowledge missing information explicitly.
+Input: a real workflow occurrence plus Feature/task, exact object revision, the applicable policy/mandate reference supplied by the caller, actual actor, timestamp, question or outcome, evidence/known limits and correlation context. Output: a durable event and an honest dispatch result (`not_attempted`, `accepted`, `failed` or `unknown`) with available acknowledgement. Emit factual occurrences even when presentation is terse; the user's receiver chooses subscriptions, prioritization, display and muting. Acknowledge missing information explicitly.
 
 An event envelope contains `event id`, `event type`, `phase`, `purpose`, `priority`, Feature/task/object revision, occurrence time/actor, `correlation id`, decision-required/decider, requested scope/allowed consequences and payload/evidence references. Retain event identity on a retry; distinguish attempts. Stable identity is scoped to the actual occurrence and revision, not only its title.
 
-Proposed event families (adapter bindings remain data):
+Suggested event families (adapter bindings remain data):
 
 | Event | Meaning |
 | --- | --- |
@@ -35,3 +46,7 @@ Only applicable policy makes a decision block dependent actions. A required GATE
 ## Suggested acceptance experiments
 
 Use a fixture adapter without real external sending: migrate runtime A/B with unchanged instruction; replay one event without duplicate decision execution; mute a display subscription without granting approval; fail dispatch while retaining the event; reject a reply for the previous object revision. Real network callbacks, delivery guarantees and retry scheduling need separately agreed implementation and tests.
+
+## Policy and integration boundary
+
+The helper validates the documented base fields and request/reply correlation, preserves extra JSON data, and does not verify a mandate or receipt's authenticity. The workflow caller supplies and checks applicable policy/mandate/evidence references. Omitted policy metadata is not interpreted as permission. The helpers do not install automatic hooks into the index generator, platform events or state transitions; the authorized workflow calls them at its actual transition points.

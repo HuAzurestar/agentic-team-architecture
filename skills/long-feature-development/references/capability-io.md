@@ -1,6 +1,6 @@
 # Standard capability IO
 
-Design proposal, draft-1. Skill capabilities define how scoped input becomes a verifiable result; agent instructions choose responsibility, delegation and decision authority. Runtime bindings supply physical access. No role's capability implies permission.
+Skill capabilities define how scoped input becomes a verifiable result; agent instructions choose responsibility, delegation and decision authority. Runtime bindings supply physical access. No role's capability implies permission.
 
 Common input: request/source identity, Feature/task association, exact inputs/revisions, scope/constraints, applicable authority, runtime profile and return contract. Common output: actual operations, versioned artifacts, checks/limits, outcome, pending items and persisted-record status. Keep facts, inference, recommendation and actual decisions distinguishable.
 

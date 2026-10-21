@@ -1,7 +1,7 @@
-# Proposed runtime-owned persistent data; nulls are not active defaults.
+# Runtime-owned persistent data; nulls are not active defaults.
 # Store outside the replaceable skill package, at an explicit runtime-supplied locator.
 profile: null
-revision: draft-1
+revision: example-v1
 runtime identity: null
 management roots: {}
 selected root: null

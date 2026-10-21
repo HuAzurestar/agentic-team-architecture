@@ -57,3 +57,7 @@ Permission to confirm does not itself authorize CONFIRMED → REOPENED. Before r
 For a reopened current proposal, use REOPENED and clear the current decision fields together after preserving the prior decision. Record why it changed, who may decide again and the input versions. Reconfirmation applies only to the revised content.
 
 Review affected downstream solutions, tasks, tests, acceptance and GATE evidence for staleness. Do not move their recorded target to the new revision or SHA without doing the corresponding work. DESIGN previews these point records; STATUS may summarize the effect, not invent a document-wide approval.
+
+### Workflow notification IO
+
+After persisting an actual confirmation request or attributed decision, the caller may use [notification hooks](notification-hooks.md) with the exact subject revision and correlation. Hook delivery does not change confirmation state; actual authorization remains governed above.

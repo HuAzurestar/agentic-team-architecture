@@ -47,3 +47,7 @@ PENDING 表示未接取。可用 READY/WAITING 描述直接依赖是否全部 DO
 STATUS 只更新受影响的仓库/Feature/开发综合状态，不镜像全部任务行。任务 DONE 本身不改变 Feature 阶段，也不授权发布，应使用外部提供的 [GATE](gates.md) 策略。
 
 设计点决定与处理该决定的任务生命周期分别表达，参见 [confirmation.md](confirmation.md)。
+
+### 流程通知I/O
+
+使用[通知hook](notification-hooks.md)表达真实任务计划/开始/阻塞/结果。形成结果事件前先保存实际状态；计划为行动预告，不是执行证明。本Skill不自动安装平台监听器。

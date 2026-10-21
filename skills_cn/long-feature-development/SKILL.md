@@ -26,7 +26,7 @@ description: 通过 YAML 详情、Markdown 预览和稳定的 Project 仓库映�
 ```
 
 管理目录不要求是 Git 仓库。实际位置、状态/授权入口和委托由外部提供；缺失或冲突时报告，不编造归属。
-设计提案：按[runtime 持久化](references/runtime-persistence.md)初始化项目管理接入、通知接入两类持久配置，由开发机/runtime 维护。Agent instruction 表达组织理念和权限，不携带机器路径或网络端点。本稿定义契约，尚未实现或启用加载器及 adapter。
+按[runtime 持久化](references/runtime-persistence.md)初始化项目管理接入、通知接入两类持久配置，由开发机/runtime 维护。Agent instruction 表达组织理念和权限，不携带机器路径或网络端点。随附 helper 实现显式本地配置与离线流程事件持久化；参数及实际通知 adapter 由 runtime 提供。安装 Skill 不自动安装 daemon 加载器或网络接收器。
 
 ## 记录与预览
 

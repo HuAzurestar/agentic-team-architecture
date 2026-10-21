@@ -31,3 +31,7 @@ Record the subject/policy versions, evidence, evaluated criteria, unresolved ite
 A failed evaluation can complete a gate-evaluation assignment, but cannot be represented as a satisfied gate or a successful Feature transition. Neither task DONE nor an agent summary proves release readiness. A recorded allowed action is not evidence that it was executed; track any authorized execution and its receipt separately.
 
 The helper checks structural consistency: satisfied evaluations include durable evidence; allowed actions require satisfied evaluation plus granted/not_required authorization. It does not evaluate conditions, verify permissions or contact decision makers. Keep all necessary results and basis in durable task/design records rather than transient attachments.
+
+### Workflow notification IO
+
+Use [notification hooks](notification-hooks.md) for a real evaluation or authorization request, with the exact gate subject/version and designated decider. Receiver subscription and tool acceptance do not alter pending authorization or allowed actions.
