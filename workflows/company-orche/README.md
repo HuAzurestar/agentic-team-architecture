@@ -1,6 +1,6 @@
 # 公司工作流部署
 
-版本：`feature-delivery/2026-10-22-v10`。
+版本：`feature-delivery/2026-10-22-v11`。
 
 四角色源文件分别为 `orchestrator_agent.md`、`out_socket_agent.md`、`dev_processor_agent.md`、`release_check_agent.md`。`orchestrator` 亦称 `dev-orchestrator`；实际 Agent 不重建、不改名。
 
@@ -16,6 +16,6 @@
 
 `Align-Decide-Disclose`（对齐—决策—披露）用于notify及需要汇报的协作交流；完整含义与例子见[交流规则](communication.md)。空项可省略，披露只报告已有授权内的实际决定／执行，不替代批准。
 
-`Align-Decide-Disclose`（对齐—决策—披露）用于notify及需要汇报的协作交流；完整含义与例子见[交流规则](communication.md)。空项可省略，披露只报告已有授权内的实际决定／执行，不替代批准。
-
 `v10`区分质量FEEDBACK与外部INT、DEV内测试与独立TEST；反馈后的开发统一主类型DEV，子类可为refine／bug-fix／refactor。ADVICE/BUG的类型注册及关系校验仍属feedback-disposition/v2提案范围，工作约定更新不代表其Skill实现已安装。
+
+`v11`补齐 NO-FEAT／直接陈述受理与关联设计迁入、Multica 平台返回编号、FEAT 摘要模板、同类模块分组（每 issue 1～5 个 PM 子任务）、模块默认 `(all)` 及实际并发条件，以及设计／反馈／发布的决定者与执行者。首次使用由 runtime 绑定专用编号申请项目和“自动开发项目”（可以相同）；项目 ID、机器、凭据与通知路由不固定在源模板。没有请求正式工作时，不因本规则更新创建申请 issue 或批量重排旧任务。规则更新本身不新增平台批处理器或排他机制，也不改变 Skill 的通用协议。
