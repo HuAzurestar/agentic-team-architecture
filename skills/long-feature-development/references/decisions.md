@@ -11,3 +11,5 @@ A comment, recommendation and authorized decision are different facts. A DECISIO
 An authorized agent may decide within its external mandate without mandatory human reconfirmation. An applicable AGENTS.md role mandate may provide conditional REQ/SOL confirmation authority; use the mandate and mandatory-reason rules in [confirmation.md](confirmation.md). The host determines scope and effective authority. Confidence, difficulty assessment or learning does not create authority. Learning and approval-policy changes remain external capabilities.
 
 For partial decisions, decided-point changes and reopening, read [confirmation.md](confirmation.md); it owns revision and prior-decision handling. For a user-facing acceptance brief and response, read [acceptance.md](acceptance.md). Neither operation relies on disposable attachments.
+
+Quality findings produced by TEST/REVIEW belong in FEEDBACK records, rather than automatically creating INT. User requests to test/review are still external intent. See [task contracts](task-contracts.md) for handling and the distinction between developer testing and independent TEST.

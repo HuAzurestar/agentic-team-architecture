@@ -42,3 +42,5 @@ Preserve the feedback source and the affected subject revision. Distinguish the 
 ## Handling and resolution
 
 Record the responsible actor's handling decision, any revised design/task references and the resolution evidence required by the assignment. Preserve the original decision and the correction relationship.
+
+For TEST/REVIEW findings retain the source report and candidate through versioned inputs. Record disposition and any derived advice/bug points, solution and development follow-up; do not invent INT for quality findings or mark all linked defects fixed when handling completes. Environment failures can lead to restoration/retest without code changes.

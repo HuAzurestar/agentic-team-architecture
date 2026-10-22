@@ -4,6 +4,10 @@ Read when assigning or reporting TEST, REVIEW or REWORK work. These are task-spe
 
 Use the fields needed by the actual assignment; the shared YAML format permits specialized metadata. The structural checker does not enforce these report semantics or verify that work ran.
 
+## DEV and developer testing
+
+DEV includes implementation-related testing such as TDD, unit tests, local integration and debugging in its own development context. DEV-REFINE, DEV-BUG-FIX and DEV-REFACTOR remain development tasks, optionally distinguished by `development kind: refine|bug-fix|refactor`; these labels do not create Git branches. Independent TEST targets business, regression and unified/system validation of a frozen candidate. Reusing a test tool does not equate these responsibilities, and developer self-checks do not substitute for an independent TEST result.
+
 ## TEST
 
 Identify the scope, exact candidate (Project-qualified SHA for code or a versioned non-code artifact), environment and limitations, planned checks and actual checks. Separate executed, passed, failed, skipped and unknown results. Counts alone do not establish coverage; retain meaningful check names and a substantive verification summary.
@@ -25,3 +29,7 @@ Preserve source findings and their target, the requested change, the new output 
 Completion of the rework task alone does not prove that retesting passed, acceptance was granted or a GATE is satisfied.
 
 For user-facing acceptance, read [acceptance.md](acceptance.md). For policy checks and later permission, read [gates.md](gates.md).
+
+## FEEDBACK from TEST and REVIEW
+
+Preserve reported findings as FEEDBACK, not automatically as INT. Use the existing feedback task record and lifecycle; identify the reporting task, exact candidate, observations, expected/actual behavior, environment and evidence. Handling may derive advice/bug points when supported by the loaded protocol, decline/defer an item with reasons, or address an environment blocker without DEV. A genuine new external intent remains INT. Where the host uses the ADVICE/BUG path, accepted items feed an explicit SOL and the required authorization before DEV refinement/bug-fix/refactoring; unchanged requirements can be referenced without artificial revisions. A completed feedback-handling task records disposition and follow-up, not proof that linked defects are fixed.

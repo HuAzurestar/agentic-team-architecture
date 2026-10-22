@@ -4,6 +4,10 @@
 
 按实际委托补充字段，共享 YAML 允许专用元数据。结构校验器不强制这些报告语义，也不证明检查实际执行过。
 
+## DEV及开发相关测试
+
+DEV可在自己的开发上下文执行TDD、单元、局部集成、调试等实现相关测试。DEV-REFINE、DEV-BUG-FIX、DEV-REFACTOR仍是development任务，可用development kind: refine|bug-fix|refactor区分；名称不自动创建Git分支。独立TEST负责冻结候选的业务、回归和统一／系统验证，工具相同不等于职责相同，DEV自测不替代独立TEST结果。
+
 ## TEST
 
 明确范围、准确候选（代码用 Project 限定 SHA，非代码用版本化产物）、环境及限制、计划检查与实际检查。分别记录执行、通过、失败、跳过和未知结果；数量不能单独证明覆盖，应保留有意义的检查名称和实质验证摘要。
@@ -25,3 +29,7 @@
 返工完成本身不证明复测通过、验收获准或 GATE 满足。
 
 面向用户验收参见 [acceptance.md](acceptance.md)，策略检查与后续权限参见 [gates.md](gates.md)。
+
+## TEST／REVIEW产生的FEEDBACK
+
+质量发现保存为FEEDBACK，不自动改成INT。复用已有feedback任务记录及生命周期，记录来源任务、准确候选、观察、预期／实际、环境及证据。按实际加载协议可产生ADVICE／BUG，或带理由不采纳／暂缓，或仅处理环境阻塞而不启动DEV；真实外部新意图仍为INT。宿主使用ADVICE/BUG分流时，需处理项须有明确SOL及相应授权后才进入精修／修复／重构DEV，未变REQ可引用原版本。反馈处置任务完成不证明所关联BUG已经修复。

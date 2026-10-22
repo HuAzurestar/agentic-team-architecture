@@ -1,6 +1,6 @@
 # 公司工作流部署
 
-版本：`feature-delivery/2026-10-22-v9`。
+版本：`feature-delivery/2026-10-22-v10`。
 
 四角色源文件分别为 `orchestrator_agent.md`、`out_socket_agent.md`、`dev_processor_agent.md`、`release_check_agent.md`。`orchestrator` 亦称 `dev-orchestrator`；实际 Agent 不重建、不改名。
 
@@ -17,3 +17,5 @@
 `Align-Decide-Disclose`（对齐—决策—披露）用于notify及需要汇报的协作交流；完整含义与例子见[交流规则](communication.md)。空项可省略，披露只报告已有授权内的实际决定／执行，不替代批准。
 
 `Align-Decide-Disclose`（对齐—决策—披露）用于notify及需要汇报的协作交流；完整含义与例子见[交流规则](communication.md)。空项可省略，披露只报告已有授权内的实际决定／执行，不替代批准。
+
+`v10`区分质量FEEDBACK与外部INT、DEV内测试与独立TEST；反馈后的开发统一主类型DEV，子类可为refine／bug-fix／refactor。ADVICE/BUG的类型注册及关系校验仍属feedback-disposition/v2提案范围，工作约定更新不代表其Skill实现已安装。

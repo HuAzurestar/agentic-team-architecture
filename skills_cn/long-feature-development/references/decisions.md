@@ -11,3 +11,5 @@
 获授权 agent 可以在委托内决定，不固定要求人工二次确认。适用 AGENTS.md 的角色设定可提供有条件的 REQ/SOL 确认权限，按 [confirmation.md](confirmation.md) 中的授权和强制理由规则执行。宿主判断实际范围与授权有效性；自信、难易评估和学习不产生权限，审核能力进化与策略变化由外部负责。
 
 部分决定、修改已决定点或重开时，读取 [confirmation.md](confirmation.md)，其中维护版本与原决定处理要求。面向用户的验收 brief 和答复读取 [acceptance.md](acceptance.md)。这些操作均不依赖临时附件。
+
+TEST／REVIEW执行产生的质量发现使用FEEDBACK记录，不自动创建INT；用户提出的测试／审核请求仍属于外部意图。处置及开发测试与独立TEST的区别参见[任务约定](task-contracts.md)。
