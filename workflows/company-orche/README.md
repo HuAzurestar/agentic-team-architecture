@@ -1,6 +1,6 @@
 # 公司工作流部署
 
-版本：`feature-delivery/2026-10-22-v7`。
+版本：`feature-delivery/2026-10-22-v8`。
 
 四角色源文件分别为 `orchestrator_agent.md`、`out_socket_agent.md`、`dev_processor_agent.md`、`release_check_agent.md`。`orchestrator` 亦称 `dev-orchestrator`；实际 Agent 不重建、不改名。
 
@@ -11,3 +11,5 @@
 用户账号资料可另保存负责人说明，由用户身份核对后经平台 profile 接口写入；不把个人账号内容提交到本公共模板。账号说明不替代逐项授权。
 
 本目录是组织规则，不安装 Skill、通知 adapter 或编号分配器。首次使用还须配置 PM、项目仓库／环境、notify 与身份绑定。自动申请 `feature-key` 必须另有用户授权及配置好的外部分配接口。
+
+`v8`明确按实际上下文进程隔离DEV／REVIEW／TEST／DOCS；INT／REQ／SOL设计可合并，确认另用干净上下文。所有GATE默认用户批准，仅socket在全量REQ和SOL均由其依特许条件确认、本阶段输入已收口且无未处理INT时可代理START；orchestrator没有代理GATE批准权，COMPLETION永远由用户确认。
