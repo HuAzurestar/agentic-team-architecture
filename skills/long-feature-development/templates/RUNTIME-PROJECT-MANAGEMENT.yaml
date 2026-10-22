@@ -1,0 +1,11 @@
+# Runtime-owned persistent data; nulls are not active defaults.
+# Store outside the replaceable skill package, at an explicit runtime-supplied locator.
+profile: null
+revision: example-v1
+runtime identity: null
+management roots: {}
+selected root: null
+project registry: null
+state writer reference: null
+commit policy reference: null
+environment references: {}

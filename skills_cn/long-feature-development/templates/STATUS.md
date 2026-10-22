@@ -1,52 +1,34 @@
----
-title: <feature-key> 状态
----
+# example-feature — STATUS
 
-# <feature-key> 状态
+repository、feature、dev 等综合状态的统一管理入口。这里保存整体状态并链接必要详情，不重复 DESIGN、TASKS、VERBAL 的内容。以下概况项目仅作示例，不规定固定流程。
 
-| 项目 | 当前值 | 备注 |
-| --- | --- | --- |
-| Feature ID | `NO-FEAT-<6-char-random>` | 开发者在合适时分配正式 ID |
-| Previous IDs | - | ID 改变后追加旧别名 |
-| 阶段 | `PLANNING` | 只有已完成 gate 能改变 phase |
-| 条件 | `ACTIVE` | `ACTIVE`、`BLOCKED`、`WAITING_HUMAN`、`WAITING_EXTERNAL` 或终态 `COMPLETE` |
-| 下一流转 | `GATE-START` | 可执行下一次 feature 流转的 gate task |
-| 当前任务 | REQ-001 | 从 TASKS.md 定位，再读取 tasks/REQ-001.md |
-| 当前 gate | GATE-START | 它是 task ID，不是第二套状态机 |
-| 阻塞 | 无 | 阻塞时同时写解除条件 |
+| Item | Current value |
+| --- | --- |
+| Feature key | example-feature |
+| Project keys | example-project |
+| Feature state | PLANNING |
+| Development overview | 尚未开始，未记录实现候选版本 |
+| Integration / release overview | 尚未开始 |
+| Current focus | 处理外部意图并开展详细设计 |
+| Focused work / record | - |
+| State maintainer / access | 由调用方提供 |
+| Authority source / access | 由调用方提供 |
+| Next action | 取得 INT 来源，安排设计工作 |
+| Blocker / release condition | - |
 
-## Repository registry
+## 入口
 
-Path hints 相对于项目管理仓库根目录；CLI 显式映射可以覆盖。
+- [设计索引](DESIGN.md)
+- [任务索引](TASKS.md)
 
-| Repository | Role | Remote | Path hints | Stable branch | Integration branch |
-| --- | --- | --- | --- | --- | --- |
-| `<project-manage-repo>` | project-management | `<remote>` | `.` | `<stable-branch>` | `<feature-management-branch>` |
-| `<implementation-repo>` | implementation | `<remote>` | `../<repo-directory>` | `<stable-branch>` | `<feature-branch>` |
+## Repository 状态与 Project 绑定
 
-## 工作分支
+| Project key | Stable configuration | Repository / sync / integration status | Related work |
+| --- | --- | --- | --- |
+| example-project | ../../project/example-project/project.yaml | 未核实，尚未记录仓库观察结果 | - |
 
-| 仓库 | 本地路径 | 工作分支 | 工作 HEAD SHA | 当前 task |
-| --- | --- | --- | --- | --- |
-| `<project-manage-repo>` | `<path>` | `<branch>` | `DERIVED:HEAD` | `<task>` |
-| `<implementation-repo>` | `<path>` | `<task-branch>` | `<sha>` | `<task>` |
+## 管理边界
 
-## 日常汇入对手分支
+当前仓库综合状态保存在这里；稳定的 remote/local 映射与基本规则仍保存在 Project YAML。汇总整体开发进展和跨任务阻塞，但不维护第二套任务台账。设计决定、任务状态/依赖、提交点和执行报告仍在各自详情与预览中，临时附件清单仍在 VERBAL 中。概况与来源冲突时应报告并核对，不用摘要覆盖详情。
 
-| 仓库 | Integration branch | Integration SHA | 接收对象 | 备注 |
-| --- | --- | --- | --- | --- |
-| `<project-manage-repo>` | `<stable-branch>` | `<observed-sha>` | 项目管理工作分支 | 上次验证的 merge target |
-| `<implementation-repo>` | `<feature-branch>` | `<observed-sha>` | Task branches | 上次验证的 merge target |
-
-## PR/MR 对象
-
-| 对象 | 仓库 | Source branch | Source SHA | Target branch | Target SHA | 备注 |
-| --- | --- | --- | --- | --- | --- | --- |
-| 待创建 | `<repo>` | `<feature-branch>` | `<observed-sha>` | `<stable-branch>` | `<observed-sha>` | 最终评审与合入对象 |
-
-## 远端项目管理对象
-
-| 对象 | 绑定 | 用途 |
-| --- | --- | --- |
-| Requirement | `<remote-or-none>` | 已批准意图 |
-| Solution | `<remote-or-none>` | 当前实施提案 |
+不嵌入当前文档自身的 Git SHA。维护方式和同步由外部提供，Feature 目录不要求处于 Git 仓库。

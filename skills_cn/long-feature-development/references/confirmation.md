@@ -1,73 +1,63 @@
-# 逐点确认
+# 逐点决定、版本与重开
 
-仅在新增、决定、修订或重开 `REQ-*` / `SOL-*` 点时读取本文件。
+决定、部分接受、修订或重开 REQ/SOL 等需判定的设计点时读取。INT 的提出者与来源语义、设计点创建与关联参见 [decisions.md](decisions.md)。
 
-## 决定权限
+## 设计点状态机
 
-- 只有人类明确指出准确点 ID 和结果后，决定才可执行。
-- “全部批准”“看起来没问题”等宽泛回复不能决定任何点。
-- 人类可以在一次回复中决定多个点，但必须逐一列出每个 ID 和结果。
-- 获得推测可能决定的授权时，LLM 先列出每个候选 ID 和准确表述，再请求第二次确认；收到回复前不得更新状态。
-- 只接受一个点的一部分时，先拆成稳定的子点，再请求决定；不得把父点标为已确认。
-
-## 点状态流转
+下图适用于 REQ/SOL 等需要判定的设计点。INT 在提出并留存来源时已经是 RECORDED，不等待此审批流；纠正 INT 时保留提出者和原始说明，不清空来源身份。
 
 ```mermaid
 stateDiagram-v2
     state "OUT-OF-SCOPE" as OUT_OF_SCOPE
     [*] --> PROPOSED
-    PROPOSED --> CONFIRMED: 人类确认准确 ID 和内容
-    PROPOSED --> REJECTED: 人类拒绝
-    PROPOSED --> OUT_OF_SCOPE: 人类标记为范围外
-    PROPOSED --> INFEASIBLE: 人类记录不可行
-
-    REJECTED --> REOPENED: 提案已经修订
-    CONFIRMED --> REOPENED: 人类撤回确认
-    OUT_OF_SCOPE --> REOPENED: 人类重新纳入范围
-    INFEASIBLE --> REOPENED: 约束变化后由人类重开
-
-    REOPENED --> CONFIRMED: 人类确认修订点
-    REOPENED --> REJECTED: 人类拒绝修订点
-    REOPENED --> OUT_OF_SCOPE: 人类将修订点移出范围
-    REOPENED --> INFEASIBLE: 人类确认修订点不可行
+    PROPOSED --> CONFIRMED: 有权确认
+    PROPOSED --> REJECTED: 有权拒绝
+    PROPOSED --> OUT_OF_SCOPE: 有权移出范围
+    PROPOSED --> INFEASIBLE: 有权记录不可行
+    CONFIRMED --> REOPENED: 获授权重开
+    REJECTED --> REOPENED: 修订提案
+    OUT_OF_SCOPE --> REOPENED: 获授权重新纳入范围
+    INFEASIBLE --> REOPENED: 约束变化后获授权重开
+    REOPENED --> CONFIRMED: 确认修订内容
+    REOPENED --> REJECTED: 拒绝修订内容
+    REOPENED --> OUT_OF_SCOPE: 修订内容移出范围
+    REOPENED --> INFEASIBLE: 修订内容不可行
 ```
 
-`CONFIRMED`、`REJECTED`、`OUT-OF-SCOPE` 和 `INFEASIBLE` 是已决定结果。`REJECTED` 可在保留旧版本和理由后修改并进入 `REOPENED`，不需要单独撤回；重开其他已决定结果需要图中所示的人类动作。
+设计点状态不等于处理它的任务状态；任务生命周期参见 [transitions.md](transitions.md)。状态转换不要求每点一个 commit，也不固定要求由人类确认。
 
-活动的 `PROPOSED`、`REOPENED`、`CONFIRMED` 点保留在文档的点章节。`REJECTED`、`OUT-OF-SCOPE`、`INFEASIBLE` 点移动到处置记录，但不得删除其表述或历史。重开的处置项返回活动章节。
+## 明确决定范围
 
-## Task 状态流转
+确定准确的点集合、内容版本、拟作结果、实际确认者和适用委托。明确的批量决定可以指向固定点集合；含糊的“看起来不错”不能静默批准其他点或未来版本。将自然语言决定映射到实际范围，不要求用户操作内部 ID。
 
-```mermaid
-stateDiagram-v2
-    [*] --> PENDING
-    PENDING --> WIP: 依赖完成并记录 start refs
-    WIP --> BLOCKED: 记录阻塞和解除条件
-    BLOCKED --> WIP: 解除条件已经满足
-    WIP --> RECORDING: 点已有决定
-    RECORDING --> DONE: 记录点决定 commit SHA
-    RECORDING --> WIP: 决定记录不完整
-    DONE --> WIP: 点进入 REOPENED
-```
+建议不等于有权作决定。获有效委托的 agent 可在范围内判断，不固定追加人工二次确认；能力、信心和学习偏好不能扩张权限。
 
-已决定点在其决定 commit SHA 写入 task 详情且 `TASKS.md` 一致前保持 `RECORDING`。一个项目管理 commit 可以登记多个彼此独立的点决定 commit。
+只接受一个点的一部分时，单独记录被接受范围，必要时拆为稳定子点；不能把尚未解决的内容标为已确认。
 
-## 决定 Commit
+## AGENTS.md 角色授权
 
-每个决定 commit 只处理一个点：
+REQ 和 SOL 可以由依据适用 AGENTS.md 中有效角色授权作业的 agent 确认为 CONFIRMED。例如，外部授权可以允许指定角色在工作简单且明确列出的条件满足时直接确认。已有有效授权时不再固定追加人工二次确认。角色身份、何为简单、适用条件、允许的理由及限制属于 agent 配置，不由本 skill 定义，也不据此默认豁免所有 agent。
 
-```text
-NO-FEAT-a31f2c/REQ-001: CONFIRMED define login scope
-NO-FEAT-a31f2c/REQ-002: REJECTED require unsupported provider
-NO-FEAT-a31f2c/SOL-001: INFEASIBLE use local cache
-NO-FEAT-a31f2c/REQ-001: REOPENED reconsider login scope
-```
+每次此类确认都必须明确对象及版本、适用角色和授权、实际满足的条件以及具体确认理由。decided by 写实际确认的 agent，decided at 写决定时间，decided with 必须写非空且有实质内容的理由。在 DECISION 任务或指定持久决定记录中，用授权引用保留 AGENTS.md 的规则位置及版本，在决定评论中说明条件如何满足。仅有角色名、信心或“简单”二字不构成理由。此例外改变的是谁可以确认，不豁免理由、范围和历史记录要求。
 
-决定 commit 更新对应点、不可删除的决定历史以及文档派生状态。后续状态 commit 记录该准确 SHA，并完成或重开匹配 task。决定 SHA 已写入后，不得 amend 或改写该 commit。
+授权缺失或条件不满足时，确认保持未决。结构校验器检查记录格式及必填理由，不判断授权是否适用或业务条件是否成立；被委托的 agent 应依据实际配置建立判定依据。
 
-## 派生文档状态
+## 记录结果及依据
 
-- 当且仅当至少存在一个活动需求点、所有活动点均为 `CONFIRMED`，且不存在 `PROPOSED` 或 `REOPENED` 活动点时，`REQUIREMENT.md` 才是 `CONFIRMED`。
-- 当且仅当至少存在一个活动方案点、所有活动点均为 `CONFIRMED`、不存在 `PROPOSED` 或 `REOPENED` 活动点，且其引用需求都已确认时，`SOLUTION.md` 才是 `BASELINED`。
-- 任一点进入 `REOPENED`，其文档立即回到 `DRAFT`。
-- 处置记录不计入活动点，但必须永久保留。
+在 DECISION 任务或外部提供的持久决定记录中，保存对象版本、结论、权限与评论。设计点的 decided by、decided at、decided with 与该结果一致，使用实际确认者和决定时间，不使用代为抄录者。
+
+CONFIRMED、REJECTED、OUT-OF-SCOPE、INFEASIBLE 是已决定结果；拒绝和范围外提案仍需可发现，不能删除。intent 的 RECORDED 只说明外部原话已记录，不表示加工后的方案已批准。拒绝的处理可以完成决定任务，但不会把需求变为已确认。
+
+## 修订不改写批准历史
+
+草稿可在委托范围内细化。修改已决定点时建立新版本或明确的持久变更记录，保留旧元数据、正文、决定和理由。重开已确认、范围外或不可行结果，取得外部策略所需权限，不必固定由人类作出。拒绝提案可修订，但不能把被拒版本伪装为已接受。
+
+确认权限本身不授权 CONFIRMED → REOPENED。重开前还需核实有效授权覆盖重开动作，并满足其列明条件；保留先前 CONFIRMED 状态、确认者、理由和版本，在持久变更/决定记录中记录本次重开的理由及授权。否则保持 CONFIRMED，将拟议变更交由相应有权主体决定。具体重开条件由适用 AGENTS.md 或外部策略定义，本 skill 不提供自动重开豁免。
+
+当前提案重开时，先保留旧决定，再使用 REOPENED 并同时清空当前决定字段；记录变化理由、后续决定权限和输入版本。再次确认只适用于修订内容。
+
+检查下游方案、任务、测试、验收和 GATE 依据是否过期；没有重新作业，不能将它们记录的对象改成新版本或 SHA。DESIGN 预览设计点，STATUS 可汇总影响，不另行产生“整份文档批准”。
+
+### 流程通知I/O
+
+准确的确认请求或可归属决定保存后，调用方可通过[通知hook](notification-hooks.md)传递对象版本及关联。投递不改变确认状态，实际权限仍按上述规则判断。
