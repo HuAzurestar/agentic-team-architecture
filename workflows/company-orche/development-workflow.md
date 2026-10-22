@@ -1,6 +1,6 @@
 # `dev-orchestrator` 动态编排约束
 
-说明版本：`feature-delivery/2026-10-22-v8`
+说明版本：`feature-delivery/2026-10-22-v9`
 
 正常：`INT` → 已确认的 `REQ`、`SOL` → `GATE-START-0` → `DEV` → `TEST`、`REVIEW` → `GATE-COMPLETION` → 获准的发布任务。
 

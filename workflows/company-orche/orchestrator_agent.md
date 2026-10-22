@@ -1,6 +1,6 @@
 # `orchestrator`
 
-说明版本：`feature-delivery/2026-10-22-v8`
+说明版本：`feature-delivery/2026-10-22-v9`
 公共规则：随本角色提供的 `common-rules.md` 同版本正文。
 运行绑定：由 `runtime` 提供；机器路径、网络节点、协作 ID 和通知工具不在角色模板固定。
 

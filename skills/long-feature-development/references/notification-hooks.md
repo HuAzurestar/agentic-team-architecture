@@ -50,3 +50,7 @@ Use a fixture adapter without real external sending: migrate runtime A/B with un
 ## Policy and integration boundary
 
 The helper validates the documented base fields and request/reply correlation, preserves extra JSON data, and does not verify a mandate or receipt's authenticity. The workflow caller supplies and checks applicable policy/mandate/evidence references. Omitted policy metadata is not interpreted as permission. The helpers do not install automatic hooks into the index generator, platform events or state transitions; the authorized workflow calls them at its actual transition points.
+
+## Host communication convention
+
+When the host selects `Align-Decide-Disclose`, present background/current facts in Align, the requested decision/options/scope in Decide, and already authorized autonomous decisions/actions with actual results in Disclose. It applies to user-facing notifications and relevant inter-agent reports; omit empty sections. Disclose does not retroactively authorize an action. The host owns the detailed communication policy; this presentation convention does not add required JSON fields, change event identity or install an adapter.
