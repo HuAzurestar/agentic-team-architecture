@@ -1,29 +1,35 @@
-# Quality task contracts
+# Test, review and rework records
 
-Read only for a quality, acceptance, or gate task. Every task still uses the universal lifecycle in `transitions.md`; these are additional minimum fields in a `## Type contract` table inside `tasks/<task-id>.md`.
+Read when assigning or reporting TEST, REVIEW or REWORK work. These are task-specific fields and body sections under tasks/, not additional directories or state machines. For common lifecycle changes, read [transitions.md](transitions.md).
+
+Use the fields needed by the actual assignment; the shared YAML format permits specialized metadata. The structural checker does not enforce these report semantics or verify that work ran.
+
+## DEV and developer testing
+
+DEV includes implementation-related testing such as TDD, unit tests, local integration and debugging in its own development context. DEV-REFINE, DEV-BUG-FIX and DEV-REFACTOR remain development tasks, optionally distinguished by `development kind: refine|bug-fix|refactor`; these labels do not create Git branches. Independent TEST targets business, regression and unified/system validation of a frozen candidate. Reusing a test tool does not equate these responsibilities, and developer self-checks do not substitute for an independent TEST result.
 
 ## TEST
 
-Required fields: `Target SHA`, `Environment`, `Planned checks`, `Executed`, `Passed`, `Failed`, `Skipped`, `Unknown`, and `Result gist`.
+Identify the scope, exact candidate (Project-qualified SHA for code or a versioned non-code artifact), environment and limitations, planned checks and actual checks. Separate executed, passed, failed, skipped and unknown results. Counts alone do not establish coverage; retain meaningful check names and a substantive verification summary.
 
-- Bind the report to one literal tested SHA. A new implementation SHA requires a new test attempt or task.
-- Counts and short check names belong in the contract; commands, logs, screenshots, failure causes, and coverage detail belong in `gists/TEST-*.md`.
-- `Executed`, `Passed`, `Failed`, `Skipped`, and `Unknown` are separate. Never turn partial execution into “all passed.”
-- Prefer an existing supported Docker test environment. Do not introduce Docker only to satisfy this rule.
-- Commit deterministic mock data only when the project already has an accepted location and the data contains no secrets; otherwise keep it in the test gist or ephemeral test setup.
+Record commands or procedures, failure causes and sufficient reproduction information in the task's durable report. Keep secrets out. Raw logs may be disposable gists annotations but are not the only evidence. Do not report skipped, unavailable or unexecuted checks as passes.
+
+A changed candidate needs a new attempt or task with its own target; the old report stays bound to the old point. Use an existing supported test setup; introducing infrastructure or committing mock data requires an in-scope project need and a safe accepted location, not a universal Docker rule.
 
 ## REVIEW
 
-Required fields: `Target SHA`, `Blocking findings`, `Deferred findings`, and `Result gist`. Put individual comments and long reasoning in `gists/REVIEW-*.md`. A blocking finding creates a dependent `REWORK-*` task; do not mutate the completed development task.
+Identify target points/versions, review scope, findings and their effect, blocking versus deferred items, and the review conclusion. Record deferred-item disposition and the responsible follow-up. Comments need enough context to locate and understand the issue; keep the authoritative findings in the task, not only in raw attachments.
 
-## REWORK
+Do not rewrite a completed development result to make a finding disappear. Track follow-up through a linked REWORK task or an explicitly reopened attempt as selected by the external workflow. A review of one SHA is not a review of a later SHA.
 
-Required fields: `Source findings`, `Target SHA`, `Output SHA`, and `Result gist`. The task depends on the review that found the issue. Retesting is a separate dependent `TEST-*` task so the tested SHA remains explicit.
+## REWORK and verification
 
-## ACCEPT
+Preserve source findings and their target, the requested change, the new output points and remaining findings. Link the originating review/feedback and dependent work. The revised candidate needs the applicable retest or rereview; record its actual scope and evidence separately, using a new task or a distinct retained attempt.
 
-Required fields for newly created tasks: `Target SHA`, `Acceptance scope`, `Decision`, `Decided by`, and `Acceptance brief`. The brief is a declared `gists/` path created from `templates/ACCEPTANCE.md`; legacy completed tasks without this field remain readable. The Agent proposes scope, prepares and proactively shows the plain-language brief, but only the developer supplies the final decision. Keep `Decision` as `WAITING` through WIP. In RECORDING, persist the developer's `CONFIRMED`, `REJECTED`, or `REWORK` decision before completing refs.
+Completion of the rework task alone does not prove that retesting passed, acceptance was granted or a GATE is satisfied.
 
-## GATE
+For user-facing acceptance, read [acceptance.md](acceptance.md). For policy checks and later permission, read [gates.md](gates.md).
 
-Required fields: `From phase`, `To phase`, `Required tasks`, and `Decision ref`. The required task list must match the gate's direct dependencies. `Decision ref` is the project-management commit that records the transition; before recording, use `-`.
+## FEEDBACK from TEST and REVIEW
+
+Preserve reported findings as FEEDBACK, not automatically as INT. Use the existing feedback task record and lifecycle; identify the reporting task, exact candidate, observations, expected/actual behavior, environment and evidence. Handling may derive advice/bug points when supported by the loaded protocol, decline/defer an item with reasons, or address an environment blocker without DEV. A genuine new external intent remains INT. Where the host uses the ADVICE/BUG path, accepted items feed an explicit SOL and the required authorization before DEV refinement/bug-fix/refactoring; unchanged requirements can be referenced without artificial revisions. A completed feedback-handling task records disposition and follow-up, not proof that linked defects are fixed.

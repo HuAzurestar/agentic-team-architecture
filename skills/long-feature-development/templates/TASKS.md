@@ -1,29 +1,30 @@
-# <feature-key> Tasks
+# example-feature — TASKS
 
-This shared file is the only complete task-state and dependency index. Keep short details in `tasks/<task-id>.md`. Use the controlled state writer for normal changes; `task_context.py <feature-directory> --sync-topology` is only for explicit repair or import.
+YAML in tasks/ is the state source. Common columns show ownership, dependencies, timestamps and commit points; type-specific metadata is summarized in detail spec. Sample tasks prescribe no workflow or company policy.
 
-## Task index
+## preview-table
 
-| ID | Type | Name | State | Owner | Depends on | Started at | Completed at | HEAD SHA |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| REQ-001 | Requirement | Decide one requirement point | `PENDING` | - | - | - | - | - |
-| SOL-001 | Solution | Decide one solution point | `PENDING` | - | REQ-001 | - | - | - |
-| GATE-START | Gate | Enter implementation | `PENDING` | - | SOL-001 | - | - | - |
+<!-- tasks-preview-table:start -->
+| id | type | title | state | owner | depends on | started at | completed at | head sha | detail spec |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| [DECISION-001](tasks/DECISION-001.md) | decision | Decide the specified requirement revision | PENDING | - | - | - | - | - | revision: v1<br>inputs: REQ-001@v1<br>result: {executio... |
+| [DEV-001](tasks/DEV-001.md) | development | Implement the assigned solution | PENDING | - | - | - | - | - | revision: v1<br>inputs: REQ-001@v1, SOL-001@v1<br>resul... |
+| [FEEDBACK-001](tasks/FEEDBACK-001.md) | feedback | Process feedback on the specified requirement | PENDING | - | - | - | - | - | revision: v1<br>inputs: REQ-001@v1<br>result: {executio... |
+| [GATE-001](tasks/GATE-001.md) | gate | Evaluate an externally defined gate | PENDING | - | - | - | - | - | revision: v1<br>result: {execution: not_started}<br>res... |
+<!-- tasks-preview-table:end -->
 
-## Dependency topology
+## dependency-topology
 
-<!-- task-topology:start -->
+<!-- tasks-dependency-topology-mermaid:start -->
 ```mermaid
-flowchart LR
-    T0["REQ-001 · Decide one requirement point"]:::pending
-    T1["SOL-001 · Decide one solution point"]:::pending
-    T2["GATE-START · Enter implementation"]:::pending
-    T0 --> T1
-    T1 --> T2
-    classDef pending fill:#e5e7eb,stroke:#6b7280,color:#111827
-    classDef wip fill:#dbeafe,stroke:#2563eb,color:#111827
-    classDef blocked fill:#fee2e2,stroke:#dc2626,color:#111827
-    classDef recording fill:#fef3c7,stroke:#d97706,color:#111827
-    classDef done fill:#dcfce7,stroke:#16a34a,color:#111827
+flowchart TD
+    n0["DECISION-001: Decide the specified requirement revision (PENDING)"]
+    n1["DEV-001: Implement the assigned solution (PENDING)"]
+    n2["FEEDBACK-001: Process feedback on the specified requirement (PENDING)"]
+    n3["GATE-001: Evaluate an externally defined gate (PENDING)"]
 ```
-<!-- task-topology:end -->
+<!-- tasks-dependency-topology-mermaid:end -->
+
+## complementary
+
+Append dated notes here (YYYY-MM-DD — note). Maintain this section and the introduction, not generated regions.

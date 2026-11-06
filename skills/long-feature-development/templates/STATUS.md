@@ -1,52 +1,34 @@
----
-title: <feature-key> Status
----
+# example-feature — STATUS
 
-# <feature-key> Status
+Integrated status-management entry for repository, Feature and development state. Keep overall status here and link to detailed records rather than duplicating DESIGN, TASKS or VERBAL content. The overview items below are examples, not a required workflow.
 
-| Item | Current value | Note |
-| --- | --- | --- |
-| Feature ID | `NO-FEAT-<6-char-random>` | Developer assigns the official ID when appropriate |
-| Previous IDs | - | Append aliases after an ID change |
-| Phase | `PLANNING` | Feature phase; only a completed gate changes it |
-| Condition | `ACTIVE` | `ACTIVE`, `BLOCKED`, `WAITING_HUMAN`, `WAITING_EXTERNAL`, or terminal `COMPLETE` |
-| Next transition | `GATE-START` | Gate task that may perform the next feature transition |
-| Current task | REQ-001 | Locate this row in TASKS.md, then read tasks/REQ-001.md |
-| Current gate | GATE-START | A task ID, not a second state machine |
-| Blocker | None | Include the release condition when blocked |
+| Item | Current value |
+| --- | --- |
+| Feature key | example-feature |
+| Project keys | example-project |
+| Feature state | PLANNING |
+| Development overview | Not started; no implementation candidate recorded |
+| Integration / release overview | Not started |
+| Current focus | Process external intent and begin detailed design |
+| Focused work / record | - |
+| State maintainer / access | Supplied by the caller |
+| Authority source / access | Supplied by the caller |
+| Next action | Obtain the INT source and assign detailed design |
+| Blocker / release condition | - |
 
-## Repository registry
+## Entry points
 
-Path hints are relative to the project-management repository root. A CLI mapping may override them.
+- [Design index](DESIGN.md)
+- [Task index](TASKS.md)
 
-| Repository | Role | Remote | Path hints | Stable branch | Integration branch |
-| --- | --- | --- | --- | --- | --- |
-| `<project-manage-repo>` | project-management | `<remote>` | `.` | `<stable-branch>` | `<feature-management-branch>` |
-| `<implementation-repo>` | implementation | `<remote>` | `../<repo-directory>` | `<stable-branch>` | `<feature-branch>` |
+## Repository status and Project bindings
 
-## Working branches
+| Project key | Stable configuration | Repository / sync / integration status | Related work |
+| --- | --- | --- | --- |
+| example-project | ../../project/example-project/project.yaml | Unverified; no repository observation recorded | - |
 
-| Repository | Local path | Working branch | Working HEAD SHA | Current task |
-| --- | --- | --- | --- | --- |
-| `<project-manage-repo>` | `<path>` | `<branch>` | `DERIVED:HEAD` | `<task>` |
-| `<implementation-repo>` | `<path>` | `<task-branch>` | `<sha>` | `<task>` |
+## Management boundaries
 
-## Integration opponents
+Keep current repository-level status here, leaving stable remote/local mappings and basic rules in Project YAML. Summarize overall development and cross-task blockers without maintaining a second task ledger. Design decisions, task states/dependencies, commit points and execution reports remain in their respective details and previews; disposable attachment lists remain in VERBAL. If an overview conflicts with its source, report and reconcile it rather than overriding the detail.
 
-| Repository | Integration branch | Integration SHA | Receives | Note |
-| --- | --- | --- | --- | --- |
-| `<project-manage-repo>` | `<stable-branch>` | `<observed-sha>` | Project-management work branch | Last verified merge target |
-| `<implementation-repo>` | `<feature-branch>` | `<observed-sha>` | Task branches | Last verified merge target |
-
-## PR/MR objects
-
-| Object | Repository | Source branch | Source SHA | Target branch | Target SHA | Note |
-| --- | --- | --- | --- | --- | --- | --- |
-| Not created | `<repo>` | `<feature-branch>` | `<observed-sha>` | `<stable-branch>` | `<observed-sha>` | Final review and merge target |
-
-## Remote project-management objects
-
-| Object | Binding | Purpose |
-| --- | --- | --- |
-| Requirement | `<remote-or-none>` | Approved intent |
-| Solution | `<remote-or-none>` | Current implementation proposal |
+Do not embed this document's own Git HEAD. State maintenance and synchronization are supplied externally; the Feature directory need not be a Git repository.
