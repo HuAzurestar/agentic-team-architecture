@@ -1,21 +1,22 @@
-# Agent-owned task planning
+# Task planning and decomposition
 
-Read this reference when new work must be added to an existing feature.
+Read when adding, splitting or connecting work in an existing Feature. The caller owns workflow and assignment; this reference defines a usable planning artifact, not who must perform the planning.
 
-## User and Agent boundary
+## Inputs and output
 
-The user supplies the business outcome, constraints, priority, and any required authorization. The Agent owns internal task IDs, task types, dependencies, and requirement/solution selectors. Never ask the user to invent or understand an internal ID merely to start or continue work.
+Use the requested outcome, constraints, priority, applicable INT/REQ/SOL versions and externally supplied authority. Produce task details with scope, expected result, completion conditions, dependencies and a return location. The assigned planner allocates non-conflicting stable IDs; do not require the user to invent internal labels merely to continue.
 
-Ask the user only when a product choice, authorization boundary, destructive action, or genuinely ambiguous scope cannot be derived safely. Show the plan in business language; keep internal labels as optional trace information.
+Return unresolved product choices, permission or materially ambiguous scope to the external orchestrator rather than handing internal bookkeeping to the user. Proactive clarification, channels and questioning methods belong to that workflow. Express plans in business language with optional trace IDs. The planner may allocate internal task IDs, but feature-key must be supplied externally and cannot be generated alongside them.
 
-## Controlled creation
+## Dependencies and scope
 
-Use `scripts/task_create.py` for normal task creation. It allocates the next non-conflicting ID for the selected task type, validates dependencies and point selectors, creates `tasks/<id>.md`, inserts the `TASKS.md` row, and regenerates Mermaid. The Agent supplies repository baselines from observed refs.
+- Split work when scope, owner, candidate version, completion conditions or required authority differ enough to need independent tracking. Do not impose a fixed design/develop/review/test/release chain.
+- `depends on` contains existing task IDs and must be acyclic. Add applicable design relationships or versioned `inputs`; IDs do not need to match the design-point ID.
+- A dependency being DONE means its work was recorded as completed, not that its outcome passed. Express any required successful outcome or approval in the consuming task's completion conditions or the externally defined GATE.
+- When scope changes, examine affected dependencies, review/test targets and remaining work. Keep an explicit disposition for deferred or replaced work rather than silently dropping it from the plan.
 
-Example for Agent use:
+## Create through the supplied state interface
 
-```text
-python scripts/task_create.py <feature-directory> --type Development --name "Add import validation" --depends-on SOL-004 --requirement-points REQ-004 --solution-points SOL-004 --goal "Reject invalid imports" --work "Implement validation and tests" --completion-condition "Invalid rows are rejected with tests" --resume-action "Implement the parser boundary" --repo-ref "app|feature-x|main@<observed-sha>"
-```
+Read current IDs and source revisions, prepare the detail, then update the TASKS table and dependency topology with the script in [generated-region rules](generated-indexes.md). Leave new work PENDING unless an actual assignment has begun. The state maintainer coordinates concurrent writers; ID allocation and writes are not made atomic by this skill.
 
-Do not expose this command as a required user prompt. A failed creation leaves the old index intact and removes the new detail file.
+Follow the required maintenance in [SKILL.md](../SKILL.md) for index synchronization and record checking on every operation. The checker detects duplicate IDs, missing/cyclic dependencies, local-reference mismatches and preview drift; it does not allocate IDs or write business records. Report failed/partial writes for repair rather than treating them as created tasks. For later lifecycle changes, read [transitions.md](transitions.md).

@@ -1,0 +1,28 @@
+# Source, IO inventory and migration
+
+Managed package version: cli-source-3. Initial service/client input: Project-Manage `1c55868ca99c06fb8eb193fd112cd8d0c46310b4`, based on `56c1f9d074a6bef50ddf6eec74cc414de2f42604`. The separately authored R2 candidate `8d02dcabd8a6204d3c6666c2459fb026743f70fc` (direct parent 1c558) has now been consumed by a normal merge, preserving both source commits. The Skill write set is the package and Skill tests; the four R2 files remain attributable to that supplied candidate, not a new implementation here. `task_workflow.py` is consumed from the selected CLI checkout. Old 1c558 REVIEW FAIL/R2 (number/bool receipt equality) remains valid for that input; no independent quality conclusion is inferred for the integrated candidate.
+
+Current source placement is registered AOPC `https://github.com/HuAzurestar/agentic-team-architecture.git`, `skills/long-feature-development/`. Project-Manage `https://github.com/HuAzurestar/project-manage.git` supplies the external CLI, operation catalog and `task_workflow.py`; it contains no Skill package. This split selects source files from e3eae422588f239787f92d525d6ee8cdd2c00255 without transplanting its commit ancestry. Source author receipts remain ANAN-582 comment 01a1aa88-dbbb-7aba-8521-927975c4d000 and ANAN-590 comment 01a1aed6-5d6c-76f1-8b15-0e0525574c00. The pinned installed YAML package was a seed, not a Git repository. Installation and deployment remain separate.
+
+The twelve AOPC-only legacy paths are preserved byte for byte. Their templates and task_context/task_state callers belong to the prior REQUIREMENT/SOLUTION protocol. Current SKILL.md and references select the YAML/CLI protocol and never import those helpers. Legacy tests remain prior-protocol compatibility checks, not validation of the new protocol. No automatic migration or legacy history writer is invoked by the current entrypoint.
+
+| Direct IO in pinned Skill | Classification and current route |
+| --- | --- |
+| SKILL resume, STATUS/focused detail reads | Primary now `context`, `service-context`, canonical `document-get`; no server-root locator |
+| Task state/result/body and handoff/quality persistence | Primary now `update`, `report-save`, `report-get`; own author, caller-granted fields |
+| Design/main document editing | Primary canonical document get/edit/put, exact granted logical path; no filesystem fallback |
+| contract_check.py: `load_record`, `collect`, local refs, project checks, STATUS/index reads | Retained explicit offline export checker; online syntax/identity/graph validation belongs to service |
+| feature_indexes.py: gist enumeration, detail reads, generated-region writes/staging | Retained offline generator only; online service regenerates its supported indexes in its transaction |
+| index_blocks.py | Pure text/marker transformation helper; no PM IO |
+| project_refs.py: project.yaml read and mapping resolution | Retained offline resolver; online repository/context through current CLI |
+| runtime_state.py: explicit root profiles, locks, atomic current-profile replacement | Retained offline configuration only; archive and predecessor-sidecar writes removed. Existing archives are neither read nor deleted by configure. Never use to locate service PM |
+| workflow_events.py: profile reads, delivery ledger locking/writes | Separate offline notification auxiliary, not PM transport; does not send notification automatically |
+| test_*.py | Disposable local fixtures for retained helpers, not independent quality or online service proof |
+| templates and references containing PM-root, local read/write, index/check instructions | Local/offline schema/admin guidance only, superseded for online workflow by SKILL and cli-workflow; archived full prior bodies are not generated in new work |
+| New pm_cli.py local IO | Reads caller boundary/payload/working report; writes explicitly selected current working output; ephemeral task payloads via existing CLI helper; no automatic history |
+
+The retained checker/generator/resolver are not transparently redirected to HTTP: they require a complete local export to perform offline cross-record checks. They must never be used as a silent fallback after an online failure. Offline mutations require separately supplied ownership/coordination; installing this package grants none.
+
+For adoption, freeze the integrated full SHA and run clean independent TEST/REVIEW. Validate the actual service target and own-author scope before official uploads. Copy the complete Skill package only under separate installation authorization; keep the actual CLI in its repository with its operation catalog. Change the selected local CLI configuration/boundary to migrate service targets; no service filesystem path moves to clients. Do not copy runtime AGENTS, credentials or machine profiles into the package.
+
+Pending upstream: automatic STATUS and complete TASKS business derivation, verified official author upload route/readiness/service write coordination. Existing service TASKS table/topology generation is partial real capability. Do not compensate with manual orchestration summaries or invent an endpoint. Until official route verification, own report/candidate remain local and pending upload is explicit. Current management uses role-scoped concurrent maintenance without a shared root lock. Authorized document administration and CLI/API are choices for the same object; rejected or unknown API writes are never automatically replayed through files. Hosted PR with attributed independent reports and actual merge remains release work; source bundle alone is not final repository delivery.
